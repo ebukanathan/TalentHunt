@@ -27,7 +27,7 @@ Database seeding is the next task (F03); no seed command exists yet. Do not run 
 - Builds: npm run build --workspace=apps/api and npm run build --workspace=apps/web
 - Schema: npx --no-install prisma validate
 
-Initial review passed API typechecking, frontend lint, schema validation and a live API health request. The configured database had the initial migration applied and no detected drift. Root/API test scripts are placeholders and deliberately fail; automated testing is tracked by T01/T02. See the setup record for any subsequent build results.
+Initial review passed API typechecking, frontend lint, schema validation and a live API health request. The configured database had the initial migration applied and no detected drift. Root/API test scripts are placeholders and deliberately fail; automated testing is tracked by T01/T02. Both API and web production builds also passed before the initial source publication; clean-checkout reproducibility remains to be verified in F04.
 
 ## Architecture and roadmap
 
