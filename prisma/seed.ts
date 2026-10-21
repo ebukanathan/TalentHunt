@@ -6,7 +6,7 @@ export class SeedConfigurationError extends Error {}
 
 type SeedEnvironment = Record<string, string | undefined>;
 
-/** Deliberately local-only: a remote Supabase URL is not proof of a development target. */
+/** Require an explicit development/test target, including an exact project binding for Supabase. */
 export function readSeedTarget(environment: SeedEnvironment): string {
   if (environment.NODE_ENV === "production" ||
       !["development", "test"].includes(environment.SEED_ENV ?? "")) {
@@ -17,23 +17,21 @@ export function readSeedTarget(environment: SeedEnvironment): string {
     if (!environment.SEED_DATABASE_URL) throw new Error("missing");
     target = new URL(environment.SEED_DATABASE_URL);
   } catch {
-    throw new SeedConfigurationError("Provide an explicit SEED_DATABASE_URL for a local development/test database.");
+    throw new SeedConfigurationError("Provide an explicit SEED_DATABASE_URL for a development/test database.");
   }
-  if (!["postgres:", "postgresql:"].includes(target.protocol) ||
-      !["127.0.0.1", "localhost", "[::1]"].includes(target.hostname) || target.hash) {
-    throw new SeedConfigurationError("Only local PostgreSQL development/test targets are allowed.");
+  if (!["postgres:", "postgresql:"].includes(target.protocol) || target.hash) {
+    throw new SeedConfigurationError("Use a PostgreSQL development/test connection URL without a fragment.");
   }
   let database: string;
-  try { database = decodeURIComponent(target.pathname.slice(1)); }
-  catch { throw new SeedConfigurationError("Invalid development/test database name."); }
-  const allowedName = environment.SEED_ENV === "test"
-    ? /^talenthunt_(?:test|seed_test)(?:_[a-z0-9]+)*$/
-    : /^talenthunt_dev(?:_[a-z0-9]+)*$/;
-  if (!allowedName.test(database) || /prod|live/i.test(database)) {
-    throw new SeedConfigurationError("Use talenthunt_dev or talenthunt_test/talenthunt_seed_test, with an optional suffix.");
+  let username: string;
+  try {
+    database = decodeURIComponent(target.pathname.slice(1));
+    username = decodeURIComponent(target.username);
+  } catch {
+    throw new SeedConfigurationError("Invalid seed database identity.");
   }
-  // Reject routing/identity overrides that could bypass the checked host/database.
-  const allowedOptions = new Set(["schema", "connection_limit", "pool_timeout", "connect_timeout", "sslmode", "statement_cache_size", "application_name"]);
+  // Validate before adding defaults, so duplicate options cannot be silently collapsed.
+  const allowedOptions = new Set(["schema", "connection_limit", "pool_timeout", "connect_timeout", "sslmode", "statement_cache_size", "application_name", "pgbouncer"]);
   const seenOptions = new Set<string>();
   for (const key of target.searchParams.keys()) {
     if (!allowedOptions.has(key) || seenOptions.has(key)) {
@@ -42,7 +40,35 @@ export function readSeedTarget(environment: SeedEnvironment): string {
     seenOptions.add(key);
   }
   if (target.searchParams.has("schema") && target.searchParams.get("schema") !== "public") {
-    throw new SeedConfigurationError("Seed data must use the public schema in the isolated database.");
+    throw new SeedConfigurationError("Seed data must use the public schema in the development/test database.");
+  }
+  if (target.searchParams.has("pgbouncer") && !["true", "false"].includes(target.searchParams.get("pgbouncer")!)) {
+    throw new SeedConfigurationError("The pgbouncer connection option must be true or false.");
+  }
+  const local = ["127.0.0.1", "localhost", "[::1]"].includes(target.hostname);
+  if (local) {
+    const allowedName = environment.SEED_ENV === "test"
+      ? /^talenthunt_(?:test|seed_test)(?:_[a-z0-9]+)*$/
+      : /^talenthunt_dev(?:_[a-z0-9]+)*$/;
+    if (!allowedName.test(database) || /prod|live/i.test(database)) {
+      throw new SeedConfigurationError("Use talenthunt_dev or talenthunt_test/talenthunt_seed_test, with an optional suffix.");
+    }
+  } else {
+    const reference = environment.SEED_SUPABASE_PROJECT_REF ?? "";
+    if (!/^[a-z0-9]{20}$/.test(reference)) {
+      throw new SeedConfigurationError("Explicitly set SEED_SUPABASE_PROJECT_REF for the confirmed development/test project.");
+    }
+    const direct = target.hostname === "db." + reference + ".supabase.co" && Boolean(username);
+    const roleSuffix = "." + reference;
+    const sessionPooler = /^aws-\d+-[a-z0-9-]+\.pooler\.supabase\.com$/.test(target.hostname) &&
+      username.endsWith(roleSuffix) && username.length > roleSuffix.length;
+    if ((!direct && !sessionPooler) || (target.port || "5432") !== "5432" || database !== "postgres") {
+      throw new SeedConfigurationError("Supabase seed URL must match the selected project using its direct or session connection on port 5432 and postgres database.");
+    }
+    if (target.searchParams.has("sslmode") && target.searchParams.get("sslmode") !== "require") {
+      throw new SeedConfigurationError("Supabase seeding requires sslmode=require.");
+    }
+    target.searchParams.set("sslmode", "require");
   }
   target.searchParams.set("connect_timeout", "5");
   return target.toString();
