@@ -18,7 +18,44 @@ The web app runs on http://localhost:3000; the API defaults to http://localhost:
 
 Prisma CLI loads the root .env through prisma.config.ts. npm workspace commands run from their app directory; consistent API runtime environment loading, validation and a shared Prisma client are tracked by F05. The API currently has no database feature endpoints.
 
-Database seeding is the next task (F03); no seed command exists yet. Do not run demo seeds or development/reset migrations against production. Runtime database pooling and migration connection settings must be validated before deployment.
+Demo database seeding is available through npm run db:seed; see the local-only instructions below. Do not run demo seeds or development/reset migrations against production. Runtime database pooling and migration connection settings must be validated before deployment.
+
+## Demo database seeding
+
+The seed creates one DRAFT competition (talenthunt-demo), three fictional contestants and three NGN vote packages. It creates no contacts, payments, allocations or admin accounts. Initial vote totals are zero.
+
+Package names, vote counts and integer-kobo prices are configurable in prisma/seed-data.ts. Keep fixture IDs unchanged to preserve identity. Demo defaults are Starter: 10 votes / 100000 kobo; Supporter: 50 / 500000; Champion: 100 / 1000000. These are demonstration values, not production pricing decisions.
+
+The seed requires a dedicated SEED_DATABASE_URL and SEED_ENV=development or test. It does not fall back to DATABASE_URL. For this implementation only loopback PostgreSQL targets are allowed: development databases named talenthunt_dev[_suffix], or test databases named talenthunt_test[_suffix] / talenthunt_seed_test[_suffix]. Suffixes contain lowercase letters/numbers separated by underscores; prod/live names, remote hosts, routing overrides and non-public schemas are refused. NODE_ENV=production is always refused. The current Supabase database is not a seed target.
+
+From the repository root, after creating a dedicated local development database and using your own local role/password:
+
+```powershell
+$env:SEED_ENV = 'development'
+$env:SEED_DATABASE_URL = 'postgresql://YOUR_LOCAL_ROLE:YOUR_LOCAL_PASSWORD@127.0.0.1:5432/talenthunt_dev'
+# Explicitly point the migration CLI at that same local database.
+$env:DATABASE_URL = $env:SEED_DATABASE_URL
+npx --no-install prisma generate
+npx --no-install prisma migrate deploy
+npm run db:seed
+npm run db:seed
+```
+
+Repeat runs reuse the same IDs. Existing competition/contestant edits, activation flags and vote totals are preserved; configured package metadata is updated. All seed writes are transactional. A conflicting demo ID/slug fails instead of adopting another competition's records. There are no reset, truncate or delete operations, and Prisma disconnects on success or failure. Run one seed process at a time.
+
+### Seed verification
+
+```powershell
+npm run typecheck:seed
+npm run test:seed
+# Create a FRESH isolated database named talenthunt_seed_test (or _suffix).
+$env:SEED_TEST_DATABASE_URL = 'postgresql://YOUR_LOCAL_ROLE:YOUR_LOCAL_PASSWORD@127.0.0.1:5432/talenthunt_seed_test'
+$env:DATABASE_URL = $env:SEED_TEST_DATABASE_URL
+npx --no-install prisma migrate deploy
+npm run test:seed:integration
+```
+
+Integration tests refuse a non-empty target and never reset it. They run the real Prisma seed CLI twice, verify row counts/IDs/relationships and zero initial votes, then exercise preservation, configurable prices, unsafe configuration and transactional rollback. They leave synthetic test data in the isolated target; use a fresh disposable database for the next integration run. A local PostgreSQL installation or disposable PostgreSQL container is sufficient; no payment/email credentials are needed.
 
 ## Verification
 
@@ -27,7 +64,7 @@ Database seeding is the next task (F03); no seed command exists yet. Do not run 
 - Builds: npm run build --workspace=apps/api and npm run build --workspace=apps/web
 - Schema: npx --no-install prisma validate
 
-Initial review passed API typechecking, frontend lint, schema validation and a live API health request. The configured database had the initial migration applied and no detected drift. Root/API test scripts are placeholders and deliberately fail; automated testing is tracked by T01/T02. Both API and web production builds also passed before the initial source publication; clean-checkout reproducibility remains to be verified in F04.
+Initial review passed API typechecking, frontend lint, schema validation and a live API health request. The configured database had the initial migration applied and no detected drift. Root/API test scripts remain placeholders and deliberately fail. Seed-specific automated checks are available above; broader application testing and CI are tracked by T01/T02. Both API and web production builds also passed before the initial source publication; clean-checkout reproducibility remains to be verified in F04.
 
 ## Architecture and roadmap
 
