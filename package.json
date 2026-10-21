@@ -6,7 +6,11 @@
   "scripts": {
     "dev:web": "npm run dev --workspace=apps/web",
     "dev:api": "npm run dev --workspace=apps/api",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "db:seed": "prisma db seed",
+    "typecheck:seed": "tsc -p prisma/tsconfig.json",
+    "test:seed": "tsx --test prisma/seed.test.ts",
+    "test:seed:integration": "tsx --test prisma/seed.integration.test.ts"
   },
   "keywords": [],
   "author": "",
@@ -19,6 +23,10 @@
   ],
   "devDependencies": {
     "dotenv": "^18.0.8",
-    "prisma": "^6.19.0"
+    "prisma": "^6.19.0",
+    "@prisma/client": "6.19.0",
+    "@types/node": "^20.19.43",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
   }
 }
