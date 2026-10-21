@@ -1,0 +1,186 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CompetitionStatus {
+  DRAFT
+  SCHEDULED
+  OPEN
+  CLOSED
+  COMPLETED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+model Competition {
+  id           String            @id @default(cuid())
+  name         String
+  slug         String            @unique
+  description  String?
+  status       CompetitionStatus @default(DRAFT)
+  votingOpens  DateTime?
+  votingCloses DateTime?
+  currency     String            @default("NGN")
+
+  contestants Contestant[]
+  packages    VotePackage[]
+  payments    Payment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Contestant {
+  id            String      @id @default(cuid())
+  competitionId String
+  competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Restrict)
+
+  number     String
+  name       String
+  slug       String
+  bio        String?
+  imageUrl   String?
+  isActive   Boolean @default(true)
+  totalVotes BigInt  @default(0)
+
+  payments    Payment[]
+  allocations VoteAllocation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([competitionId, number])
+  @@unique([competitionId, slug])
+  @@index([competitionId, totalVotes])
+}
+
+model VotePackage {
+  id            String      @id @default(cuid())
+  competitionId String
+  competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Restrict)
+
+  name      String
+  voteCount Int
+  priceKobo Int
+  currency  String  @default("NGN")
+  isActive  Boolean @default(true)
+
+  payments Payment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([competitionId, isActive])
+}
+
+model ContactVerification {
+  id         String    @id @default(cuid())
+  email      String
+  codeHash   String
+  expiresAt  DateTime
+  verifiedAt DateTime?
+  consumedAt DateTime?
+  attempts   Int       @default(0)
+
+  payment Payment?
+
+  createdAt DateTime @default(now())
+
+  @@index([email, expiresAt])
+}
+
+model Payment {
+  id        String @id @default(cuid())
+  reference String @unique
+
+  competitionId String
+  competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Restrict)
+
+  contestantId String
+  contestant   Contestant @relation(fields: [contestantId], references: [id], onDelete: Restrict)
+
+  packageId String
+  package   VotePackage @relation(fields: [packageId], references: [id], onDelete: Restrict)
+
+  verificationId String?              @unique
+  verification   ContactVerification? @relation(fields: [verificationId], references: [id], onDelete: Restrict)
+
+  contactEmail  String
+  amountKobo    Int
+  voteCount     Int
+  currency      String        @default("NGN")
+  status        PaymentStatus @default(PENDING)
+  providerTxnId String?       @unique
+  paidAt        DateTime?
+  refundedAt    DateTime?
+
+  allocation VoteAllocation?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([competitionId, createdAt])
+  @@index([contestantId, status])
+}
+
+model VoteAllocation {
+  id        String  @id @default(cuid())
+  paymentId String  @unique
+  payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+
+  contestantId String
+  contestant   Contestant @relation(fields: [contestantId], references: [id], onDelete: Restrict)
+
+  voteCount Int
+
+  createdAt DateTime @default(now())
+
+  @@index([contestantId, createdAt])
+}
+
+model AdminUser {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+
+  auditLogs AuditLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id      String     @id @default(cuid())
+  adminId String?
+  admin   AdminUser? @relation(fields: [adminId], references: [id], onDelete: Restrict)
+
+  action     String
+  entityType String
+  entityId   String?
+  details    Json?
+  ipAddress  String?
+
+  createdAt DateTime @default(now())
+
+  @@index([adminId, createdAt])
+  @@index([entityType, entityId])
+}

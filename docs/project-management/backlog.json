@@ -1,0 +1,655 @@
+{
+  "repository": "ebukanathan/TalentHunt",
+  "owner": "ebukanathan",
+  "projectTitle": "TalentHunt — Development Roadmap",
+  "reviewedOn": "2026-10-21",
+  "phases": [
+    {
+      "name": "Project Foundation",
+      "gate": "Scaffold and initial migration verified; safe repeatable seed, reproducible source/environment setup and API lifecycle ready."
+    },
+    {
+      "name": "Competition and Contestant Management",
+      "gate": "Protected management and public browsing enforce competition membership, lifecycle and voting windows."
+    },
+    {
+      "name": "Email Verification",
+      "gate": "Deliver, verify, expire, throttle and consume email verification securely; voter verification UI works."
+    },
+    {
+      "name": "Payments and Vote Allocation",
+      "gate": "Server-owned checkout, authenticated verified payments, atomic idempotent votes and reconciliation/refund handling pass."
+    },
+    {
+      "name": "Admin Dashboard",
+      "gate": "Protected management/reporting and auditable operator actions work."
+    },
+    {
+      "name": "Testing, CI/CD and Deployment",
+      "gate": "Critical tests pass in CI; staging, database restore, monitoring and launch rehearsal pass."
+    }
+  ],
+  "labels": [
+    {
+      "name": "area:api",
+      "color": "1D76DB",
+      "description": "Express API and backend services"
+    },
+    {
+      "name": "area:web",
+      "color": "5319E7",
+      "description": "Next.js public and admin interfaces"
+    },
+    {
+      "name": "area:database",
+      "color": "006B75",
+      "description": "Prisma, migrations and database integrity"
+    },
+    {
+      "name": "area:payments",
+      "color": "B60205",
+      "description": "Paystack, payment lifecycle and vote accounting"
+    },
+    {
+      "name": "area:security",
+      "color": "D93F0B",
+      "description": "Authentication, authorization and abuse prevention"
+    },
+    {
+      "name": "area:delivery",
+      "color": "0E8A16",
+      "description": "CI, environments, releases and operations"
+    },
+    {
+      "name": "area:quality",
+      "color": "FBCA04",
+      "description": "Automated tests and release verification"
+    }
+  ],
+  "issues": [
+    {
+      "key": "F01",
+      "phase": 1,
+      "title": "Create workspace, Next.js starter and Express health scaffold",
+      "priority": "P1",
+      "status": "Done",
+      "dependencies": [],
+      "labels": [
+        "area:api",
+        "area:web"
+      ],
+      "description": "Record the narrowly scoped scaffold already present locally. This does not certify a production build or any voting feature.",
+      "acceptance": [
+        "Root npm workspaces contain apps/web and apps/api with development commands.",
+        "Express health route returns HTTP 200 and status ok.",
+        "API TypeScript check and frontend lint pass."
+      ],
+      "evidence": [
+        "package.json defines both workspaces and dev:web/dev:api. apps/web/src/app/page.tsx is the generated starter; apps/api/src/app.ts exposes /api/v1/health.",
+        "2026-10-21: tsc -p apps/api/tsconfig.json --noEmit and npm run lint --workspace=apps/web exited 0; a live ephemeral-port health request returned 200/status ok.",
+        "Local source is untracked and GitHub is empty. Publishing the source is F04."
+      ],
+      "sources": []
+    },
+    {
+      "key": "F02",
+      "phase": 1,
+      "title": "Define initial Prisma models and verify initial database migration",
+      "priority": "P1",
+      "status": "Done",
+      "dependencies": [],
+      "labels": [
+        "area:database"
+      ],
+      "description": "Record the existing initial data model and applied migration. Domain and payment invariants remain separate implementation work.",
+      "acceptance": [
+        "Eight domain models and CompetitionStatus/PaymentStatus enums exist in schema and initial SQL migration.",
+        "Prisma validates the schema and migration history is current in the configured database.",
+        "A read-only live database comparison finds no difference from the Prisma data model."
+      ],
+      "evidence": [
+        "prisma/schema.prisma and prisma/migrations/20261021044148_init/migration.sql define Competition, Contestant, VotePackage, ContactVerification, Payment, VoteAllocation, AdminUser and AuditLog.",
+        "2026-10-21: prisma validate exited 0. prisma migrate status exited 0: one migration, database schema up to date.",
+        "2026-10-21: prisma migrate diff --from-schema-datasource prisma/schema.prisma --to-schema-datamodel prisma/schema.prisma --exit-code exited 0: No difference detected.",
+        "Checks establish the configured database state at review time, not production readiness, backups or restored data reliability."
+      ],
+      "sources": []
+    },
+    {
+      "key": "F03",
+      "phase": 1,
+      "title": "Implement repeatable development database seeding",
+      "priority": "P1",
+      "status": "Next",
+      "dependencies": [
+        "F02"
+      ],
+      "labels": [
+        "area:database"
+      ],
+      "description": "Make database seeding the next development task. Create fictional fixtures for competition and voter development without generating paid votes or unsafe credentials.",
+      "acceptance": [
+        "Add prisma/seed.ts and configure the Prisma 6.19 seed command with an explicitly resolvable TypeScript runner.",
+        "Seed a fictional competition, contestants and positive integer-kobo vote packages with stable identifiers; a second run produces no duplicates.",
+        "Require an explicit development/test database target and refuse production or ambiguous targets. Perform no resets or truncation.",
+        "Use no real contacts, real payments, allocated votes or hard-coded admin passwords. Document commands and prerequisites.",
+        "On an isolated development database run twice and verify counts, relations, zero vote totals and clean disconnection on success/failure."
+      ],
+      "evidence": [
+        "No seed file or migrations.seed setting exists in the reviewed tree. F02 migration prerequisites are verified."
+      ],
+      "sources": []
+    },
+    {
+      "key": "F04",
+      "phase": 1,
+      "title": "Publish a reproducible source and environment baseline",
+      "priority": "P1",
+      "status": "Backlog",
+      "dependencies": [
+        "F01",
+        "F02"
+      ],
+      "labels": [
+        "area:delivery",
+        "documentation"
+      ],
+      "description": "Local Git has no commits or remote; the existing public GitHub repository is empty. Establish a safe source baseline and reproducible setup.",
+      "acceptance": [
+        "Review ignore rules for .env variants, dependencies, build outputs and local artifacts; add a secret-free .env.example and root README.",
+        "Document npm ci, app commands, Prisma generation, migration/seed commands, runtime requirements and runtime versus migration database URLs.",
+        "Review staged content for secrets, make the initial commit, configure the intended remote and push a default branch.",
+        "Verify a clean checkout installs, typechecks, lints and builds both apps; record/fix Next.js font or network requirements.",
+        "Document web -> Express -> Prisma/PostgreSQL ownership; browser code receives no database or payment provider secret."
+      ],
+      "evidence": [
+        "git log reports no commits; git remote -v is empty; all application files are untracked. GitHub reports ebukanathan/TalentHunt is public and empty.",
+        "The project-management setup itself will not commit, push or change repository visibility."
+      ],
+      "sources": []
+    },
+    {
+      "key": "F05",
+      "phase": 1,
+      "title": "Add API configuration, Prisma lifecycle and safe error handling",
+      "priority": "P1",
+      "status": "Backlog",
+      "dependencies": [
+        "F02"
+      ],
+      "labels": [
+        "area:api",
+        "area:security"
+      ],
+      "description": "Build a small service foundation before feature routes. Current middleware is Helmet, localhost CORS and JSON parsing, with a health endpoint only.",
+      "acceptance": [
+        "Share one appropriately managed Prisma client, validate server configuration and implement graceful HTTP/database shutdown.",
+        "Add validated input, consistent sanitized errors, request IDs, structured logs and meaningful readiness checks.",
+        "Configure explicit frontend origins and body limits; reserve a webhook route that retains original signed bytes before general JSON parsing.",
+        "Verify bad input, missing configuration, unavailable database and shutdown without exposing secrets or unnecessary personal data."
+      ],
+      "evidence": [],
+      "sources": []
+    },
+    {
+      "key": "C01",
+      "phase": 2,
+      "title": "Implement protected competition lifecycle and vote-package management",
+      "priority": "P1",
+      "status": "Backlog",
+      "dependencies": [
+        "F03",
+        "F05",
+        "A01"
+      ],
+      "labels": [
+        "area:api",
+        "area:database"
+      ],
+      "description": "Implement authorized competition/package services. Existing schema fields do not establish business rules or working endpoints.",
+      "acceptance": [
+        "Validate DRAFT/SCHEDULED/OPEN/CLOSED/COMPLETED transitions, UTC windows and opens-before-closes.",
+        "Enforce positive integer priceKobo/voteCount, supported currency, package ownership and slug uniqueness; add appropriate database checks via reviewed migrations.",
+        "Authorize all mutations, write audit events and preserve existing payment snapshots after package edits.",
+        "Test forbidden access, invalid transitions, duplicate slugs, negative values, closed windows and deactivation."
+      ],
+      "evidence": [],
+      "sources": []
+    },
+    {
+      "key": "C02",
+      "phase": 2,
+      "title": "Implement protected contestant management and cross-competition guards",
+      "priority": "P1",
+      "status": "Backlog",
+      "dependencies": [
+        "C01"
+      ],
+      "labels": [
+        "area:api",
+        "area:database"
+      ],
+      "description": "Provide contestant editing and deactivation with integrity rules preventing attribution to another competition.",
+      "acceptance": [
+        "Implement protected create/update/list/deactivate endpoints with pagination and validated contestant fields/image URLs.",
+        "Enforce contestant number/slug uniqueness per competition and consistent competition membership of contestant, package and payment; state which invariants the database enforces.",
+        "Preserve referenced history and reject edits that corrupt historical attribution.",
+        "Test cross-competition references, inactive contestants, duplicate identifiers and unauthorized mutation."
+      ],
+      "evidence": [],
+      "sources": []
+    },
+    {
+      "key": "C03",
+      "phase": 2,
+      "title": "Build public competition pages, contestant profiles and leaderboard",
+      "priority": "P1",
+      "status": "Backlog",
+      "dependencies": [
+        "C02"
+      ],
+      "labels": [
+        "area:web",
+        "area:api"
+      ],
+      "description": "Replace the generated homepage with read-only public competition and contestant views.",
+      "acceptance": [
+        "Show competition state, contestants, profiles and active packages with loading, empty, not-found and error states.",
+        "Define tie ordering/leaderboard visibility and pagination; serialize BigInt vote totals safely as decimal strings.",
+        "Show eligibility/voting-window state; enforce it again at checkout on the server.",
+        "Check responsive layout and keyboard access; public responses expose no voter contact, payment details or admin-only fields."
+      ],
+      "evidence": [],
+      "sources": []
+    },
+    {
+      "key": "E01",
+      "phase": 3,
+      "title": "Send verification codes with expiry and abuse controls",
+      "priority": "P1",
+      "status": "Backlog",
+      "dependencies": [
+        "F05"
+      ],
+      "labels": [
+        "area:api",
+        "area:security"
+      ],
+      "description": "Implement transactional email delivery and code issuance. ContactVerification currently provides a data model only.",
+      "acceptance": [
+        "Choose/configure an email provider and development fake with documented environment variables.",
+        "Generate cryptographically random codes, store only a keyed hash suitable for short OTPs, and enforce expiry, resend cooldown and per-address/per-IP limits.",
+        "Invalidate superseded challenges, give generic responses and exclude codes/personal data from logs.",
+        "Test provider failure, resend/concurrent issuance, throttling and expiry."
+      ],
+      "evidence": [],
+      "sources": []
+    },
+    {
+      "key": "E02",
+      "phase": 3,
+      "title": "Verify email and atomically consume checkout authorization",
+      "priority": "P0",
+      "status": "Backlog",
+      "dependencies": [
+        "E01"
+      ],
+      "labels": [
+        "area:api",
+        "area:security"
+      ],
+      "description": "Bind verification to a short-lived single-use checkout authorization. Nullable Payment.verificationId does not enforce verified email.",
+      "acceptance": [
+        "Enforce expiration/attempt limits and safe hash comparison; return a scoped opaque authorization after successful verification.",
+        "Bind authorization to server-side normalized email/challenge state; client fields cannot assert verification.",
+        "Consume authorization atomically with local payment creation and document retry behavior after provider initialization failures.",
+        "Test brute force, replay, expired codes, email substitution and concurrent consumption."
+      ],
+      "evidence": [],
+      "sources": []
+    },
+    {
+      "key": "E03",
+      "phase": 3,
+      "title": "Build the voter email-verification flow",
+      "priority": "P1",
+      "status": "Backlog",
+      "dependencies": [
+        "E02",
+        "C03"
+      ],
+      "labels": [
+        "area:web"
+      ],
+      "description": "Add email and code entry before checkout while retaining the selected contestant/package.",
+      "acceptance": [
+        "Support code entry, resend countdown, expiry, edit-email and recoverable delivery errors.",
+        "Use accessible labels/focus and display server errors; client validation never substitutes for server verification.",
+        "Retain voting selection without exposing authorization in URLs/analytics; recover gracefully from expired authorization."
+      ],
+      "evidence": [],
+      "sources": []
+    },
+    {
+      "key": "P01",
+      "phase": 4,
+      "title": "Initialize Paystack checkout using server-owned payment snapshots",
+      "priority": "P0",
+      "status": "Backlog",
+      "dependencies": [
+        "E02",
+        "C02"
+      ],
+      "labels": [
+        "area:payments",
+        "area:api"
+      ],
+      "description": "Create local pending payments and hosted checkout from trusted server records rather than client prices or vote quantities.",
+      "acceptance": [
+        "Recheck competition window, active contestant/package, membership and verified-email authorization during payment creation.",
+        "Generate a unique reference and persist immutable amountKobo, currency, voteCount and attribution before provider interaction.",
+        "Use Paystack test mode and backend-only secrets; validate checkout/callback URLs and return only necessary checkout data.",
+        "Define idempotent submission/retry handling for provider timeouts without inconsistent references or duplicate authorization consumption.",
+        "Test amount tampering, cross-competition selection, package edits, repeated submission and initialization failure."
+      ],
+      "evidence": [],
+      "sources": []
+    },
+    {
+      "key": "P02",
+      "phase": 4,
+      "title": "Authenticate Paystack webhooks and verify payment facts",
+      "priority": "P0",
+      "status": "Backlog",
+      "dependencies": [
+        "P01"
+      ],
+      "labels": [
+        "area:payments",
+        "area:security"
+      ],
+      "description": "Accept provider signals only after authenticity and transaction checks. A browser redirect cannot prove payment.",
+      "acceptance": [
+        "Preserve the signed webhook payload and verify x-paystack-signature using the documented HMAC-SHA512 scheme and safe comparison.",
+        "For supported success events verify server-side provider facts and match status, reference, transaction ID, amount and currency against immutable local records.",
+        "Reject/quarantine mismatches and unknown references without votes; separate test/live configuration and keep secrets/personal payloads out of logs.",
+        "Acknowledge only after durable processing or durable handoff; verify invalid signatures, wrong amounts/currency, provider failure and transient retry behavior."
+      ],
+      "evidence": [],
+      "sources": [
+        "https://paystack.com/docs/payments/webhooks/",
+        "https://paystack.com/docs/payments/verify-payments/"
+      ]
+    },
+    {
+      "key": "P03",
+      "phase": 4,
+      "title": "Allocate paid votes exactly once under concurrent delivery",
+      "priority": "P0",
+      "status": "Backlog",
+      "dependencies": [
+        "P02"
+      ],
+      "labels": [
+        "area:payments",
+        "area:database"
+      ],
+      "description": "Finalize payments and allocate votes atomically. Existing uniqueness constraints alone do not prove safe counter updates.",
+      "acceptance": [
+        "Commit payment PAID, one allocation and an atomic contestant totalVotes increment in one database transaction using conditional transitions/locking.",
+        "Use one idempotent finalizer for webhooks, status refresh and reconciliation; enforce unique payment/provider references.",
+        "Match allocation contestant/vote count to the payment snapshot and document policy for confirmation arriving after voting closes.",
+        "Run PostgreSQL concurrency and failure-injection tests: duplicate callbacks and status/webhook races produce one allocation/increment, with full rollback on failure."
+      ],
+      "evidence": [],
+      "sources": []
+    },
+    {
+      "key": "P04",
+      "phase": 4,
+      "title": "Build checkout return, payment status and voter receipt screens",
+      "priority": "P1",
+      "status": "Backlog",
+      "dependencies": [
+        "P03",
+        "E03"
+      ],
+      "labels": [
+        "area:web",
+        "area:payments"
+      ],
+      "description": "Complete the voter journey using trusted server payment/allocation state.",
+      "acceptance": [
+        "Support hosted checkout, bounded status polling, reload recovery and pending/paid/failed/cancelled retry states.",
+        "Show paid only after verified payment and allocation; redirect parameters cannot grant votes.",
+        "Protect status/receipt access using a scoped unguessable token or equivalent authorization; avoid email/payment leaks through enumerable IDs.",
+        "Verify successful, failed, abandoned, delayed-webhook and return-before-webhook journeys in test mode."
+      ],
+      "evidence": [],
+      "sources": []
+    },
+    {
+      "key": "P05",
+      "phase": 4,
+      "title": "Reconcile payments and implement auditable refund/vote-reversal handling",
+      "priority": "P0",
+      "status": "Backlog",
+      "dependencies": [
+        "P03"
+      ],
+      "labels": [
+        "area:payments",
+        "area:database"
+      ],
+      "description": "Recover from missed events and define refunds/disputes before taking real money. REFUNDED status currently has no reversal ledger.",
+      "acceptance": [
+        "Provide bounded retryable reconciliation using the shared idempotent finalizer for pending/inconsistent payments.",
+        "Document late-payment, refund, partial-refund and dispute policy; unsupported cases have a safe documented manual process.",
+        "Add immutable uniquely keyed reversal records through a reviewed migration when votes reverse; preserve original allocations and prevent repeated or negative reversals.",
+        "Compare counters to allocations less applicable reversals, alert on mismatch and audit repair/refund operations.",
+        "Test repeated refunds, missing callbacks and interrupted/retried reconciliation; document provider/dashboard recovery."
+      ],
+      "evidence": [],
+      "sources": []
+    },
+    {
+      "key": "A01",
+      "phase": 5,
+      "title": "Implement administrator authentication and protected API access",
+      "priority": "P0",
+      "status": "Backlog",
+      "dependencies": [
+        "F05"
+      ],
+      "labels": [
+        "area:security",
+        "area:api"
+      ],
+      "description": "Implement minimal admin security before management endpoints. Pull this prerequisite forward before C01 despite its phase grouping.",
+      "acceptance": [
+        "Document the auth choice: securely hashed AdminUser credentials and one-time bootstrap without default passwords, or an explicit migration to Supabase Auth.",
+        "Use expiring revocable sessions and secure cookies; protect cookie-based mutations from CSRF and validate allowed origins.",
+        "Apply shared API authorization, inactive-admin checks and login throttling; hiding frontend pages is insufficient.",
+        "Test unauthorized access, logout/expiry, inactive users and brute-force limits; redact credentials."
+      ],
+      "evidence": [],
+      "sources": []
+    },
+    {
+      "key": "A02",
+      "phase": 5,
+      "title": "Build admin management screens and audit trail",
+      "priority": "P1",
+      "status": "Backlog",
+      "dependencies": [
+        "A01",
+        "C02"
+      ],
+      "labels": [
+        "area:web",
+        "area:api"
+      ],
+      "description": "Provide a small authenticated interface for operating competitions, contestants and packages.",
+      "acceptance": [
+        "Support login/logout and validated management forms with useful server errors.",
+        "Confirm lifecycle/destructive operations and prevent unsafe edits to referenced history.",
+        "Persist actor/action/entity and sanitized change details; provide a protected paginated audit view.",
+        "Verify each management journey on desktop/mobile and reject direct unauthorized API access."
+      ],
+      "evidence": [],
+      "sources": []
+    },
+    {
+      "key": "A03",
+      "phase": 5,
+      "title": "Build admin payment, vote and reconciliation reporting",
+      "priority": "P1",
+      "status": "Backlog",
+      "dependencies": [
+        "A01",
+        "P05"
+      ],
+      "labels": [
+        "area:web",
+        "area:payments"
+      ],
+      "description": "Let the solo operator inspect and resolve discrepancies without manually editing PostgreSQL.",
+      "acceptance": [
+        "Provide paginated filters by competition, state, date and reference; distinguish gross/refunded/net money and vote totals.",
+        "Show payment/allocation/reversal history and discrepancies; authorize and audit retry/repair actions.",
+        "Restrict voter contact access and exclude secrets; protect CSV against formula injection if exporting.",
+        "Verify integer-minor-unit reporting against known paid/failed/refunded fixtures and ledger totals."
+      ],
+      "evidence": [],
+      "sources": []
+    },
+    {
+      "key": "T01",
+      "phase": 6,
+      "title": "Establish security and payment-integrity regression tests",
+      "priority": "P0",
+      "status": "Backlog",
+      "dependencies": [
+        "P03",
+        "P05",
+        "E02",
+        "A01"
+      ],
+      "labels": [
+        "area:quality",
+        "area:payments"
+      ],
+      "description": "Establish an isolated integration harness and cross-feature regression suite. Feature-specific acceptance tests belong in each implementation.",
+      "acceptance": [
+        "Apply migrations and deterministic fixtures to isolated PostgreSQL; tests refuse production targets.",
+        "Cover verification abuse/replay, authorization, amount/membership tampering, duplicate/out-of-order events, concurrency, rollback and refunds.",
+        "Mock provider boundaries deterministically and document a separate sandbox smoke path.",
+        "Replace failing placeholder test scripts and prove breaking idempotency or authorization fails the relevant tests."
+      ],
+      "evidence": [],
+      "sources": []
+    },
+    {
+      "key": "T02",
+      "phase": 6,
+      "title": "Add pull-request CI checks and migration validation",
+      "priority": "P1",
+      "status": "Backlog",
+      "dependencies": [
+        "F04"
+      ],
+      "labels": [
+        "area:delivery",
+        "area:quality"
+      ],
+      "description": "Start CI early and extend it as tests arrive. Root/API test scripts currently fail as placeholders and no workflows exist.",
+      "acceptance": [
+        "Configure GitHub Actions with supported pinned runtime, npm ci, Prisma generation/validation, API typecheck, web lint and production builds.",
+        "Apply migrations to disposable PostgreSQL and run implemented tests; PR jobs have no production/provider-live credentials.",
+        "Use least-privilege permissions, safe caching and clear failure output.",
+        "Demonstrate default-branch and PR runs; document required checks and available branch-protection capabilities."
+      ],
+      "evidence": [],
+      "sources": []
+    },
+    {
+      "key": "T03",
+      "phase": 6,
+      "title": "Deploy staging with separated credentials and controlled migrations",
+      "priority": "P0",
+      "status": "Backlog",
+      "dependencies": [
+        "T02",
+        "P04",
+        "A02"
+      ],
+      "labels": [
+        "area:delivery",
+        "area:database",
+        "area:security"
+      ],
+      "description": "Deploy the web/API and Supabase PostgreSQL to staging with separate data and Paystack test keys.",
+      "acceptance": [
+        "Choose/document hosts, region and settings with isolated development/staging/production credentials.",
+        "Validate runtime pooling versus migration connections, TLS and connection limits; secure exposed Supabase tables via appropriate grants/RLS and server-only privileged keys.",
+        "Run prisma migrate deploy in a controlled release step; never migrate dev, reset or demo-seed production.",
+        "Configure HTTPS, origins, readiness and webhook URL; pass a complete verification/payment/allocation staging journey.",
+        "Document deploy/rollback order and backward-compatible migrations; migration failure blocks release."
+      ],
+      "evidence": [],
+      "sources": []
+    },
+    {
+      "key": "T04",
+      "phase": 6,
+      "title": "Prove database recovery and add monitoring/runbooks",
+      "priority": "P0",
+      "status": "Backlog",
+      "dependencies": [
+        "T03",
+        "P05"
+      ],
+      "labels": [
+        "area:delivery",
+        "area:database"
+      ],
+      "description": "Establish recoverability and visibility. An applied migration is not proof of reliable backups.",
+      "acceptance": [
+        "Verify actual Supabase plan backup/retention/restore capabilities, define RPO/RTO and time an isolated restore rehearsal.",
+        "After restore verify migration state, relations and payment/allocation/reversal consistency; save evidence and operator steps.",
+        "Alert on availability/errors, old pending payments, webhook failures, reconciliation mismatches and connection exhaustion.",
+        "Document privacy/log retention and recovery for provider outage, key compromise, migration failure and unavailable database."
+      ],
+      "evidence": [],
+      "sources": []
+    },
+    {
+      "key": "T05",
+      "phase": 6,
+      "title": "Complete release rehearsal and approve paid-voting launch",
+      "priority": "P0",
+      "status": "Backlog",
+      "dependencies": [
+        "T01",
+        "T03",
+        "T04",
+        "A03"
+      ],
+      "labels": [
+        "area:quality",
+        "area:delivery",
+        "area:security"
+      ],
+      "description": "Use an evidence-based go/no-go gate before real paid traffic.",
+      "acceptance": [
+        "Rehearse mobile/desktop verification, payment success/failure/abandonment, delayed events and admin operations.",
+        "Exercise expected peak traffic, duplicate events, closing boundaries and database/provider failures; record acceptable limits.",
+        "Review dependency/secret scans, authorization, CORS/CSRF, Supabase exposure and privacy/payment/refund disclosures.",
+        "Verify production migration, backups, TLS, live webhook/provider settings and monitoring; complete a controlled live payment/reconciliation check with approved refund handling.",
+        "Record owner go/no-go and rollback evidence. Unresolved critical payment/security risks block launch."
+      ],
+      "evidence": [],
+      "sources": []
+    }
+  ]
+}
