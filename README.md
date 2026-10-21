@@ -18,7 +18,7 @@ The web app runs on http://localhost:3000; the API defaults to http://localhost:
 
 Prisma CLI loads the root .env through prisma.config.ts. npm workspace commands run from their app directory; consistent API runtime environment loading, validation and a shared Prisma client are tracked by F05. The API currently has no database feature endpoints.
 
-Demo database seeding is available through npm run db:seed; see the local-only instructions below. Do not run demo seeds or development/reset migrations against production. Runtime database pooling and migration connection settings must be validated before deployment.
+Demo database seeding is available through npm run db:seed; see the development/test instructions below. Do not run demo seeds or development/reset migrations against production. Runtime database pooling and migration connection settings must be validated before deployment.
 
 ## Demo database seeding
 
@@ -26,7 +26,7 @@ The seed creates one DRAFT competition (talenthunt-demo), three fictional contes
 
 Package names, vote counts and integer-kobo prices are configurable in prisma/seed-data.ts. Keep fixture IDs unchanged to preserve identity. Demo defaults are Starter: 10 votes / 100000 kobo; Supporter: 50 / 500000; Champion: 100 / 1000000. These are demonstration values, not production pricing decisions.
 
-The seed requires a dedicated SEED_DATABASE_URL and SEED_ENV=development or test. It does not fall back to DATABASE_URL. For this implementation only loopback PostgreSQL targets are allowed: development databases named talenthunt_dev[_suffix], or test databases named talenthunt_test[_suffix] / talenthunt_seed_test[_suffix]. Suffixes contain lowercase letters/numbers separated by underscores; prod/live names, remote hosts, routing overrides and non-public schemas are refused. NODE_ENV=production is always refused. The current Supabase database is not a seed target.
+The seed requires a dedicated SEED_DATABASE_URL and SEED_ENV=development or test. It does not fall back to DATABASE_URL. Local databases must be named talenthunt_dev[_suffix], or talenthunt_test[_suffix] / talenthunt_seed_test[_suffix] in test mode. A remote Supabase target additionally requires an exact SEED_SUPABASE_PROJECT_REF; other remote hosts, identity mismatches, routing overrides, repeated options and non-public schemas are refused. NODE_ENV=production and SEED_ENV=production are always refused.
 
 From the repository root, after creating a dedicated local development database and using your own local role/password:
 
@@ -42,6 +42,23 @@ npm run db:seed
 ```
 
 Repeat runs reuse the same IDs. Existing competition/contestant edits, activation flags and vote totals are preserved; configured package metadata is updated. All seed writes are transactional. A conflicting demo ID/slug fails instead of adopting another competition's records. There are no reset, truncate or delete operations, and Prisma disconnects on success or failure. Run one seed process at a time.
+
+### Supabase development seeding
+
+Only select a project confirmed to be development/test. Set SEED_DATABASE_URL to its connection string and SEED_SUPABASE_PROJECT_REF to that same project's reference. The guard binds direct host identity or the session-pooler username to this reference and requires the postgres database on port 5432 with SSL. It accepts an existing boolean pgbouncer option. Connection formats follow the [Supabase connection guide](https://supabase.com/docs/guides/database/connecting-to-postgres).
+
+Set these values for the current shell session, without saving credentials or permissions into committed files:
+
+    $env:SEED_ENV = 'development'
+    $env:SEED_SUPABASE_PROJECT_REF = 'YOUR_PROJECT_REF'
+    $env:SEED_DATABASE_URL = 'YOUR_DEVELOPMENT_SUPABASE_DIRECT_OR_SESSION_URL'
+    npm run db:seed
+    npm run db:seed
+    Remove-Item Env:SEED_ENV, Env:SEED_DATABASE_URL, Env:SEED_SUPABASE_PROJECT_REF
+
+The Prisma CLI still loads DATABASE_URL from the root .env; the seed itself connects only through the dedicated target. Existing migrations must already be applied. The automated integration suite remains local and refuses the Supabase postgres database.
+
+When promoting this project to production, set NODE_ENV=production, remove all SEED_* settings from local/deployment configuration, and review/remove fictional demo records before launch. The seed cannot infer that a hosted project has changed purpose; its production refusal depends on these explicit settings. No demo seed is part of deployment.
 
 ### Seed verification
 
