@@ -2,7 +2,7 @@
 
 A paid talent-show voting platform under development with Next.js, TypeScript, Express, Prisma, PostgreSQL/Supabase and Paystack.
 
-Current implementation: npm workspaces, a generated Next.js starter, an Express health endpoint, and an initial Prisma schema/migration. Voting, email verification, payments and the admin dashboard are roadmap work.
+Current implementation: npm workspaces, a generated Next.js starter, an Express public read API and health endpoint, and an initial Prisma schema/migration. Voting, email verification, payments and the admin dashboard are roadmap work.
 
 ## Development setup
 
@@ -16,7 +16,7 @@ Validated tooling at initial review: Node.js 24.15.0 and npm 11.12.1. Use the re
 
 The web app runs on http://localhost:3000; the API defaults to http://localhost:4000. The health endpoint is GET /api/v1/health. The API CORS origin is currently fixed to localhost:3000.
 
-Prisma CLI loads the root .env through prisma.config.ts. npm workspace commands run from their app directory; consistent API runtime environment loading, validation and a shared Prisma client are tracked by F05. The API currently has no database feature endpoints.
+Prisma CLI loads the root .env through prisma.config.ts. The API loads process settings first, then apps/api/.env, then root .env, validates startup configuration and uses a shared Prisma client. See [Core REST API](docs/api/core-rest-api.md) for browser/Postman requests, public response contracts and isolated test commands. Broader readiness/logging work remains in F05.
 
 Demo database seeding is available through npm run db:seed; see the development/test instructions below. Do not run demo seeds or development/reset migrations against production. Runtime database pooling and migration connection settings must be validated before deployment.
 
@@ -81,7 +81,7 @@ Integration tests refuse a non-empty target and never reset it. They run the rea
 - Builds: npm run build --workspace=apps/api and npm run build --workspace=apps/web
 - Schema: npx --no-install prisma validate
 
-Initial review passed API typechecking, frontend lint, schema validation and a live API health request. The configured database had the initial migration applied and no detected drift. Root/API test scripts remain placeholders and deliberately fail. Seed-specific automated checks are available above; broader application testing and CI are tracked by T01/T02. Both API and web production builds also passed before the initial source publication; clean-checkout reproducibility remains to be verified in F04.
+Initial review passed API typechecking, frontend lint, schema validation and a live API health request. The configured database had the initial migration applied and no detected drift. The root test script remains a placeholder. API HTTP/database tests run with npm test --workspace=apps/api against an explicit fresh local API_TEST_DATABASE_URL; seed-specific checks are documented above. Broader application testing and CI remain tracked by T01/T02. Both API and web production builds also passed before the initial source publication; clean-checkout reproducibility remains to be verified in F04.
 
 ## Architecture and roadmap
 
