@@ -76,4 +76,4 @@ npm run typecheck:test --workspace=apps/api
 npm test --workspace=apps/api
 ~~~
 
-Tests cover successful requests, empty results, inactive/cross-show filtering, explicit competition selection, malformed/unknown IDs, exact BigInt JSON strings above Number.MAX_SAFE_INTEGER, unknown routes, health compatibility and sanitized asynchronous/database errors. No payments, email verification or administrator endpoints are implemented.
+Tests cover successful requests, empty results, inactive/cross-show filtering, explicit competition selection, malformed/unknown IDs, exact BigInt JSON strings above Number.MAX_SAFE_INTEGER, unknown routes, health compatibility and sanitized asynchronous/database errors. No payment, transactional email or administrator endpoints are implemented. Voter email verification is not required. Future checkout requires contact email without OTP/link verification; see the [proposed checkout, payment and confirmation API](checkout-and-confirmations.md).

@@ -1,69 +1,150 @@
-import Image from "next/image";
+import { Suspense } from "react";
+import { getPublicShow } from "@/lib/api/public-data";
+import { CompetitionStatus } from "@/components/competition-status";
+import {
+  ContestantCard,
+  ContestantPortrait,
+} from "@/components/contestant-card";
+import {
+  NoCompetition,
+  PageSkeleton,
+  UnavailableState,
+} from "@/components/page-states";
+import { Arrow, ButtonLink, EmptyState, SectionHeading } from "@/components/ui";
 
-export default function Home() {
+export default function HomePage() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <Suspense fallback={<PageSkeleton />}>
+      <HomeContent />
+    </Suspense>
+  );
+}
+async function HomeContent() {
+  const show = await getPublicShow();
+  if (show.kind === "empty") return <NoCompetition />;
+  if (show.kind === "unavailable") return <UnavailableState />;
+  const { competition, contestants } = show;
+  const featured = contestants[0];
+  return (
+    <>
+      <section className="hero container" aria-labelledby="hero-heading">
+        <div className="hero-copy">
+          <p className="eyebrow">
+            <span className="small-star" aria-hidden="true">
+              ✦
+            </span>{" "}
+            THIS IS THEIR MOMENT. BE PART OF IT.
           </p>
+          <h1 id="hero-heading">
+            A stage for the <em>remarkable.</em>
+          </h1>
+          <p className="hero-intro">
+            Discover extraordinary talent. Find your favourites. Be part of the
+            story from the very beginning.
+          </p>
+          <ButtonLink href="/contestants">
+            Meet the contestants <Arrow />
+          </ButtonLink>
+          <div className="hero-competition">
+            <span className="eyebrow">NOW IN THE SPOTLIGHT</span>
+            <p>{competition.name}</p>
+            <CompetitionStatus competition={competition} />
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        <div className="hero-art">
+          <div className="stage-ring" aria-hidden="true" />
+          <div className="stage-star" aria-hidden="true">
+            ✦
+          </div>
+          {featured ? (
+            <div className="featured-talent">
+              <ContestantPortrait contestant={featured} />
+              <div className="featured-caption">
+                <span className="eyebrow">DISCOVER THE LINEUP</span>
+                <span>{featured.name}</span>
+                <span className="featured-caption-note">
+                  One stage. Endless possibility.
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="stage-placeholder" aria-hidden="true">
+              <span>TH</span>
+              <p>
+                THE NEXT BIG MOMENT
+                <br />
+                STARTS HERE
+              </p>
+            </div>
+          )}
+          <span className="stage-side-note" aria-hidden="true">
+            TALENT DESERVES TO BE SEEN
+          </span>
         </div>
-      </main>
-    </div>
+      </section>
+      <div className="stage-band">
+        <div className="container">
+          <span>Extraordinary people.</span>
+          <span aria-hidden="true">✦</span>
+          <span>Unforgettable moments.</span>
+          <span aria-hidden="true">✦</span>
+          <span>A shared spotlight.</span>
+        </div>
+      </div>
+      <section
+        className="container section"
+        aria-labelledby="competition-heading"
+      >
+        <div className="competition-overview">
+          <p className="eyebrow">THE COMPETITION</p>
+          <div>
+            <h2 id="competition-heading">{competition.name}</h2>
+            <p>
+              {competition.description ||
+                "A platform for remarkable talent to step into the spotlight. Explore this competition and get to know its contestants."}
+            </p>
+          </div>
+          <span className="overview-star" aria-hidden="true">
+            ✳
+          </span>
+        </div>
+      </section>
+      <section
+        className="container section lineup-section"
+        aria-label="Contestant preview"
+      >
+        <SectionHeading
+          eyebrow="THE PEOPLE BEHIND THE MOMENT"
+          title="Meet the talent."
+        >
+          <ButtonLink href="/contestants" secondary>
+            Explore the lineup <Arrow />
+          </ButtonLink>
+        </SectionHeading>
+        {contestants.length ? (
+          <div className="contestant-grid">
+            {contestants.slice(0, 3).map((contestant) => (
+              <ContestantCard key={contestant.id} contestant={contestant} />
+            ))}
+          </div>
+        ) : (
+          <EmptyState title="The lineup is on its way">
+            Contestants will appear here when they are announced. Watch this
+            space.
+          </EmptyState>
+        )}
+      </section>
+      <section className="container closing-section">
+        <span className="eyebrow">DISCOVERY STARTS WITH YOU</span>
+        <h2>
+          Your next favourite
+          <br />
+          is waiting in the <em>spotlight.</em>
+        </h2>
+        <ButtonLink href="/contestants">
+          Find your favourite <Arrow />
+        </ButtonLink>
+      </section>
+    </>
   );
 }
