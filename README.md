@@ -2,7 +2,9 @@
 
 A paid talent-show voting platform under development with Next.js, TypeScript, Express, Prisma, PostgreSQL/Supabase and Paystack.
 
-Current implementation: npm workspaces, a generated Next.js starter, an Express public read API and health endpoint, and an initial Prisma schema/migration. Voting, email verification, payments and the admin dashboard are roadmap work.
+Current implementation: npm workspaces, a public Next.js interface, an Express public read API and health endpoint, and an initial Prisma schema/migration. Voting checkout, payments, transactional confirmations and the admin dashboard remain roadmap work.
+
+Product decision (24 October 2026): checkout requires an email address for receipts, voting confirmations, transaction communication and support, with no voter OTP or verification link. Payment verification and vote allocation are independent of email delivery. See [paid voting requirements](docs/product/paid-voting-requirements.md) and the [proposed Paystack, API and schema plan](docs/api/checkout-and-confirmations.md). These are planning updates; no payment/schema implementation or migration is applied by this change. Marketing requires separate appropriate consent.
 
 ## Development setup
 

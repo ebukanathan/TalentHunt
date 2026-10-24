@@ -24,7 +24,7 @@ for (const issue of plan.issues) {
   if (issue.dependencies.some(x => !keys.has(x))) throw new Error('Unknown dependency: ' + issue.key);
   if (issue.status === 'Done' && !issue.evidence.length) throw new Error('Done without evidence');
 }
-if (plan.issues.filter(x => x.status === 'Next').map(x => x.key).join() !== 'F03') throw new Error('Seeding must be the only Next issue');
+if (plan.issues.filter(x => x.status === 'Next').length > 1) throw new Error('Solo roadmap permits at most one Next issue');
 const ordered = [];
 const pending = [...plan.issues];
 while (pending.length) {
@@ -58,8 +58,12 @@ function readProjectFields(projectNumber, fallback) {
   return {fields:response.data.user.projectV2.fields.nodes.filter(x=>x.name)};
 }
 function body(issue, links = {}) {
-  const dependencies = issue.dependencies.length
-    ? issue.dependencies.map(k => '- Depends on ' + (links[k] ? '[' + k + '](' + links[k] + ')' : k) + '.').join('\n')
+  const dependencyLines = [
+    ...issue.dependencies.map(k => '- Depends on ' + (links[k] ? '[' + k + '](' + links[k] + ')' : k) + '.'),
+    ...(issue.externalDependencies ?? []).map(url => '- Depends on ' + url + '.'),
+  ];
+  const dependencies = dependencyLines.length
+    ? dependencyLines.join('\n')
     : '- None.';
   return '# ' + issue.key + ': ' + issue.title + '\n\n' +
     issue.description + '\n\n' +
@@ -70,7 +74,7 @@ function body(issue, links = {}) {
     '\n\n## Dependencies\n\n' + dependencies +
     '\n\n## Evidence and verification\n\n' +
     (issue.evidence.length ? issue.evidence.map(x => '- ' + x).join('\n') : '- Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.') +
-    '\n\n**Review baseline:** 21 October 2026 (Africa/Lagos). Repository review is local; source publication is tracked by F04.' +
+    '\n\n**Review baseline:** ' + plan.reviewedOn + ' (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.' +
     (issue.sources.length ? '\n\n## References\n\n' + issue.sources.map(x => '- ' + x).join('\n') : '') + '\n';
 }
 const overview = '# Proposed TalentHunt backlog\n\nNo GitHub changes have been executed by --plan.\n\n' +
