@@ -4,9 +4,11 @@ import helmet from "helmet";
 import { errorHandler, HttpError } from "./http/errors";
 import { createPublicRouter } from "./routes/public.routes";
 import type { PublicApi } from "./services/public.service";
+import { createPaymentsRouter } from "./routes/payments.routes";
+import type { PaymentInitializationApi } from "./services/payment-initialization.service";
 
 /** Injectable composition keeps HTTP tests on their explicitly selected database. */
-export function createApp(service: PublicApi) {
+export function createApp(service: PublicApi, payments?: PaymentInitializationApi) {
   const app = express();
   app.use(helmet());
   app.use(cors({ origin: "http://localhost:3000" }));
@@ -20,6 +22,7 @@ export function createApp(service: PublicApi) {
   });
 
   app.use("/api/v1", createPublicRouter(service));
+  app.use("/api/v1/payments", createPaymentsRouter(payments));
   app.use((_request, _response, next) => {
     next(new HttpError(404, "ROUTE_NOT_FOUND", "Route not found."));
   });

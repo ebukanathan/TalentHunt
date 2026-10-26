@@ -28,6 +28,13 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum PaymentInitializationState {
+  STARTED
+  READY
+  REJECTED
+  UNKNOWN
+}
+
 model Competition {
   id           String            @id @default(cuid())
   name         String
@@ -130,7 +137,8 @@ model Payment {
   paidAt        DateTime?
   refundedAt    DateTime?
 
-  allocation VoteAllocation?
+  allocation     VoteAllocation?
+  initialization PaymentInitialization?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -138,6 +146,19 @@ model Payment {
   @@index([status, createdAt])
   @@index([competitionId, createdAt])
   @@index([contestantId, status])
+}
+
+// One permanent retry capability and at most one provider dispatch per payment.
+// No legacy payments are backfilled; an unknown outcome requires reconciliation.
+model PaymentInitialization {
+  idempotencyKeyHash String                     @id
+  requestHash        String
+  paymentId          String                     @unique
+  payment            Payment                    @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  state              PaymentInitializationState @default(STARTED)
+  authorizationUrl   String?
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
 }
 
 model VoteAllocation {

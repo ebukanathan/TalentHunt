@@ -2,7 +2,11 @@
 
 A paid talent-show voting platform under development with Next.js, TypeScript, Express, Prisma, PostgreSQL/Supabase and Paystack.
 
-Current implementation: npm workspaces, a generated Next.js starter, an Express public read API and health endpoint, and an initial Prisma schema/migration. Voting, email verification, payments and the admin dashboard are roadmap work.
+Current implementation: npm workspaces, an Express public read API and health endpoint, the initial Prisma schema/migration and PAY-01 test checkout initialization. The public Next.js interface is in a separate Stage 3 PR. Payment finalization, paid votes, transactional confirmations and the admin dashboard remain roadmap work.
+
+Product decision (24 October 2026): checkout requires an email address for receipts, voting confirmations, transaction communication and support, with no voter OTP or verification link. Payment verification and vote allocation are independent of email delivery. See [paid voting requirements](docs/product/paid-voting-requirements.md) and the [broader Paystack, API and schema plan](docs/api/checkout-and-confirmations.md). Confirmation delivery and legacy verification removal remain proposals. Marketing requires separate appropriate consent.
+
+PAY-01 adds test-only `POST /api/v1/payments/initialize` with server-owned prices, PENDING purchase snapshots and durable retry protection. See [configuration, request examples and payment tests](docs/api/payment-initialization.md). Checkout initialization does not confirm payment, allocate votes or send email. Paystack credentials are optional as a complete configuration; when absent, public reads work and initialization returns 503.
 
 ## Development setup
 
