@@ -59,6 +59,8 @@ Malformed IDs return 400/VALIDATION_ERROR with field/message details. IDs may co
 
 The existing /api/v1/health response remains compatible: status "ok" and its existing message. It is a process health check, not a database readiness check.
 
+Test checkout initialization is documented separately in [PAY-01](payment-initialization.md). Public reads continue to work without Paystack configuration. Initialization uses `email` (stored as Payment.contactEmail), not email ownership verification, and grants no votes.
+
 ## Implementation
 
 Routes match URLs, controllers validate request parameters with Zod and build response envelopes, and services perform scoped Prisma queries. src/lib/prisma.ts provides the reusable client. The server closes HTTP connections and disconnects Prisma on shutdown; it never disconnects after individual requests. The app factory accepts a service for isolated HTTP tests. BigInt JSON conversion and error handling are centralized.
@@ -76,4 +78,4 @@ npm run typecheck:test --workspace=apps/api
 npm test --workspace=apps/api
 ~~~
 
-Tests cover successful requests, empty results, inactive/cross-show filtering, explicit competition selection, malformed/unknown IDs, exact BigInt JSON strings above Number.MAX_SAFE_INTEGER, unknown routes, health compatibility and sanitized asynchronous/database errors. No payment, transactional email or administrator endpoints are implemented. Voter email verification is not required. Future checkout requires contact email without OTP/link verification; see the [proposed checkout, payment and confirmation API](checkout-and-confirmations.md).
+Public-read tests cover successful requests, empty results, inactive/cross-show filtering, explicit competition selection, malformed/unknown IDs, exact BigInt JSON strings above Number.MAX_SAFE_INTEGER, unknown routes, health compatibility and sanitized asynchronous/database errors. The API test command now also requires PAYMENTS_TEST_DATABASE_URL for the separate [PAY-01 initialization tests](payment-initialization.md). Payment finalization, transactional email and administrator endpoints remain unimplemented. Voter email verification is not required; checkout requires email without OTP/link verification.

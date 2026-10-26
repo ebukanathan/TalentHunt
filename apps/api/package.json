@@ -7,7 +7,9 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
-    "test": "tsx --test test/public-api.test.ts",
+    "test": "tsx --test test/public-api.test.ts test/payment-unit.test.ts test/payment-integration.test.ts",
+    "test:payments:unit": "tsx --test test/payment-unit.test.ts",
+    "test:payments:integration": "tsx --test test/payment-integration.test.ts",
     "typecheck:test": "tsc -p tsconfig.test.json"
   },
   "keywords": [],

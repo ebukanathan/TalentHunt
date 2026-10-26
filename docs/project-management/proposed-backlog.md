@@ -13,9 +13,9 @@ No GitHub changes have been executed by --plan.
 | C02 | 2 | P1 | Backlog | C01 | Implement protected contestant management and cross-competition guards |
 | C03 | 2 | P1 | Backlog | None | Build public competition pages, contestant profiles and leaderboard |
 | E01 | 3 | P1 | Backlog | E02, P03, F05 | Deliver transactional voting confirmations with safe retries |
-| E02 | 3 | P0 | Next | F02 | Prepare history-preserving checkout email and confirmation schema |
+| E02 | 3 | P0 | Backlog | F02 | Prepare history-preserving checkout email and confirmation schema |
 | E03 | 3 | P1 | Backlog | P01 | Build required-email checkout without OTP or verification links |
-| P01 | 4 | P0 | Backlog | E02, C02, F05 | Initialize Paystack checkout using server-owned payment snapshots |
+| P01 | 4 | P0 | In Progress | F02, F03 | PAY-01: Paystack test configuration and payment initialization |
 | P02 | 4 | P0 | Backlog | P01 | Authenticate Paystack webhooks and verify payment facts |
 | P03 | 4 | P0 | Backlog | P02, E02 | Allocate paid votes exactly once under concurrent delivery |
 | P04 | 4 | P1 | Backlog | P03, E03 | Build checkout return, payment status and voter receipt screens |
@@ -57,7 +57,7 @@ Record the narrowly scoped scaffold already present locally. This does not certi
 - 2026-10-21: tsc -p apps/api/tsconfig.json --noEmit and npm run lint --workspace=apps/web exited 0; a live ephemeral-port health request returned 200/status ok.
 - Local source is untracked and GitHub is empty. Publishing the source is F04.
 
-**Review baseline:** 2026-10-24 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ---
 
@@ -90,7 +90,7 @@ Record the existing initial data model and applied migration. Domain and payment
 - 2026-10-21: prisma migrate diff --from-schema-datasource prisma/schema.prisma --to-schema-datamodel prisma/schema.prisma --exit-code exited 0: No difference detected.
 - Checks establish the configured database state at review time, not production readiness, backups or restored data reliability.
 
-**Review baseline:** 2026-10-24 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ---
 
@@ -122,7 +122,7 @@ Make database seeding the next development task. Create fictional fixtures for c
 
 - No seed file or migrations.seed setting exists in the reviewed tree. F02 migration prerequisites are verified.
 
-**Review baseline:** 2026-10-24 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ---
 
@@ -156,7 +156,7 @@ Local Git has no commits or remote; the existing public GitHub repository is emp
 - git log reports no commits; git remote -v is empty; all application files are untracked. GitHub reports ebukanathan/TalentHunt is public and empty.
 - The project-management setup itself will not commit, push or change repository visibility.
 
-**Review baseline:** 2026-10-24 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ---
 
@@ -187,7 +187,7 @@ Build a small service foundation before feature routes. Current middleware is He
 
 - Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.
 
-**Review baseline:** 2026-10-24 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ---
 
@@ -220,7 +220,7 @@ Implement authorized competition/package services. Existing schema fields do not
 
 - Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.
 
-**Review baseline:** 2026-10-24 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ---
 
@@ -251,7 +251,7 @@ Provide contestant editing and deactivation with integrity rules preventing attr
 
 - Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.
 
-**Review baseline:** 2026-10-24 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ---
 
@@ -286,7 +286,7 @@ Stage 3 public pages use the completed public read API (#27). Deliver #29 homepa
 
 - Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.
 
-**Review baseline:** 2026-10-24 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ---
 
@@ -322,7 +322,7 @@ Replace OTP delivery with one combined payment receipt and successful voting con
 
 - Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.
 
-**Review baseline:** 2026-10-24 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ## References
 
@@ -340,7 +340,7 @@ Next proposed issue for the confirmed no-verification decision. Review the Payst
 
 **Priority:** P0
 
-**Initial status:** Next
+**Initial status:** Backlog
 
 **Labels:** area:database, area:api, area:security
 
@@ -362,7 +362,7 @@ Next proposed issue for the confirmed no-verification decision. Review the Payst
 
 - Planning review only: source runtime has no OTP/payment flow; seed integration test still counts ContactVerification. Read-only configured development counts on 2026-10-24: payments=0, linkedPayments=0, ContactVerification=0, allocations=0. No schema or data changes performed.
 
-**Review baseline:** 2026-10-24 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ## References
 
@@ -399,43 +399,45 @@ Collect contact email at checkout for receipts, voting confirmations, transactio
 
 - Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.
 
-**Review baseline:** 2026-10-24 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ---
 
-# P01: Initialize Paystack checkout using server-owned payment snapshots
+# P01: PAY-01: Paystack test configuration and payment initialization
 
-Initialize hosted Paystack checkout using required contact email with no ownership verification and immutable server-owned financial snapshots. Email delivery is not called or required at initialization.
+Approved PAY-01 first slice only: strict contestantId/packageId/email input, PostgreSQL-owned integer-kobo snapshot, PENDING payment and test checkout with permanent hashed UUIDv4 retry capability. Provider initialization is not payment confirmation.
 
 **Phase:** Payments and Vote Allocation
 
 **Priority:** P0
 
-**Initial status:** Backlog
+**Initial status:** In Progress
 
 **Labels:** area:payments, area:api
 
 ## Acceptance criteria
 
-- [ ] Accept contestantId, packageId and required contactEmail; validate syntax/length/control characters, trim and normalize domain, preserve local part, and reject unknown fields including client prices, votes and verification tokens.
-- [ ] Recheck competition status/window and active same-competition contestant/package, derive amount/currency/votes server-side, generate unique reference, and persist PENDING plus immutable Payment.contactEmail before provider interaction.
-- [ ] Pass stored contactEmail as Paystack email, exact integer minor-unit amount/currency/reference and allowlisted callback URL from the backend; separate test/live credentials and expose no secret keys.
-- [ ] Add a new empty CheckoutAttempt table through a reviewed forward migration for scoped idempotency/request hash, session binding, initialization lease, provider authorization data and hashed expiring receipt capability. Never change historical payments.
-- [ ] Same session/key/payload reuses one payment/reference; conflicting payload returns 409. Handle ambiguous provider initialization timeouts by reconciling the same reference before retry; do not assume a Paystack generic idempotency-key API or create references blindly.
-- [ ] Issue scoped receipt/status access through the web origin/BFF with a Secure HttpOnly cookie and origin/session protections; contact email/reference alone cannot authorize private data reads.
-- [ ] Test unverified valid email, missing/invalid email, client tampering, package edits, cross-competition membership, voting-window boundaries, concurrent submissions, provider timeout/failure and email-provider outage. No OTP/link gate or marketing enrollment.
+- [ ] Validate server-only test configuration and reject live keys; placeholders only in .env.example; missing configuration disables payment initialization without breaking public reads.
+- [ ] Implement POST /api/v1/payments/initialize with strict Zod contestantId/packageId/email plus random UUIDv4 Idempotency-Key; map email to immutable Payment.contactEmail without registration/OTP.
+- [ ] Check active same-competition contestant/package, OPEN voting window and configured competition pin; require NGN and stored integer priceKobo/voteCount; reject client financial fields.
+- [ ] Commit PENDING payment and additive PaymentInitialization retry state before dispatching to Paystack. Preserve all historical migrations, payment values and legacy verification objects.
+- [ ] Return reference/authorizationUrl only after a validated provider initialization result. Identical successful replay returns the saved result; changed payload conflicts; concurrent, timed-out or crashed attempts cannot dispatch again.
+- [ ] Sanitize provider errors and secret-bearing exception causes. Cache definite rejection; uncertain acceptance requires reconciliation instead of automatic takeover/new reference.
+- [ ] Pass unit, real HTTP/PostgreSQL integration, migration-preservation, concurrency and provider/database failure-window checks. Document setup, endpoint tests and explicit test-only limitations.
+- [ ] Open a feature-branch PR linked to #13; no webhooks, payment finalization, vote allocation, email delivery, receipt endpoints or live features. Keep issue open until review/merge.
 
 ## Dependencies
 
-- Depends on E02.
-- Depends on C02.
-- Depends on F05.
+- Depends on F02.
+- Depends on F03.
+- Depends on https://github.com/ebukanathan/TalentHunt/issues/27.
 
 ## Evidence and verification
 
-- Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.
+- PAY-01 validation: Prisma generation/validation, API build and test typecheck passed; 5 payment unit, 9 payment HTTP/PostgreSQL integration and 13 public API checks passed across validated runs.
+- Migration rehearsal preserved full legacy payment/verification/allocation/contestant snapshots; 5 seed unit and 6 seed integration checks passed; no schema drift. No hosted migration or real provider call. PR linked in issue #13; keep In Progress until review/merge.
 
-**Review baseline:** 2026-10-24 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ## References
 
@@ -473,7 +475,7 @@ Accept provider signals only after authenticity and transaction checks. A browse
 
 - Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.
 
-**Review baseline:** 2026-10-24 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ## References
 
@@ -512,7 +514,7 @@ Finalize payments and allocate votes atomically. Existing uniqueness constraints
 
 - Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.
 
-**Review baseline:** 2026-10-24 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ---
 
@@ -546,7 +548,7 @@ Complete the voter journey using trusted server payment/allocation state.
 
 - Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.
 
-**Review baseline:** 2026-10-24 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ---
 
@@ -580,7 +582,7 @@ Recover from missed events and define refunds/disputes before taking real money.
 
 - Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.
 
-**Review baseline:** 2026-10-24 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ---
 
@@ -611,7 +613,7 @@ Implement minimal admin security before management endpoints. Pull this prerequi
 
 - Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.
 
-**Review baseline:** 2026-10-24 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ---
 
@@ -643,7 +645,7 @@ Provide a small authenticated interface for operating competitions, contestants 
 
 - Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.
 
-**Review baseline:** 2026-10-24 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ---
 
@@ -676,7 +678,7 @@ Let the solo operator inspect and resolve discrepancies without manually editing
 
 - Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.
 
-**Review baseline:** 2026-10-24 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ---
 
@@ -713,7 +715,7 @@ Establish an isolated integration harness and cross-feature regression suite. Fe
 
 - Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.
 
-**Review baseline:** 2026-10-24 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ---
 
@@ -744,7 +746,7 @@ Start CI early and extend it as tests arrive. Root/API test scripts currently fa
 
 - Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.
 
-**Review baseline:** 2026-10-24 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ---
 
@@ -780,7 +782,7 @@ Deploy the web/API and Supabase PostgreSQL to staging with separate data and Pay
 
 - Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.
 
-**Review baseline:** 2026-10-24 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ---
 
@@ -813,7 +815,7 @@ Establish recoverability and visibility. An applied migration is not proof of re
 
 - Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.
 
-**Review baseline:** 2026-10-24 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ---
 
@@ -849,4 +851,4 @@ Use an evidence-based go/no-go gate before real paid traffic.
 
 - Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.
 
-**Review baseline:** 2026-10-24 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.

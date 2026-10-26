@@ -2,7 +2,7 @@
   "repository": "ebukanathan/TalentHunt",
   "owner": "ebukanathan",
   "projectTitle": "TalentHunt — Development Roadmap",
-  "reviewedOn": "2026-10-24",
+  "reviewedOn": "2026-10-26",
   "phases": [
     {
       "name": "Project Foundation",
@@ -314,7 +314,7 @@
       "phase": 3,
       "title": "Prepare history-preserving checkout email and confirmation schema",
       "priority": "P0",
-      "status": "Next",
+      "status": "Backlog",
       "dependencies": [
         "F02"
       ],
@@ -371,35 +371,41 @@
     {
       "key": "P01",
       "phase": 4,
-      "title": "Initialize Paystack checkout using server-owned payment snapshots",
+      "title": "PAY-01: Paystack test configuration and payment initialization",
       "priority": "P0",
-      "status": "Backlog",
+      "status": "In Progress",
       "dependencies": [
-        "E02",
-        "C02",
-        "F05"
+        "F02",
+        "F03"
       ],
       "labels": [
         "area:payments",
         "area:api"
       ],
-      "description": "Initialize hosted Paystack checkout using required contact email with no ownership verification and immutable server-owned financial snapshots. Email delivery is not called or required at initialization.",
+      "description": "Approved PAY-01 first slice only: strict contestantId/packageId/email input, PostgreSQL-owned integer-kobo snapshot, PENDING payment and test checkout with permanent hashed UUIDv4 retry capability. Provider initialization is not payment confirmation.",
       "acceptance": [
-        "Accept contestantId, packageId and required contactEmail; validate syntax/length/control characters, trim and normalize domain, preserve local part, and reject unknown fields including client prices, votes and verification tokens.",
-        "Recheck competition status/window and active same-competition contestant/package, derive amount/currency/votes server-side, generate unique reference, and persist PENDING plus immutable Payment.contactEmail before provider interaction.",
-        "Pass stored contactEmail as Paystack email, exact integer minor-unit amount/currency/reference and allowlisted callback URL from the backend; separate test/live credentials and expose no secret keys.",
-        "Add a new empty CheckoutAttempt table through a reviewed forward migration for scoped idempotency/request hash, session binding, initialization lease, provider authorization data and hashed expiring receipt capability. Never change historical payments.",
-        "Same session/key/payload reuses one payment/reference; conflicting payload returns 409. Handle ambiguous provider initialization timeouts by reconciling the same reference before retry; do not assume a Paystack generic idempotency-key API or create references blindly.",
-        "Issue scoped receipt/status access through the web origin/BFF with a Secure HttpOnly cookie and origin/session protections; contact email/reference alone cannot authorize private data reads.",
-        "Test unverified valid email, missing/invalid email, client tampering, package edits, cross-competition membership, voting-window boundaries, concurrent submissions, provider timeout/failure and email-provider outage. No OTP/link gate or marketing enrollment."
+        "Validate server-only test configuration and reject live keys; placeholders only in .env.example; missing configuration disables payment initialization without breaking public reads.",
+        "Implement POST /api/v1/payments/initialize with strict Zod contestantId/packageId/email plus random UUIDv4 Idempotency-Key; map email to immutable Payment.contactEmail without registration/OTP.",
+        "Check active same-competition contestant/package, OPEN voting window and configured competition pin; require NGN and stored integer priceKobo/voteCount; reject client financial fields.",
+        "Commit PENDING payment and additive PaymentInitialization retry state before dispatching to Paystack. Preserve all historical migrations, payment values and legacy verification objects.",
+        "Return reference/authorizationUrl only after a validated provider initialization result. Identical successful replay returns the saved result; changed payload conflicts; concurrent, timed-out or crashed attempts cannot dispatch again.",
+        "Sanitize provider errors and secret-bearing exception causes. Cache definite rejection; uncertain acceptance requires reconciliation instead of automatic takeover/new reference.",
+        "Pass unit, real HTTP/PostgreSQL integration, migration-preservation, concurrency and provider/database failure-window checks. Document setup, endpoint tests and explicit test-only limitations.",
+        "Open a feature-branch PR linked to #13; no webhooks, payment finalization, vote allocation, email delivery, receipt endpoints or live features. Keep issue open until review/merge."
       ],
-      "evidence": [],
+      "evidence": [
+        "PAY-01 validation: Prisma generation/validation, API build and test typecheck passed; 5 payment unit, 9 payment HTTP/PostgreSQL integration and 13 public API checks passed across validated runs.",
+        "Migration rehearsal preserved full legacy payment/verification/allocation/contestant snapshots; 5 seed unit and 6 seed integration checks passed; no schema drift. No hosted migration or real provider call. PR linked in issue #13; keep In Progress until review/merge."
+      ],
       "sources": [
         "https://paystack.com/docs/api/transaction/",
         "https://paystack.com/docs/payments/webhooks/",
         "https://paystack.com/docs/payments/verify-payments/"
       ],
-      "number": 13
+      "number": 13,
+      "externalDependencies": [
+        "https://github.com/ebukanathan/TalentHunt/issues/27"
+      ]
     },
     {
       "key": "P02",
