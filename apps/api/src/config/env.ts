@@ -1,6 +1,7 @@
 import { config } from "dotenv";
 import { resolve } from "node:path";
 import { z } from "zod";
+import { readPaystackConfiguration } from "./paystack";
 
 // Process environment wins, followed by apps/api/.env, then the repository .env.
 // These paths work from both src/config and dist/config under npm workspaces.
@@ -27,7 +28,7 @@ export function readEnvironment(source: NodeJS.ProcessEnv) {
     const fields = [...new Set(result.error.issues.map(issue => issue.path.join(".")))];
     throw new Error("Invalid API configuration: " + fields.join(", ") + ".");
   }
-  return result.data;
+  return { ...result.data, paystack: readPaystackConfiguration(source) };
 }
 
 export const environment = readEnvironment(process.env);

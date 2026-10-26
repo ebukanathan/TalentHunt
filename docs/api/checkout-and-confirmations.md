@@ -1,6 +1,8 @@
 # Proposed checkout, payment and confirmation API
 
-Planning specification, 24 October 2026 (Africa/Lagos). These routes and models are **not implemented**. The implemented read endpoints remain documented in [Core REST API](core-rest-api.md). Product authority: [paid voting requirements](../product/paid-voting-requirements.md).
+Planning specification, 24 October 2026 (Africa/Lagos), with the PAY-01 implementation update below. All other proposed routes/models remain **unimplemented**. The implemented read endpoints remain documented in [Core REST API](core-rest-api.md). Product authority: [paid voting requirements](../product/paid-voting-requirements.md).
+
+PAY-01 update, 26 October 2026: only payment initialization is now implemented; see its [actual contract and retry policy](payment-initialization.md). It uses external `email` mapped to Payment.contactEmail and a hashed UUIDv4 retry capability. The additive PaymentInitialization table owns initialization state only. Browser-session/receipt capabilities, payment verification, webhooks, votes and transactional confirmations below remain proposals. Legacy verification cleanup and E02 outbox work are not prerequisites for this approved slice.
 
 ## Paystack integration plan
 
@@ -68,10 +70,10 @@ This is a design, not a replacement `schema.prisma` or an executable migration. 
 | `TransactionEmail` | `id`, required `paymentId` relation (Restrict deletion), `kind`, unique `idempotencyKey`, immutable `recipient`, `templateVersion` and rendered/payload snapshot, `status`, `attempts`, `nextAttemptAt`, `firstAttemptAt`, `retryDeadlineAt`, `leaseOwner`, `leaseExpiresAt`, nullable `providerMessageId` (unique), `acceptedAt`, `deliveredAt`, sanitized `lastErrorCode`, created/updated times. Unique `(paymentId, kind)` and worker index `(status, nextAttemptAt)`. |
 | `TransactionEmailStatus` | PENDING, SENDING, RETRYING, ACCEPTED, DELIVERED, FAILED, REVIEW_REQUIRED. Bounces/complaints stop retry; preserve provider event evidence. |
 | `EmailDeliveryEvent` | Unique provider event ID, required outbox relation, provider message ID, event type, provider timestamp, processed timestamp and minimal sanitized diagnostic data. Deduplicate/reconcile delayed or reordered events. Restrict direct contact access; apply retention policy. |
-| `CheckoutAttempt` | Required payment relation, browser/session binding hash, idempotency key/hash with scoped unique constraint, normalized request hash, state, provider authorization URL/access data, initialization lease, capability hash/expiry and timestamps. Keep capability plaintext and secrets out of logs. P01 finalizes details before adding this empty table. |
+| Future checkout session/capability extension | PAY-01 already implements the smaller PaymentInitialization table for hashed retry capability, fingerprint, state and checkout URL. Browser/session binding and hashed expiring receipt authorization belong to later frontend/receipt work; no automatic initialization lease takeover is implemented. |
 | `PaystackWebhookJob` | Unique dedupe key, reference/type, minimal authenticated event facts, status/lease/attempts/nextAttemptAt and timestamps. P02 adds this empty inbox table in its own forward migration. No contact/payment card payload in general logs. |
 
-E02’s first migration owns the legacy preflight/removal decision and the empty confirmation/event tables. CheckoutAttempt and PaystackWebhookJob belong to later P01/P02 additive migrations; this avoids implementing the entire payment subsystem in the schema transition issue. If future runtime finalizers update payments, that is new transaction processing; this planning task and schema migration must not update existing payment records.
+E02’s future migration owns the legacy preflight/removal decision and the empty confirmation/event tables. PAY-01 adds only PaymentInitialization; later receipt/session extensions and P02 webhook inbox use separately reviewed additive migrations. If future runtime finalizers update payments, that is new transaction processing; PAY-01's migration never updates existing payment records.
 
 ## Migration procedure proposed for E02
 

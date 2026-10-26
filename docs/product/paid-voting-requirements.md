@@ -2,6 +2,8 @@
 
 Decision confirmed 24 October 2026 (Africa/Lagos). This document supersedes the original voter email-verification requirements. Requirements are approved; the schema and integration designs below are proposals for review before implementation.
 
+PAY-01 update, 26 October 2026: the approved first implementation slice is [test checkout initialization](../api/payment-initialization.md), including its additive retry-state table. The broader confirmation, cleanup and payment-finalization designs below remain future work. Existing payment records and historical migrations are preserved.
+
 ## Product decision
 
 Every checkout requires an email address. Voters do not need an account, email OTP, verification link, verified-email flag or email-based checkout authorization. Paystack/bank authentication during payment is a separate provider responsibility and is unaffected by this decision.
