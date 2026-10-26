@@ -314,7 +314,7 @@
       "phase": 3,
       "title": "Prepare history-preserving checkout email and confirmation schema",
       "priority": "P0",
-      "status": "Backlog",
+      "status": "Next",
       "dependencies": [
         "F02"
       ],

@@ -340,7 +340,7 @@ Next proposed issue for the confirmed no-verification decision. Review the Payst
 
 **Priority:** P0
 
-**Initial status:** Backlog
+**Initial status:** Next
 
 **Labels:** area:database, area:api, area:security
 
