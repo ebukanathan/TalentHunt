@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "tsx --test test/public-web.test.tsx",
+    "test:admin:integration": "tsx test/admin-web.integration.ts",
     "typecheck": "tsc --noEmit",
     "test:smoke": "node test/public-web.smoke.mjs",
     "test:smoke:development": "node test/public-web.smoke.mjs --development-api"

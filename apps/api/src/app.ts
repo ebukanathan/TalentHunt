@@ -6,9 +6,11 @@ import { createPublicRouter } from "./routes/public.routes";
 import type { PublicApi } from "./services/public.service";
 import { createPaymentsRouter } from "./routes/payments.routes";
 import type { PaymentInitializationApi } from "./services/payment-initialization.service";
+import { createAdminRouter } from "./routes/admin-auth.routes";
+import type { AdminAuthService } from "./services/admin-auth.service";
 
 /** Injectable composition keeps HTTP tests on their explicitly selected database. */
-export function createApp(service: PublicApi, payments?: PaymentInitializationApi) {
+export function createApp(service: PublicApi, payments?: PaymentInitializationApi, admin?: AdminAuthService) {
   const app = express();
   app.use(helmet());
   app.use(cors({ origin: "http://localhost:3000" }));
@@ -23,6 +25,7 @@ export function createApp(service: PublicApi, payments?: PaymentInitializationAp
 
   app.use("/api/v1", createPublicRouter(service));
   app.use("/api/v1/payments", createPaymentsRouter(payments));
+  app.use("/api/v1/admin", createAdminRouter(admin));
   app.use((_request, _response, next) => {
     next(new HttpError(404, "ROUTE_NOT_FOUND", "Route not found."));
   });

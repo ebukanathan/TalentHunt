@@ -9,25 +9,26 @@ No GitHub changes have been executed by --plan.
 | F03 | 1 | P1 | Done | F02 | Implement repeatable development database seeding |
 | F04 | 1 | P1 | Backlog | F01, F02 | Publish a reproducible source and environment baseline |
 | F05 | 1 | P1 | Backlog | F02 | Add API configuration, Prisma lifecycle and safe error handling |
-| C01 | 2 | P1 | Backlog | F03, F05, A01 | Implement protected competition lifecycle and vote-package management |
-| C02 | 2 | P1 | Backlog | C01 | Implement protected contestant management and cross-competition guards |
+| ADMIN-04 | 5 | P1 | Backlog | ADMIN-01, ADMIN-02, ADMIN-03, F03 | Competition configuration and vote-package management |
+| ADMIN-02 | 5 | P1 | Backlog | ADMIN-01, F03 | Contestant CRUD - name, contestant number, bio, image reference, active status |
 | C03 | 2 | P1 | Backlog | None | Build public competition pages, contestant profiles and leaderboard |
 | E01 | 3 | P1 | Backlog | E02, P03, F05 | Deliver transactional voting confirmations with safe retries |
 | E02 | 3 | P0 | Backlog | F02 | Prepare history-preserving checkout email and confirmation schema |
 | E03 | 3 | P1 | Backlog | P01 | Build required-email checkout without OTP or verification links |
-| P01 | 4 | P0 | In Progress | F02, F03 | PAY-01: Paystack test configuration and payment initialization |
+| P01 | 4 | P0 | Done | F02, F03 | PAY-01: Paystack test configuration and payment initialization |
 | P02 | 4 | P0 | Backlog | P01 | Authenticate Paystack webhooks and verify payment facts |
 | P03 | 4 | P0 | Backlog | P02, E02 | Allocate paid votes exactly once under concurrent delivery |
 | P04 | 4 | P1 | Backlog | P03, E03 | Build checkout return, payment status and voter receipt screens |
 | P05 | 4 | P0 | Backlog | P03 | Reconcile payments and implement auditable refund/vote-reversal handling |
-| A01 | 5 | P0 | Backlog | F05 | Implement administrator authentication and protected API access |
-| A02 | 5 | P1 | Backlog | A01, C02 | Build admin management screens and audit trail |
-| A03 | 5 | P1 | Backlog | A01, P05 | Build admin payment, vote and reconciliation reporting |
-| T01 | 6 | P0 | Backlog | P03, P05, E01, E03, A01 | Establish security and payment-integrity regression tests |
+| ADMIN-01 | 5 | P0 | In Progress | F02 | Admin authentication and protected dashboard layout |
+| A02 | 5 | P1 | Backlog | ADMIN-01, ADMIN-02, ADMIN-03, ADMIN-04 | Build admin management screens and audit trail |
+| A03 | 5 | P1 | Backlog | ADMIN-01, P05 | Build admin payment, vote and reconciliation reporting |
+| T01 | 6 | P0 | Backlog | P03, P05, E01, E03, ADMIN-01 | Establish security and payment-integrity regression tests |
 | T02 | 6 | P1 | Backlog | F04 | Add pull-request CI checks and migration validation |
 | T03 | 6 | P0 | Backlog | T02, P04, A02, E01 | Deploy staging with separated credentials and controlled migrations |
 | T04 | 6 | P0 | Backlog | T03, P05 | Prove database recovery and add monitoring/runbooks |
 | T05 | 6 | P0 | Backlog | T01, T03, T04, A03 | Complete release rehearsal and approve paid-voting launch |
+| ADMIN-03 | 5 | P1 | Backlog | ADMIN-01, ADMIN-02 | Secure contestant image upload using Supabase Storage |
 
 # F01: Create workspace, Next.js starter and Express health scaffold
 
@@ -57,7 +58,7 @@ Record the narrowly scoped scaffold already present locally. This does not certi
 - 2026-10-21: tsc -p apps/api/tsconfig.json --noEmit and npm run lint --workspace=apps/web exited 0; a live ephemeral-port health request returned 200/status ok.
 - Local source is untracked and GitHub is empty. Publishing the source is F04.
 
-**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-27 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ---
 
@@ -90,7 +91,7 @@ Record the existing initial data model and applied migration. Domain and payment
 - 2026-10-21: prisma migrate diff --from-schema-datasource prisma/schema.prisma --to-schema-datamodel prisma/schema.prisma --exit-code exited 0: No difference detected.
 - Checks establish the configured database state at review time, not production readiness, backups or restored data reliability.
 
-**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-27 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ---
 
@@ -122,7 +123,7 @@ Make database seeding the next development task. Create fictional fixtures for c
 
 - No seed file or migrations.seed setting exists in the reviewed tree. F02 migration prerequisites are verified.
 
-**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-27 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ---
 
@@ -156,7 +157,7 @@ Local Git has no commits or remote; the existing public GitHub repository is emp
 - git log reports no commits; git remote -v is empty; all application files are untracked. GitHub reports ebukanathan/TalentHunt is public and empty.
 - The project-management setup itself will not commit, push or change repository visibility.
 
-**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-27 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ---
 
@@ -187,71 +188,76 @@ Build a small service foundation before feature routes. Current middleware is He
 
 - Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.
 
-**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-27 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ---
 
-# C01: Implement protected competition lifecycle and vote-package management
+# ADMIN-04: Competition configuration and vote-package management
 
-Implement authorized competition/package services. Existing schema fields do not establish business rules or working endpoints.
+Reuse Competition and VotePackage for protected administrator configuration and forms after the initial admin foundation and contestant/image sequence. Backlog only; no Paystack changes.
 
-**Phase:** Competition and Contestant Management
+**Phase:** Admin Dashboard
 
 **Priority:** P1
 
 **Initial status:** Backlog
 
-**Labels:** area:api, area:database
+**Labels:** area:api, area:web, area:database, area:security
 
 ## Acceptance criteria
 
-- [ ] Validate DRAFT/SCHEDULED/OPEN/CLOSED/COMPLETED transitions, UTC windows and opens-before-closes.
-- [ ] Enforce positive integer priceKobo/voteCount, supported currency, package ownership and slug uniqueness; add appropriate database checks via reviewed migrations.
-- [ ] Authorize all mutations, write audit events and preserve existing payment snapshots after package edits.
-- [ ] Test forbidden access, invalid transitions, duplicate slugs, negative values, closed windows and deactivation.
+- [ ] Provide protected Express endpoints and accessible Next.js forms for competition name/slug/description/status/voting dates and package name/voteCount/priceKobo/currency/active status.
+- [ ] Use ADMIN-01 session/active-admin/CSRF protection for all writes, strict Zod validation and transactional AuditLog events.
+- [ ] Validate lifecycle transitions, UTC boundaries, opening before closing, supported currency, per-competition ownership/uniqueness and positive integer kobo/vote quantities compatible with current checkout rules.
+- [ ] Preserve immutable historical Payment money/vote/contact/attribution snapshots, original allocations and migration history when configuration/packages change; refuse history-breaking deletion or reassignment.
+- [ ] Test unauthenticated/CSRF failures, invalid lifecycle/date/money inputs, duplicate slugs, package ownership, deactivation, audit entries and end-to-end management forms. Do not initialize/verify Paystack transactions in this issue.
 
 ## Dependencies
 
+- Depends on ADMIN-01.
+- Depends on ADMIN-02.
+- Depends on ADMIN-03.
 - Depends on F03.
-- Depends on F05.
-- Depends on A01.
 
 ## Evidence and verification
 
 - Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.
 
-**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-27 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ---
 
-# C02: Implement protected contestant management and cross-competition guards
+# ADMIN-02: Contestant CRUD - name, contestant number, bio, image reference, active status
 
-Provide contestant editing and deactivation with integrity rules preventing attribution to another competition.
+Reuse Contestant and existing public views for protected administrator CRUD in Express and Next.js. This issue is Backlog and cannot start until ADMIN-01 has been reviewed.
 
-**Phase:** Competition and Contestant Management
+**Phase:** Admin Dashboard
 
 **Priority:** P1
 
 **Initial status:** Backlog
 
-**Labels:** area:api, area:database
+**Labels:** area:api, area:web, area:database, area:security
 
 ## Acceptance criteria
 
-- [ ] Implement protected create/update/list/deactivate endpoints with pagination and validated contestant fields/image URLs.
-- [ ] Enforce contestant number/slug uniqueness per competition and consistent competition membership of contestant, package and payment; state which invariants the database enforces.
-- [ ] Preserve referenced history and reject edits that corrupt historical attribution.
-- [ ] Test cross-competition references, inactive contestants, duplicate identifiers and unauthorized mutation.
+- [ ] Provide protected paginated list/create/read/update/delete-or-deactivate endpoints and accessible management forms for name, contestant number, bio, managed image reference and active status.
+- [ ] Use ADMIN-01 server-side session/active-admin/CSRF guards on every write, strict validation and AuditLog records in the same database transaction.
+- [ ] Preserve competition membership and number/slug uniqueness within a competition; derive safe slugs/identifiers and bound/escape text without HTML execution.
+- [ ] Use validated managed image references only; file upload/replacement/storage authorization belongs to ADMIN-03. Support no-image fallbacks while upload work is pending. Store no file bytes in PostgreSQL.
+- [ ] Preserve payment/vote history; prevent historical attribution changes and refuse hard deletion of referenced records in favor of deactivation. Do not rewrite payment snapshots.
+- [ ] Test unauthenticated/CSRF rejection, invalid fields, duplicates, cross-competition references, inactive records, history-safe deletion, audit entries and responsive/keyboard form behavior. No Paystack expansion.
 
 ## Dependencies
 
-- Depends on C01.
+- Depends on ADMIN-01.
+- Depends on F03.
 
 ## Evidence and verification
 
 - Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.
 
-**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-27 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ---
 
@@ -286,7 +292,7 @@ Stage 3 public pages use the completed public read API (#27). Deliver #29 homepa
 
 - Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.
 
-**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-27 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ---
 
@@ -322,7 +328,7 @@ Replace OTP delivery with one combined payment receipt and successful voting con
 
 - Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.
 
-**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-27 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ## References
 
@@ -340,7 +346,7 @@ Next proposed issue for the confirmed no-verification decision. Review the Payst
 
 **Priority:** P0
 
-**Initial status:** Next
+**Initial status:** Backlog
 
 **Labels:** area:database, area:api, area:security
 
@@ -362,7 +368,7 @@ Next proposed issue for the confirmed no-verification decision. Review the Payst
 
 - Planning review only: source runtime has no OTP/payment flow; seed integration test still counts ContactVerification. Read-only configured development counts on 2026-10-24: payments=0, linkedPayments=0, ContactVerification=0, allocations=0. No schema or data changes performed.
 
-**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-27 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ## References
 
@@ -399,7 +405,7 @@ Collect contact email at checkout for receipts, voting confirmations, transactio
 
 - Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.
 
-**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-27 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ---
 
@@ -411,20 +417,20 @@ Approved PAY-01 first slice only: strict contestantId/packageId/email input, Pos
 
 **Priority:** P0
 
-**Initial status:** In Progress
+**Initial status:** Done
 
 **Labels:** area:payments, area:api
 
 ## Acceptance criteria
 
-- [ ] Validate server-only test configuration and reject live keys; placeholders only in .env.example; missing configuration disables payment initialization without breaking public reads.
-- [ ] Implement POST /api/v1/payments/initialize with strict Zod contestantId/packageId/email plus random UUIDv4 Idempotency-Key; map email to immutable Payment.contactEmail without registration/OTP.
-- [ ] Check active same-competition contestant/package, OPEN voting window and configured competition pin; require NGN and stored integer priceKobo/voteCount; reject client financial fields.
-- [ ] Commit PENDING payment and additive PaymentInitialization retry state before dispatching to Paystack. Preserve all historical migrations, payment values and legacy verification objects.
-- [ ] Return reference/authorizationUrl only after a validated provider initialization result. Identical successful replay returns the saved result; changed payload conflicts; concurrent, timed-out or crashed attempts cannot dispatch again.
-- [ ] Sanitize provider errors and secret-bearing exception causes. Cache definite rejection; uncertain acceptance requires reconciliation instead of automatic takeover/new reference.
-- [ ] Pass unit, real HTTP/PostgreSQL integration, migration-preservation, concurrency and provider/database failure-window checks. Document setup, endpoint tests and explicit test-only limitations.
-- [ ] Open a feature-branch PR linked to #13; no webhooks, payment finalization, vote allocation, email delivery, receipt endpoints or live features. Keep issue open until review/merge.
+- [x] Validate server-only test configuration and reject live keys; placeholders only in .env.example; missing configuration disables payment initialization without breaking public reads.
+- [x] Implement POST /api/v1/payments/initialize with strict Zod contestantId/packageId/email plus random UUIDv4 Idempotency-Key; map email to immutable Payment.contactEmail without registration/OTP.
+- [x] Check active same-competition contestant/package, OPEN voting window and configured competition pin; require NGN and stored integer priceKobo/voteCount; reject client financial fields.
+- [x] Commit PENDING payment and additive PaymentInitialization retry state before dispatching to Paystack. Preserve all historical migrations, payment values and legacy verification objects.
+- [x] Return reference/authorizationUrl only after a validated provider initialization result. Identical successful replay returns the saved result; changed payload conflicts; concurrent, timed-out or crashed attempts cannot dispatch again.
+- [x] Sanitize provider errors and secret-bearing exception causes. Cache definite rejection; uncertain acceptance requires reconciliation instead of automatic takeover/new reference.
+- [x] Pass unit, real HTTP/PostgreSQL integration, migration-preservation, concurrency and provider/database failure-window checks. Document setup, endpoint tests and explicit test-only limitations.
+- [x] Open a feature-branch PR linked to #13; no webhooks, payment finalization, vote allocation, email delivery, receipt endpoints or live features. Keep issue open until review/merge.
 
 ## Dependencies
 
@@ -436,8 +442,9 @@ Approved PAY-01 first slice only: strict contestantId/packageId/email input, Pos
 
 - PAY-01 validation: Prisma generation/validation, API build and test typecheck passed; 5 payment unit, 9 payment HTTP/PostgreSQL integration and 13 public API checks passed across validated runs.
 - Migration rehearsal preserved full legacy payment/verification/allocation/contestant snapshots; 5 seed unit and 6 seed integration checks passed; no schema drift. No hosted migration or real provider call. PR linked in issue #13; keep In Progress until review/merge.
+- Merged in PR #34 and closed; remains Done while further Paystack work is deferred by the 2026-10-27 admin-first decision.
 
-**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-27 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ## References
 
@@ -449,7 +456,7 @@ Approved PAY-01 first slice only: strict contestantId/packageId/email input, Pos
 
 # P02: Authenticate Paystack webhooks and verify payment facts
 
-Accept provider signals only after authenticity and transaction checks. A browser redirect cannot prove payment.
+Sequencing pause (2026-10-27): defer further Paystack work while Admin Dashboard is prioritized. Accept provider signals only after authenticity and transaction checks. A browser redirect cannot prove payment.
 
 **Phase:** Payments and Vote Allocation
 
@@ -475,7 +482,7 @@ Accept provider signals only after authenticity and transaction checks. A browse
 
 - Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.
 
-**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-27 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ## References
 
@@ -487,7 +494,7 @@ Accept provider signals only after authenticity and transaction checks. A browse
 
 # P03: Allocate paid votes exactly once under concurrent delivery
 
-Finalize payments and allocate votes atomically. Existing uniqueness constraints alone do not prove safe counter updates.
+Sequencing pause (2026-10-27): defer further Paystack work while Admin Dashboard is prioritized. Finalize payments and allocate votes atomically. Existing uniqueness constraints alone do not prove safe counter updates.
 
 **Phase:** Payments and Vote Allocation
 
@@ -514,13 +521,13 @@ Finalize payments and allocate votes atomically. Existing uniqueness constraints
 
 - Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.
 
-**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-27 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ---
 
 # P04: Build checkout return, payment status and voter receipt screens
 
-Complete the voter journey using trusted server payment/allocation state.
+Sequencing pause (2026-10-27): defer further Paystack work while Admin Dashboard is prioritized. Complete the voter journey using trusted server payment/allocation state.
 
 **Phase:** Payments and Vote Allocation
 
@@ -548,13 +555,13 @@ Complete the voter journey using trusted server payment/allocation state.
 
 - Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.
 
-**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-27 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ---
 
 # P05: Reconcile payments and implement auditable refund/vote-reversal handling
 
-Recover from missed events and define refunds/disputes before taking real money. REFUNDED status currently has no reversal ledger.
+Sequencing pause (2026-10-27): defer further Paystack work while Admin Dashboard is prioritized. Recover from missed events and define refunds/disputes before taking real money. REFUNDED status currently has no reversal ledger.
 
 **Phase:** Payments and Vote Allocation
 
@@ -582,44 +589,53 @@ Recover from missed events and define refunds/disputes before taking real money.
 
 - Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.
 
-**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-27 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ---
 
-# A01: Implement administrator authentication and protected API access
+# ADMIN-01: Admin authentication and protected dashboard layout
 
-Implement minimal admin security before management endpoints. Pull this prerequisite forward before C01 despite its phase grouping.
+FIRST IMPLEMENTATION TASK ONLY. Reuse existing AdminUser and AuditLog with Express-owned opaque sessions and the current Next.js frontend. One administrator for the MVP; no public registration. Approved implementation on feat/admin-01-auth-dashboard is submitted for review; do not merge or start ADMIN-02 without review.
 
 **Phase:** Admin Dashboard
 
 **Priority:** P0
 
-**Initial status:** Backlog
+**Initial status:** In Progress
 
-**Labels:** area:security, area:api
+**Labels:** area:api, area:web, area:security, area:database
 
 ## Acceptance criteria
 
-- [ ] Document the auth choice: securely hashed AdminUser credentials and one-time bootstrap without default passwords, or an explicit migration to Supabase Auth.
-- [ ] Use expiring revocable sessions and secure cookies; protect cookie-based mutations from CSRF and validate allowed origins.
-- [ ] Apply shared API authorization, inactive-admin checks and login throttling; hiding frontend pages is insufficient.
-- [ ] Test unauthorized access, logout/expiry, inactive users and brute-force limits; redact credentials.
+- [ ] Provide one-time secure CLI provisioning with masked prompt/protected stdin, explicit database target, no default password or startup/demo-seed provisioning, salted versioned scrypt hashing (N=2^17,r=8,p=1) and constant-time verification. Lock/check the singleton atomically; refuse existing/multiple admins without overwrite or deletion.
+- [ ] Implement strict Zod login/logout, session verification and CSRF bootstrap endpoints under /api/v1/admin/auth. Require an active AdminUser and return generic invalid-credentials errors; throttle login before hashing with shared persistent account/IP limits and bounded cooldowns.
+- [ ] Store only hashed cryptographically random session tokens in a new AdminSession table, rotate at login, revoke at logout and reject inactive/expired/revoked/tampered sessions. Proposed idle timeout 30 minutes and absolute lifetime 8 hours; fail closed on storage failure.
+- [ ] Use host-only HttpOnly Secure SameSite=Lax cookies (production __Host- prefix, Path=/, no Domain) with explicit loopback-only HTTP development exception and no browser localStorage tokens. Do not log or expose password/session/CSRF secrets.
+- [ ] Protect login/logout and every future admin write with session-bound/signed CSRF tokens, exact Origin checks and JSON/custom-header requirements; Fetch Metadata is additional protection, not a replacement. Use short-lived signed pre-login challenge binding to prevent login CSRF.
+- [ ] Use a fixed-path same-origin Next.js facade to Express; allowlist forwarded cookies/headers and preserve Set-Cookie safely. Verify every protected API resource server-side; frontend links/layout redirects are not authorization.
+- [ ] Build accessible /admin/login and protected /admin layout with Overview, Contestants, Competition, Vote Packages and Payments placeholders and logout. Reject external return URLs; use uncached request-time session checks on protected pages/data access, including client-navigation cases.
+- [ ] Separate public chrome into a Next.js route group so public URLs, homepage and contestant views remain intact. Do not build CRUD, uploads, payment actions or dashboard statistics in this issue.
+- [ ] Reuse AdminUser/AuditLog and add only a reviewed forward migration for AdminSession and shared AdminAuthRateLimit data; preserve historical migrations and all existing business/payment rows. No hosted migration or real admin provisioning runs automatically.
+- [ ] Pass tests for provisioning races/refusal, successful/failed/inactive login, throttle bypass attempts, cookie flags, session fixation/expiry/logout, CSRF/origin failures, unauthenticated/direct protected access and backend outage. Run real localhost HTTP/PostgreSQL plus Next.js login-dashboard-logout/public-regression checks, typechecks/lint/build.
+- [ ] After explicit implementation approval use feat/admin-01-auth-dashboard, push a linked PR, keep this issue open until review/merge and never merge without approval. Do not start ADMIN-02 until ADMIN-01 has been reviewed.
 
 ## Dependencies
 
-- Depends on F05.
+- Depends on F02.
+- Depends on https://github.com/ebukanathan/TalentHunt/issues/27.
 
 ## Evidence and verification
 
-- Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.
+- ADMIN-01 approved by the user; feature branch implements opaque sessions, CSRF, secure provisioning and protected dashboard placeholders.
+- Local tests pass for API auth/public/payment, seed regressions and real Next/Express/PostgreSQL login/session/logout; see docs/admin/authentication.md.
 
-**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-27 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ---
 
 # A02: Build admin management screens and audit trail
 
-Provide a small authenticated interface for operating competitions, contestants and packages.
+After ADMIN-01 through ADMIN-04, retain this existing issue for protected audit-history viewing and cross-feature management UX/regressions. Login and CRUD forms are owned by the four ADMIN issues; this follow-up does not broaden ADMIN-01.
 
 **Phase:** Admin Dashboard
 
@@ -638,14 +654,16 @@ Provide a small authenticated interface for operating competitions, contestants 
 
 ## Dependencies
 
-- Depends on A01.
-- Depends on C02.
+- Depends on ADMIN-01.
+- Depends on ADMIN-02.
+- Depends on ADMIN-03.
+- Depends on ADMIN-04.
 
 ## Evidence and verification
 
 - Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.
 
-**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-27 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ---
 
@@ -671,14 +689,14 @@ Let the solo operator inspect and resolve discrepancies without manually editing
 
 ## Dependencies
 
-- Depends on A01.
+- Depends on ADMIN-01.
 - Depends on P05.
 
 ## Evidence and verification
 
 - Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.
 
-**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-27 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ---
 
@@ -709,13 +727,13 @@ Establish an isolated integration harness and cross-feature regression suite. Fe
 - Depends on P05.
 - Depends on E01.
 - Depends on E03.
-- Depends on A01.
+- Depends on ADMIN-01.
 
 ## Evidence and verification
 
 - Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.
 
-**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-27 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ---
 
@@ -746,7 +764,7 @@ Start CI early and extend it as tests arrive. Root/API test scripts currently fa
 
 - Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.
 
-**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-27 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ---
 
@@ -782,7 +800,7 @@ Deploy the web/API and Supabase PostgreSQL to staging with separate data and Pay
 
 - Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.
 
-**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-27 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ---
 
@@ -815,7 +833,7 @@ Establish recoverability and visibility. An applied migration is not proof of re
 
 - Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.
 
-**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-27 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
 ---
 
@@ -851,4 +869,43 @@ Use an evidence-based go/no-go gate before real paid traffic.
 
 - Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.
 
-**Review baseline:** 2026-10-26 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+**Review baseline:** 2026-10-27 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+
+---
+
+# ADMIN-03: Secure contestant image upload using Supabase Storage
+
+Upload, replace and delete contestant photographs through authorized Express operations using Supabase Storage. Public image reads are permitted; anonymous writes are not. Backlog only; not part of ADMIN-01.
+
+**Phase:** Admin Dashboard
+
+**Priority:** P1
+
+**Initial status:** Backlog
+
+**Labels:** area:api, area:web, area:security, area:delivery
+
+## Acceptance criteria
+
+- [ ] Keep all Storage credentials server-side, apply ADMIN-01 authentication/active-admin/CSRF guards, restrict operations to owned contestant paths and deny anonymous upload/update/delete policies. Public bucket reads may remain unauthenticated.
+- [ ] Validate actual decoded image content/magic bytes, declared type and extension consistently; proposed allowlist JPEG/PNG/WebP, maximum 5 MB and bounded dimensions/pixel/resource use. Reject SVG/executables, malformed/polyglot content and oversized requests before public storage.
+- [ ] Decode/re-encode approved content, strip unnecessary metadata and generate random safe object names and extensions. Never trust the supplied filename/path or fetch arbitrary image URLs.
+- [ ] Store file bytes only in Supabase Storage and canonical image references in Contestant.imageUrl or an explicitly reviewed reference field; no binary/base64 files in PostgreSQL.
+- [ ] Upload a new object before reference replacement; audit database changes, preserve currently referenced objects on failure and use bounded compensation/orphan cleanup. Delete only authorized obsolete objects; no unsafe cross-contestant/bucket path deletion.
+- [ ] Test unauthorized direct/backend/Storage writes, wrong content/type, size/dimension limits, filename traversal, replacement/delete races, failed upload/DB update cleanup and public image retrieval. No Storage provisioning or uploads occur during ADMIN-01.
+
+## Dependencies
+
+- Depends on ADMIN-01.
+- Depends on ADMIN-02.
+
+## Evidence and verification
+
+- Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.
+
+**Review baseline:** 2026-10-27 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
+
+## References
+
+- https://supabase.com/docs/guides/storage/security/access-control
+- https://supabase.com/docs/guides/storage/buckets/fundamentals

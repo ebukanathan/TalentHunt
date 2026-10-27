@@ -4,11 +4,13 @@ import { prisma } from "./lib/prisma";
 import { PublicReadService } from "./services/public.service";
 import { PaymentInitializationService } from "./services/payment-initialization.service";
 import { PaystackClient } from "./clients/paystack.client";
+import { AdminAuthService } from "./services/admin-auth.service";
 
 const payments = environment.paystack
   ? new PaymentInitializationService(prisma, new PaystackClient(environment.paystack), environment.PUBLIC_COMPETITION_SLUG)
   : undefined;
-const app = createApp(new PublicReadService(prisma, environment.PUBLIC_COMPETITION_SLUG), payments);
+const admin = environment.admin ? new AdminAuthService(prisma, environment.admin) : undefined;
+const app = createApp(new PublicReadService(prisma, environment.PUBLIC_COMPETITION_SLUG), payments, admin);
 const server = app.listen(environment.PORT, () => {
   console.log("TalentHunt API running at http://localhost:" + environment.PORT);
 });

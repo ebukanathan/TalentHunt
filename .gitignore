@@ -25,3 +25,5 @@ Thumbs.db
 # Recreated CLI payloads and execution transcript
 /docs/project-management/generated/
 /docs/project-management/execution-commands.txt
+# Isolated Next integration artifacts
+apps/web/.next-admin-test/
