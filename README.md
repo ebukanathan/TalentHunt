@@ -2,11 +2,13 @@
 
 A paid talent-show voting platform under development with Next.js, TypeScript, Express, Prisma, PostgreSQL/Supabase and Paystack.
 
-Current implementation: npm workspaces, an Express public read API and health endpoint, the initial Prisma schema/migration and PAY-01 test checkout initialization. The public Next.js interface is in a separate Stage 3 PR. Payment finalization, paid votes, transactional confirmations and the admin dashboard remain roadmap work.
+Current implementation: npm workspaces, the public Next.js interface, Express read API, Prisma/PostgreSQL, PAY-01 test checkout initialization, and ADMIN-01 authentication/protected dashboard submitted for review. Payment finalization, paid votes, transactional confirmations and admin management tools remain roadmap work.
 
 Product decision (24 October 2026): checkout requires an email address for receipts, voting confirmations, transaction communication and support, with no voter OTP or verification link. Payment verification and vote allocation are independent of email delivery. See [paid voting requirements](docs/product/paid-voting-requirements.md) and the [broader Paystack, API and schema plan](docs/api/checkout-and-confirmations.md). Confirmation delivery and legacy verification removal remain proposals. Marketing requires separate appropriate consent.
 
 PAY-01 adds test-only `POST /api/v1/payments/initialize` with server-owned prices, PENDING purchase snapshots and durable retry protection. See [configuration, request examples and payment tests](docs/api/payment-initialization.md). Checkout initialization does not confirm payment, allocate votes or send email. Paystack credentials are optional as a complete configuration; when absent, public reads work and initialization returns 503.
+
+Current development priority (27 October 2026): Admin Dashboard first; further Paystack implementation is paused. ADMIN-01 is approved and implemented on its feature branch for review. Sign in at `/admin/login` and access the protected workspace at `/admin`; see [admin configuration/provisioning](docs/admin/authentication.md), the [approved plan](docs/admin/admin-dashboard-plan.md) and [roadmap](docs/project-management/roadmap.md). Contestant CRUD, Storage uploads and competition/package management remain later issues; ADMIN-02 waits for ADMIN-01 review.
 
 ## Development setup
 
@@ -89,7 +91,7 @@ Initial review passed API typechecking, frontend lint, schema validation and a l
 
 ## Architecture and roadmap
 
-Intended request path: browser -> Next.js interface -> Express API -> Prisma -> Supabase-hosted PostgreSQL. Paystack and email provider secrets stay on the server. Supabase is currently the database host; admin authentication remains a documented design/implementation task.
+Intended request path: browser -> Next.js interface -> Express API -> Prisma -> Supabase-hosted PostgreSQL. Paystack, CSRF and email provider secrets stay on the server. Admin authentication uses opaque database sessions and a fixed-path same-origin Next facade.
 
 - [Development project](https://github.com/users/ebukanathan/projects/3)
 - [Roadmap, milestones, workflow and risk register](docs/project-management/roadmap.md)

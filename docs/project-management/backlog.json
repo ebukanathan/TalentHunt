@@ -2,7 +2,7 @@
   "repository": "ebukanathan/TalentHunt",
   "owner": "ebukanathan",
   "projectTitle": "TalentHunt — Development Roadmap",
-  "reviewedOn": "2026-10-26",
+  "reviewedOn": "2026-10-27",
   "phases": [
     {
       "name": "Project Foundation",
@@ -22,7 +22,7 @@
     },
     {
       "name": "Admin Dashboard",
-      "gate": "Protected management/reporting and auditable operator actions work."
+      "gate": "Admin-first MVP: one securely provisioned admin, protected cookie sessions/CSRF, contestant CRUD, authorized Supabase Storage photographs and audited competition/package management. ADMIN-01 is approved and In Progress for review; ADMIN-02 waits for its review. Payment reporting remains later work."
     },
     {
       "name": "Testing, CI/CD and Deployment",
@@ -197,50 +197,59 @@
       "number": 5
     },
     {
-      "key": "C01",
-      "phase": 2,
-      "title": "Implement protected competition lifecycle and vote-package management",
+      "key": "ADMIN-04",
+      "phase": 5,
+      "title": "Competition configuration and vote-package management",
       "priority": "P1",
       "status": "Backlog",
       "dependencies": [
-        "F03",
-        "F05",
-        "A01"
+        "ADMIN-01",
+        "ADMIN-02",
+        "ADMIN-03",
+        "F03"
       ],
       "labels": [
         "area:api",
-        "area:database"
+        "area:web",
+        "area:database",
+        "area:security"
       ],
-      "description": "Implement authorized competition/package services. Existing schema fields do not establish business rules or working endpoints.",
+      "description": "Reuse Competition and VotePackage for protected administrator configuration and forms after the initial admin foundation and contestant/image sequence. Backlog only; no Paystack changes.",
       "acceptance": [
-        "Validate DRAFT/SCHEDULED/OPEN/CLOSED/COMPLETED transitions, UTC windows and opens-before-closes.",
-        "Enforce positive integer priceKobo/voteCount, supported currency, package ownership and slug uniqueness; add appropriate database checks via reviewed migrations.",
-        "Authorize all mutations, write audit events and preserve existing payment snapshots after package edits.",
-        "Test forbidden access, invalid transitions, duplicate slugs, negative values, closed windows and deactivation."
+        "Provide protected Express endpoints and accessible Next.js forms for competition name/slug/description/status/voting dates and package name/voteCount/priceKobo/currency/active status.",
+        "Use ADMIN-01 session/active-admin/CSRF protection for all writes, strict Zod validation and transactional AuditLog events.",
+        "Validate lifecycle transitions, UTC boundaries, opening before closing, supported currency, per-competition ownership/uniqueness and positive integer kobo/vote quantities compatible with current checkout rules.",
+        "Preserve immutable historical Payment money/vote/contact/attribution snapshots, original allocations and migration history when configuration/packages change; refuse history-breaking deletion or reassignment.",
+        "Test unauthenticated/CSRF failures, invalid lifecycle/date/money inputs, duplicate slugs, package ownership, deactivation, audit entries and end-to-end management forms. Do not initialize/verify Paystack transactions in this issue."
       ],
       "evidence": [],
       "sources": [],
       "number": 9
     },
     {
-      "key": "C02",
-      "phase": 2,
-      "title": "Implement protected contestant management and cross-competition guards",
+      "key": "ADMIN-02",
+      "phase": 5,
+      "title": "Contestant CRUD - name, contestant number, bio, image reference, active status",
       "priority": "P1",
       "status": "Backlog",
       "dependencies": [
-        "C01"
+        "ADMIN-01",
+        "F03"
       ],
       "labels": [
         "area:api",
-        "area:database"
+        "area:web",
+        "area:database",
+        "area:security"
       ],
-      "description": "Provide contestant editing and deactivation with integrity rules preventing attribution to another competition.",
+      "description": "Reuse Contestant and existing public views for protected administrator CRUD in Express and Next.js. This issue is Backlog and cannot start until ADMIN-01 has been reviewed.",
       "acceptance": [
-        "Implement protected create/update/list/deactivate endpoints with pagination and validated contestant fields/image URLs.",
-        "Enforce contestant number/slug uniqueness per competition and consistent competition membership of contestant, package and payment; state which invariants the database enforces.",
-        "Preserve referenced history and reject edits that corrupt historical attribution.",
-        "Test cross-competition references, inactive contestants, duplicate identifiers and unauthorized mutation."
+        "Provide protected paginated list/create/read/update/delete-or-deactivate endpoints and accessible management forms for name, contestant number, bio, managed image reference and active status.",
+        "Use ADMIN-01 server-side session/active-admin/CSRF guards on every write, strict validation and AuditLog records in the same database transaction.",
+        "Preserve competition membership and number/slug uniqueness within a competition; derive safe slugs/identifiers and bound/escape text without HTML execution.",
+        "Use validated managed image references only; file upload/replacement/storage authorization belongs to ADMIN-03. Support no-image fallbacks while upload work is pending. Store no file bytes in PostgreSQL.",
+        "Preserve payment/vote history; prevent historical attribution changes and refuse hard deletion of referenced records in favor of deactivation. Do not rewrite payment snapshots.",
+        "Test unauthenticated/CSRF rejection, invalid fields, duplicates, cross-competition references, inactive records, history-safe deletion, audit entries and responsive/keyboard form behavior. No Paystack expansion."
       ],
       "evidence": [],
       "sources": [],
@@ -314,7 +323,7 @@
       "phase": 3,
       "title": "Prepare history-preserving checkout email and confirmation schema",
       "priority": "P0",
-      "status": "Next",
+      "status": "Backlog",
       "dependencies": [
         "F02"
       ],
@@ -373,7 +382,7 @@
       "phase": 4,
       "title": "PAY-01: Paystack test configuration and payment initialization",
       "priority": "P0",
-      "status": "In Progress",
+      "status": "Done",
       "dependencies": [
         "F02",
         "F03"
@@ -395,7 +404,8 @@
       ],
       "evidence": [
         "PAY-01 validation: Prisma generation/validation, API build and test typecheck passed; 5 payment unit, 9 payment HTTP/PostgreSQL integration and 13 public API checks passed across validated runs.",
-        "Migration rehearsal preserved full legacy payment/verification/allocation/contestant snapshots; 5 seed unit and 6 seed integration checks passed; no schema drift. No hosted migration or real provider call. PR linked in issue #13; keep In Progress until review/merge."
+        "Migration rehearsal preserved full legacy payment/verification/allocation/contestant snapshots; 5 seed unit and 6 seed integration checks passed; no schema drift. No hosted migration or real provider call. PR linked in issue #13; keep In Progress until review/merge.",
+        "Merged in PR #34 and closed; remains Done while further Paystack work is deferred by the 2026-10-27 admin-first decision."
       ],
       "sources": [
         "https://paystack.com/docs/api/transaction/",
@@ -420,7 +430,7 @@
         "area:payments",
         "area:security"
       ],
-      "description": "Accept provider signals only after authenticity and transaction checks. A browser redirect cannot prove payment.",
+      "description": "Sequencing pause (2026-10-27): defer further Paystack work while Admin Dashboard is prioritized. Accept provider signals only after authenticity and transaction checks. A browser redirect cannot prove payment.",
       "acceptance": [
         "Preserve raw payload before Express JSON parsing and validate x-paystack-signature with documented HMAC-SHA512 and constant-time comparison before trusting data.",
         "Add an empty durable PaystackWebhookJob inbox through a new migration; deduplicate authenticated event handoff and acknowledge quickly only after persistence. Storage failure returns non-2xx; email/provider work is outside the request.",
@@ -450,7 +460,7 @@
         "area:payments",
         "area:database"
       ],
-      "description": "Finalize payments and allocate votes atomically. Existing uniqueness constraints alone do not prove safe counter updates.",
+      "description": "Sequencing pause (2026-10-27): defer further Paystack work while Admin Dashboard is prioritized. Finalize payments and allocate votes atomically. Existing uniqueness constraints alone do not prove safe counter updates.",
       "acceptance": [
         "In one database transaction commit payment PAID/paidAt/providerTxnId, one immutable VoteAllocation, one atomic contestant totalVotes increment and one TransactionEmail VOTE_CONFIRMATION intent.",
         "Use shared idempotent finalization from verified webhook, authorized refresh and reconciliation; unique payment/provider references, allocation.paymentId, (paymentId, kind) and stable provider idempotency key prevent duplicate votes and confirmation intents.",
@@ -476,7 +486,7 @@
         "area:web",
         "area:payments"
       ],
-      "description": "Complete the voter journey using trusted server payment/allocation state.",
+      "description": "Sequencing pause (2026-10-27): defer further Paystack work while Admin Dashboard is prioritized. Complete the voter journey using trusted server payment/allocation state.",
       "acceptance": [
         "Support hosted checkout, bounded status polling, reload recovery and pending/paid/failed/cancelled retry states.",
         "Show paid only after verified payment and allocation; redirect parameters cannot grant votes.",
@@ -502,7 +512,7 @@
         "area:payments",
         "area:database"
       ],
-      "description": "Recover from missed events and define refunds/disputes before taking real money. REFUNDED status currently has no reversal ledger.",
+      "description": "Sequencing pause (2026-10-27): defer further Paystack work while Admin Dashboard is prioritized. Recover from missed events and define refunds/disputes before taking real money. REFUNDED status currently has no reversal ledger.",
       "acceptance": [
         "Provide bounded retryable reconciliation using the shared idempotent finalizer for pending/inconsistent payments.",
         "Document late-payment, refund, partial-refund and dispute policy; unsupported cases have a safe documented manual process.",
@@ -517,28 +527,43 @@
       "number": 17
     },
     {
-      "key": "A01",
+      "key": "ADMIN-01",
       "phase": 5,
-      "title": "Implement administrator authentication and protected API access",
+      "title": "Admin authentication and protected dashboard layout",
       "priority": "P0",
-      "status": "Backlog",
+      "status": "In Progress",
       "dependencies": [
-        "F05"
+        "F02"
       ],
       "labels": [
+        "area:api",
+        "area:web",
         "area:security",
-        "area:api"
+        "area:database"
       ],
-      "description": "Implement minimal admin security before management endpoints. Pull this prerequisite forward before C01 despite its phase grouping.",
+      "description": "FIRST IMPLEMENTATION TASK ONLY. Reuse existing AdminUser and AuditLog with Express-owned opaque sessions and the current Next.js frontend. One administrator for the MVP; no public registration. Approved implementation on feat/admin-01-auth-dashboard is submitted for review; do not merge or start ADMIN-02 without review.",
       "acceptance": [
-        "Document the auth choice: securely hashed AdminUser credentials and one-time bootstrap without default passwords, or an explicit migration to Supabase Auth.",
-        "Use expiring revocable sessions and secure cookies; protect cookie-based mutations from CSRF and validate allowed origins.",
-        "Apply shared API authorization, inactive-admin checks and login throttling; hiding frontend pages is insufficient.",
-        "Test unauthorized access, logout/expiry, inactive users and brute-force limits; redact credentials."
+        "Provide one-time secure CLI provisioning with masked prompt/protected stdin, explicit database target, no default password or startup/demo-seed provisioning, salted versioned scrypt hashing (N=2^17,r=8,p=1) and constant-time verification. Lock/check the singleton atomically; refuse existing/multiple admins without overwrite or deletion.",
+        "Implement strict Zod login/logout, session verification and CSRF bootstrap endpoints under /api/v1/admin/auth. Require an active AdminUser and return generic invalid-credentials errors; throttle login before hashing with shared persistent account/IP limits and bounded cooldowns.",
+        "Store only hashed cryptographically random session tokens in a new AdminSession table, rotate at login, revoke at logout and reject inactive/expired/revoked/tampered sessions. Proposed idle timeout 30 minutes and absolute lifetime 8 hours; fail closed on storage failure.",
+        "Use host-only HttpOnly Secure SameSite=Lax cookies (production __Host- prefix, Path=/, no Domain) with explicit loopback-only HTTP development exception and no browser localStorage tokens. Do not log or expose password/session/CSRF secrets.",
+        "Protect login/logout and every future admin write with session-bound/signed CSRF tokens, exact Origin checks and JSON/custom-header requirements; Fetch Metadata is additional protection, not a replacement. Use short-lived signed pre-login challenge binding to prevent login CSRF.",
+        "Use a fixed-path same-origin Next.js facade to Express; allowlist forwarded cookies/headers and preserve Set-Cookie safely. Verify every protected API resource server-side; frontend links/layout redirects are not authorization.",
+        "Build accessible /admin/login and protected /admin layout with Overview, Contestants, Competition, Vote Packages and Payments placeholders and logout. Reject external return URLs; use uncached request-time session checks on protected pages/data access, including client-navigation cases.",
+        "Separate public chrome into a Next.js route group so public URLs, homepage and contestant views remain intact. Do not build CRUD, uploads, payment actions or dashboard statistics in this issue.",
+        "Reuse AdminUser/AuditLog and add only a reviewed forward migration for AdminSession and shared AdminAuthRateLimit data; preserve historical migrations and all existing business/payment rows. No hosted migration or real admin provisioning runs automatically.",
+        "Pass tests for provisioning races/refusal, successful/failed/inactive login, throttle bypass attempts, cookie flags, session fixation/expiry/logout, CSRF/origin failures, unauthenticated/direct protected access and backend outage. Run real localhost HTTP/PostgreSQL plus Next.js login-dashboard-logout/public-regression checks, typechecks/lint/build.",
+        "After explicit implementation approval use feat/admin-01-auth-dashboard, push a linked PR, keep this issue open until review/merge and never merge without approval. Do not start ADMIN-02 until ADMIN-01 has been reviewed."
       ],
-      "evidence": [],
+      "evidence": [
+        "ADMIN-01 approved by the user; feature branch implements opaque sessions, CSRF, secure provisioning and protected dashboard placeholders.",
+        "Local tests pass for API auth/public/payment, seed regressions and real Next/Express/PostgreSQL login/session/logout; see docs/admin/authentication.md."
+      ],
       "sources": [],
-      "number": 8
+      "number": 8,
+      "externalDependencies": [
+        "https://github.com/ebukanathan/TalentHunt/issues/27"
+      ]
     },
     {
       "key": "A02",
@@ -547,14 +572,16 @@
       "priority": "P1",
       "status": "Backlog",
       "dependencies": [
-        "A01",
-        "C02"
+        "ADMIN-01",
+        "ADMIN-02",
+        "ADMIN-03",
+        "ADMIN-04"
       ],
       "labels": [
         "area:web",
         "area:api"
       ],
-      "description": "Provide a small authenticated interface for operating competitions, contestants and packages.",
+      "description": "After ADMIN-01 through ADMIN-04, retain this existing issue for protected audit-history viewing and cross-feature management UX/regressions. Login and CRUD forms are owned by the four ADMIN issues; this follow-up does not broaden ADMIN-01.",
       "acceptance": [
         "Support login/logout and validated management forms with useful server errors.",
         "Confirm lifecycle/destructive operations and prevent unsafe edits to referenced history.",
@@ -572,7 +599,7 @@
       "priority": "P1",
       "status": "Backlog",
       "dependencies": [
-        "A01",
+        "ADMIN-01",
         "P05"
       ],
       "labels": [
@@ -602,7 +629,7 @@
         "P05",
         "E01",
         "E03",
-        "A01"
+        "ADMIN-01"
       ],
       "labels": [
         "area:quality",
@@ -730,6 +757,38 @@
       "evidence": [],
       "sources": [],
       "number": 24
+    },
+    {
+      "key": "ADMIN-03",
+      "number": 35,
+      "phase": 5,
+      "title": "Secure contestant image upload using Supabase Storage",
+      "priority": "P1",
+      "status": "Backlog",
+      "labels": [
+        "area:api",
+        "area:web",
+        "area:security",
+        "area:delivery"
+      ],
+      "description": "Upload, replace and delete contestant photographs through authorized Express operations using Supabase Storage. Public image reads are permitted; anonymous writes are not. Backlog only; not part of ADMIN-01.",
+      "acceptance": [
+        "Keep all Storage credentials server-side, apply ADMIN-01 authentication/active-admin/CSRF guards, restrict operations to owned contestant paths and deny anonymous upload/update/delete policies. Public bucket reads may remain unauthenticated.",
+        "Validate actual decoded image content/magic bytes, declared type and extension consistently; proposed allowlist JPEG/PNG/WebP, maximum 5 MB and bounded dimensions/pixel/resource use. Reject SVG/executables, malformed/polyglot content and oversized requests before public storage.",
+        "Decode/re-encode approved content, strip unnecessary metadata and generate random safe object names and extensions. Never trust the supplied filename/path or fetch arbitrary image URLs.",
+        "Store file bytes only in Supabase Storage and canonical image references in Contestant.imageUrl or an explicitly reviewed reference field; no binary/base64 files in PostgreSQL.",
+        "Upload a new object before reference replacement; audit database changes, preserve currently referenced objects on failure and use bounded compensation/orphan cleanup. Delete only authorized obsolete objects; no unsafe cross-contestant/bucket path deletion.",
+        "Test unauthorized direct/backend/Storage writes, wrong content/type, size/dimension limits, filename traversal, replacement/delete races, failed upload/DB update cleanup and public image retrieval. No Storage provisioning or uploads occur during ADMIN-01."
+      ],
+      "evidence": [],
+      "sources": [
+        "https://supabase.com/docs/guides/storage/security/access-control",
+        "https://supabase.com/docs/guides/storage/buckets/fundamentals"
+      ],
+      "dependencies": [
+        "ADMIN-01",
+        "ADMIN-02"
+      ]
     }
   ]
 }
