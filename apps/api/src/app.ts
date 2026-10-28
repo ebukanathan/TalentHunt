@@ -8,6 +8,7 @@ import { createPaymentsRouter } from "./routes/payments.routes";
 import type { PaymentInitializationApi } from "./services/payment-initialization.service";
 import { createAdminRouter } from "./routes/admin-auth.routes";
 import type { AdminAuthService } from "./services/admin-auth.service";
+import { AdminContestantService } from "./services/admin-contestants.service";
 
 /** Injectable composition keeps HTTP tests on their explicitly selected database. */
 export function createApp(service: PublicApi, payments?: PaymentInitializationApi, admin?: AdminAuthService) {
@@ -25,7 +26,7 @@ export function createApp(service: PublicApi, payments?: PaymentInitializationAp
 
   app.use("/api/v1", createPublicRouter(service));
   app.use("/api/v1/payments", createPaymentsRouter(payments));
-  app.use("/api/v1/admin", createAdminRouter(admin));
+  app.use("/api/v1/admin", createAdminRouter(admin, admin ? new AdminContestantService(admin.database, service) : undefined));
   app.use((_request, _response, next) => {
     next(new HttpError(404, "ROUTE_NOT_FOUND", "Route not found."));
   });

@@ -21,12 +21,12 @@ Further Paystack implementation is deferred; completed PAY-01 remains unchanged.
 
 | Issue | Scope | Status |
 | --- | --- | --- |
-| [ADMIN-01 #8](https://github.com/ebukanathan/TalentHunt/issues/8) | Admin authentication and protected dashboard layout | In Progress - approved; implementation submitted for review |
-| [ADMIN-02 #10](https://github.com/ebukanathan/TalentHunt/issues/10) | Contestant CRUD - name, contestant number, bio, image reference, active status | Backlog |
+| [ADMIN-01 #8](https://github.com/ebukanathan/TalentHunt/issues/8) | Admin authentication and protected dashboard layout | Done - merged in PR #36 |
+| [ADMIN-02 #10](https://github.com/ebukanathan/TalentHunt/issues/10) | Contestant CRUD - name, contestant number, bio, image reference, active status | In Progress - implementation submitted for review |
 | [ADMIN-03 #35](https://github.com/ebukanathan/TalentHunt/issues/35) | Secure contestant image upload using Supabase Storage | Backlog |
 | [ADMIN-04 #9](https://github.com/ebukanathan/TalentHunt/issues/9) | Competition configuration and vote-package management | Backlog |
 
-The user approved the [ADMIN-01 authentication/security/file proposal](../admin/admin-dashboard-plan.md). ADMIN-01 is implemented on its feature branch for review; see [setup and verification](../admin/authentication.md). ADMIN-02 cannot start before ADMIN-01 review. Do not merge without approval. Tests migrate/provision only fresh disposable local databases; no hosted migration, real administrator provisioning or Storage changes have run.
+ADMIN-01 is merged in PR #36 and its dependency gate is fulfilled. The user requested ADMIN-02, whose plan was presented before coding; see [contestant management contracts/tests](../admin/contestant-management.md). Do not merge ADMIN-02 without approval. Its tests migrate/provision only fresh disposable local databases; no hosted contestant writes, schema migration, Paystack modification or Storage changes are included.
 
 ## Confirmed product requirements
 
@@ -48,7 +48,7 @@ Read-only configured development database review on 24 October 2026: 0 payments,
 
 Columns: **Backlog -> Next -> In Progress -> Done**. Keep one item In Progress. Completion requires linked implementation/check evidence and appropriate migration validation. Requirements changes alone do not complete implementation issues.
 
-**Current implementation: [ADMIN-01 #8](https://github.com/ebukanathan/TalentHunt/issues/8), P0, In Progress for review.** ADMIN-02 #10 is next only after ADMIN-01 review. E02 and future payment work remain Backlog. Only ADMIN-01 is In Progress.
+**Current implementation: [ADMIN-02 #10](https://github.com/ebukanathan/TalentHunt/issues/10), P1, In Progress for review.** ADMIN-01 #8 is Done after PR #36. ADMIN-03/04 and future payment work remain Backlog. Only ADMIN-02 is In Progress.
 
 E02 replaces its obsolete OTP-authorization scope. E01 #6 becomes the confirmation delivery worker/provider integration; E03 #12 becomes required-email checkout UI. Preserve issue IDs and history. All three stay open. The phase/milestone formerly called Email Verification is renamed **Checkout Email and Transactional Confirmations**, retaining its existing identity and item assignments.
 
@@ -67,7 +67,7 @@ Current sequence: **ADMIN-01 approval/implementation/review -> ADMIN-02 -> ADMIN
 
 ## Schema and migration rules
 
-ADMIN-01 adds only AdminSession and shared auth-throttle persistence alongside existing AdminUser/AuditLog through a new forward migration. The migration passed isolated local tests preserving historical rows; no hosted migration or real credential provisioning has run. ADMIN-03 will store image bytes in Supabase Storage and references in PostgreSQL; reads may be public, but upload/replace/delete require authorization and content/type/size/filename validation.
+ADMIN-01 adds AdminSession and shared auth-throttle persistence alongside existing AdminUser/AuditLog through a forward migration. Its migration passed isolated history-preservation tests; an administrator was subsequently provisioned under a separate explicit user request. ADMIN-02 reuses existing Contestant/Competition/AuditLog models and uniqueness constraints with no migration. ADMIN-03 will store image bytes in Supabase Storage and references in PostgreSQL; reads may be public, but upload/replace/delete require authorization and content/type/size/filename validation.
 
 Keep Payment.contactEmail, immutable money/vote/attribution snapshots, historical payments and allocations. Add empty TransactionEmail/EmailDeliveryEvent tables for permanent unique logical confirmations, immutable recipient/payload snapshots, provider IDs/events, leases, retry deadlines and delivery state. PAY-01 adds PaymentInitialization retry state; later session/receipt extensions and P02 webhook inbox remain separate work.
 
@@ -293,17 +293,19 @@ gh 'issue' 'create' '--repo' 'ebukanathan/TalentHunt' '--title' '[ADMIN-01] Admi
 
 gh 'project' 'item-add' '<PROJECT_NUMBER>' '--owner' 'ebukanathan' '--url' 'https://github.com/ebukanathan/TalentHunt/issues/<ISSUE_ADMIN-01>' '--format' 'json'
 
-gh 'project' 'item-edit' '--id' '<ITEM_ADMIN-01>' '--project-id' '<PROJECT_ID>' '--field-id' '<STATUS_FIELD_ID>' '--single-select-option-id' '<STATUS_In Progress>'
+gh 'project' 'item-edit' '--id' '<ITEM_ADMIN-01>' '--project-id' '<PROJECT_ID>' '--field-id' '<STATUS_FIELD_ID>' '--single-select-option-id' '<STATUS_Done>'
 
 gh 'project' 'item-edit' '--id' '<ITEM_ADMIN-01>' '--project-id' '<PROJECT_ID>' '--field-id' '<PHASE_FIELD_ID>' '--single-select-option-id' '<PHASE_Admin Dashboard>'
 
 gh 'project' 'item-edit' '--id' '<ITEM_ADMIN-01>' '--project-id' '<PROJECT_ID>' '--field-id' '<PRIORITY_FIELD_ID>' '--single-select-option-id' '<PRIORITY_P0>'
 
+gh 'issue' 'close' 'https://github.com/ebukanathan/TalentHunt/issues/<ISSUE_ADMIN-01>' '--repo' 'ebukanathan/TalentHunt' '--reason' 'completed'
+
 gh 'issue' 'create' '--repo' 'ebukanathan/TalentHunt' '--title' '[ADMIN-02] Contestant CRUD - name, contestant number, bio, image reference, active status' '--body-file' 'docs/project-management/generated/ADMIN-02.md' '--label' 'area:api,area:web,area:database,area:security' '--milestone' 'Admin Dashboard'
 
 gh 'project' 'item-add' '<PROJECT_NUMBER>' '--owner' 'ebukanathan' '--url' 'https://github.com/ebukanathan/TalentHunt/issues/<ISSUE_ADMIN-02>' '--format' 'json'
 
-gh 'project' 'item-edit' '--id' '<ITEM_ADMIN-02>' '--project-id' '<PROJECT_ID>' '--field-id' '<STATUS_FIELD_ID>' '--single-select-option-id' '<STATUS_Backlog>'
+gh 'project' 'item-edit' '--id' '<ITEM_ADMIN-02>' '--project-id' '<PROJECT_ID>' '--field-id' '<STATUS_FIELD_ID>' '--single-select-option-id' '<STATUS_In Progress>'
 
 gh 'project' 'item-edit' '--id' '<ITEM_ADMIN-02>' '--project-id' '<PROJECT_ID>' '--field-id' '<PHASE_FIELD_ID>' '--single-select-option-id' '<PHASE_Admin Dashboard>'
 

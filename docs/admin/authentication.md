@@ -1,6 +1,6 @@
 # ADMIN-01: administrator access
 
-The dashboard is `/admin`; sign in at `/admin/login` (locally, http://localhost:3000/admin/login). Overview, Contestants, Competition, Vote Packages and Payments are navigation placeholders. There is no public registration, voter login, image upload, CRUD or payment finalization in this change. ADMIN-02 waits for ADMIN-01 review.
+The dashboard is `/admin`; sign in at `/admin/login` (locally, http://localhost:3000/admin/login). ADMIN-01 is merged in PR #36. [ADMIN-02 contestant management](contestant-management.md) replaces the Contestants placeholder on its feature branch for review. Overview, Competition, Vote Packages and Payments remain placeholders. There is no public admin registration, voter login, image upload or payment finalization in these admin tasks.
 
 ## Configure and migrate
 

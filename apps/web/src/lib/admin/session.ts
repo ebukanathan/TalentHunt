@@ -3,8 +3,10 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { adminConfig } from "./config";
 import { z } from "zod";
+import { connection } from "next/server";
 const session = z.object({ status: z.literal("success"), data: z.object({ admin: z.object({ id: z.string(), email: z.email() }) }) });
 export async function requireAdmin() {
+  await connection();
   const jar = await cookies();
   const config = adminConfig();
   const token = jar.get(config.cookieName)?.value;

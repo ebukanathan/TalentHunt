@@ -1,6 +1,6 @@
 # Admin-first sequence and ADMIN-01 implementation proposal
 
-Prepared 27 October 2026 (Africa/Lagos). **Approved by the user; ADMIN-01 implemented on feat/admin-01-auth-dashboard for review.** See [configuration, provisioning, API and test instructions](authentication.md). No merge, hosted migration, real administrator provisioning or ADMIN-02 implementation is authorized by this status.
+Prepared 27 October 2026 (Africa/Lagos). **ADMIN-01 was approved and merged in PR #36. ADMIN-02 is now implemented on its feature branch for review; see contestant-management.md.** See [configuration, provisioning, API and test instructions](authentication.md). No merge, hosted migration, real administrator provisioning or ADMIN-02 implementation is authorized by this status.
 
 ## Scope and sequence
 

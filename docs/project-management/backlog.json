@@ -22,7 +22,7 @@
     },
     {
       "name": "Admin Dashboard",
-      "gate": "Admin-first MVP: one securely provisioned admin, protected cookie sessions/CSRF, contestant CRUD, authorized Supabase Storage photographs and audited competition/package management. ADMIN-01 is approved and In Progress for review; ADMIN-02 waits for its review. Payment reporting remains later work."
+      "gate": "Admin-first MVP: one securely provisioned admin, protected cookie sessions/CSRF, contestant CRUD, authorized Supabase Storage photographs and audited competition/package management. ADMIN-01 is merged; ADMIN-02 contestant management is In Progress for review. Payment reporting remains later work."
     },
     {
       "name": "Testing, CI/CD and Deployment",
@@ -231,7 +231,7 @@
       "phase": 5,
       "title": "Contestant CRUD - name, contestant number, bio, image reference, active status",
       "priority": "P1",
-      "status": "Backlog",
+      "status": "In Progress",
       "dependencies": [
         "ADMIN-01",
         "F03"
@@ -242,16 +242,19 @@
         "area:database",
         "area:security"
       ],
-      "description": "Reuse Contestant and existing public views for protected administrator CRUD in Express and Next.js. This issue is Backlog and cannot start until ADMIN-01 has been reviewed.",
+      "description": "Protected contestant list/create/read/update with search, status filters and history-preserving deactivation. ADMIN-01 merged in PR #36. Plan presented before coding; implementation on feat/admin-02-contestant-management for review.",
       "acceptance": [
-        "Provide protected paginated list/create/read/update/delete-or-deactivate endpoints and accessible management forms for name, contestant number, bio, managed image reference and active status.",
+        "Provide protected paginated list/create/read/update and deactivate endpoints (no DELETE handler) and accessible management forms for name, contestant number, bio, managed image reference and active status.",
         "Use ADMIN-01 server-side session/active-admin/CSRF guards on every write, strict validation and AuditLog records in the same database transaction.",
         "Preserve competition membership and number/slug uniqueness within a competition; derive safe slugs/identifiers and bound/escape text without HTML execution.",
-        "Use validated managed image references only; file upload/replacement/storage authorization belongs to ADMIN-03. Support no-image fallbacks while upload work is pending. Store no file bytes in PostgreSQL.",
+        "Use the existing optional imageUrl field with validated HTTPS references; file upload/replacement/storage authorization belongs to ADMIN-03. Support no-image fallbacks while upload work is pending. Store no file bytes in PostgreSQL.",
         "Preserve payment/vote history; prevent historical attribution changes and refuse hard deletion of referenced records in favor of deactivation. Do not rewrite payment snapshots.",
         "Test unauthenticated/CSRF rejection, invalid fields, duplicates, cross-competition references, inactive records, history-safe deletion, audit entries and responsive/keyboard form behavior. No Paystack expansion."
       ],
-      "evidence": [],
+      "evidence": [
+        "Plan presented before coding; live ADMIN-01 authentication/session/CSRF guards verified without contestant writes.",
+        "API unit/HTTP/PostgreSQL, real Next facade CRUD/public visibility, audit rollback/history tests and existing public/Paystack regressions pass; see docs/admin/contestant-management.md."
+      ],
       "sources": [],
       "number": 10
     },
@@ -531,7 +534,7 @@
       "phase": 5,
       "title": "Admin authentication and protected dashboard layout",
       "priority": "P0",
-      "status": "In Progress",
+      "status": "Done",
       "dependencies": [
         "F02"
       ],
@@ -541,7 +544,7 @@
         "area:security",
         "area:database"
       ],
-      "description": "FIRST IMPLEMENTATION TASK ONLY. Reuse existing AdminUser and AuditLog with Express-owned opaque sessions and the current Next.js frontend. One administrator for the MVP; no public registration. Approved implementation on feat/admin-01-auth-dashboard is submitted for review; do not merge or start ADMIN-02 without review.",
+      "description": "Secure provisioning, sessions/CSRF and protected dashboard completed and merged in PR #36.",
       "acceptance": [
         "Provide one-time secure CLI provisioning with masked prompt/protected stdin, explicit database target, no default password or startup/demo-seed provisioning, salted versioned scrypt hashing (N=2^17,r=8,p=1) and constant-time verification. Lock/check the singleton atomically; refuse existing/multiple admins without overwrite or deletion.",
         "Implement strict Zod login/logout, session verification and CSRF bootstrap endpoints under /api/v1/admin/auth. Require an active AdminUser and return generic invalid-credentials errors; throttle login before hashing with shared persistent account/IP limits and bounded cooldowns.",
@@ -557,7 +560,8 @@
       ],
       "evidence": [
         "ADMIN-01 approved by the user; feature branch implements opaque sessions, CSRF, secure provisioning and protected dashboard placeholders.",
-        "Local tests pass for API auth/public/payment, seed regressions and real Next/Express/PostgreSQL login/session/logout; see docs/admin/authentication.md."
+        "Local tests pass for API auth/public/payment, seed regressions and real Next/Express/PostgreSQL login/session/logout; see docs/admin/authentication.md.",
+        "Merged in PR #36; issue #8 closed. ADMIN-02 dependency fulfilled."
       ],
       "sources": [],
       "number": 8,
