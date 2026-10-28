@@ -10,7 +10,7 @@ No GitHub changes have been executed by --plan.
 | F04 | 1 | P1 | Backlog | F01, F02 | Publish a reproducible source and environment baseline |
 | F05 | 1 | P1 | Backlog | F02 | Add API configuration, Prisma lifecycle and safe error handling |
 | ADMIN-04 | 5 | P1 | Backlog | ADMIN-01, ADMIN-02, ADMIN-03, F03 | Competition configuration and vote-package management |
-| ADMIN-02 | 5 | P1 | Backlog | ADMIN-01, F03 | Contestant CRUD - name, contestant number, bio, image reference, active status |
+| ADMIN-02 | 5 | P1 | In Progress | ADMIN-01, F03 | Contestant CRUD - name, contestant number, bio, image reference, active status |
 | C03 | 2 | P1 | Backlog | None | Build public competition pages, contestant profiles and leaderboard |
 | E01 | 3 | P1 | Backlog | E02, P03, F05 | Deliver transactional voting confirmations with safe retries |
 | E02 | 3 | P0 | Backlog | F02 | Prepare history-preserving checkout email and confirmation schema |
@@ -20,7 +20,7 @@ No GitHub changes have been executed by --plan.
 | P03 | 4 | P0 | Backlog | P02, E02 | Allocate paid votes exactly once under concurrent delivery |
 | P04 | 4 | P1 | Backlog | P03, E03 | Build checkout return, payment status and voter receipt screens |
 | P05 | 4 | P0 | Backlog | P03 | Reconcile payments and implement auditable refund/vote-reversal handling |
-| ADMIN-01 | 5 | P0 | In Progress | F02 | Admin authentication and protected dashboard layout |
+| ADMIN-01 | 5 | P0 | Done | F02 | Admin authentication and protected dashboard layout |
 | A02 | 5 | P1 | Backlog | ADMIN-01, ADMIN-02, ADMIN-03, ADMIN-04 | Build admin management screens and audit trail |
 | A03 | 5 | P1 | Backlog | ADMIN-01, P05 | Build admin payment, vote and reconciliation reporting |
 | T01 | 6 | P0 | Backlog | P03, P05, E01, E03, ADMIN-01 | Establish security and payment-integrity regression tests |
@@ -229,22 +229,22 @@ Reuse Competition and VotePackage for protected administrator configuration and 
 
 # ADMIN-02: Contestant CRUD - name, contestant number, bio, image reference, active status
 
-Reuse Contestant and existing public views for protected administrator CRUD in Express and Next.js. This issue is Backlog and cannot start until ADMIN-01 has been reviewed.
+Protected contestant list/create/read/update with search, status filters and history-preserving deactivation. ADMIN-01 merged in PR #36. Plan presented before coding; implementation on feat/admin-02-contestant-management for review.
 
 **Phase:** Admin Dashboard
 
 **Priority:** P1
 
-**Initial status:** Backlog
+**Initial status:** In Progress
 
 **Labels:** area:api, area:web, area:database, area:security
 
 ## Acceptance criteria
 
-- [ ] Provide protected paginated list/create/read/update/delete-or-deactivate endpoints and accessible management forms for name, contestant number, bio, managed image reference and active status.
+- [ ] Provide protected paginated list/create/read/update and deactivate endpoints (no DELETE handler) and accessible management forms for name, contestant number, bio, managed image reference and active status.
 - [ ] Use ADMIN-01 server-side session/active-admin/CSRF guards on every write, strict validation and AuditLog records in the same database transaction.
 - [ ] Preserve competition membership and number/slug uniqueness within a competition; derive safe slugs/identifiers and bound/escape text without HTML execution.
-- [ ] Use validated managed image references only; file upload/replacement/storage authorization belongs to ADMIN-03. Support no-image fallbacks while upload work is pending. Store no file bytes in PostgreSQL.
+- [ ] Use the existing optional imageUrl field with validated HTTPS references; file upload/replacement/storage authorization belongs to ADMIN-03. Support no-image fallbacks while upload work is pending. Store no file bytes in PostgreSQL.
 - [ ] Preserve payment/vote history; prevent historical attribution changes and refuse hard deletion of referenced records in favor of deactivation. Do not rewrite payment snapshots.
 - [ ] Test unauthenticated/CSRF rejection, invalid fields, duplicates, cross-competition references, inactive records, history-safe deletion, audit entries and responsive/keyboard form behavior. No Paystack expansion.
 
@@ -255,7 +255,8 @@ Reuse Contestant and existing public views for protected administrator CRUD in E
 
 ## Evidence and verification
 
-- Not implemented in the reviewed source. Attach implementation, test and migration evidence before marking Done.
+- Plan presented before coding; live ADMIN-01 authentication/session/CSRF guards verified without contestant writes.
+- API unit/HTTP/PostgreSQL, real Next facade CRUD/public visibility, audit rollback/history tests and existing public/Paystack regressions pass; see docs/admin/contestant-management.md.
 
 **Review baseline:** 2026-10-27 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 
@@ -595,29 +596,29 @@ Sequencing pause (2026-10-27): defer further Paystack work while Admin Dashboard
 
 # ADMIN-01: Admin authentication and protected dashboard layout
 
-FIRST IMPLEMENTATION TASK ONLY. Reuse existing AdminUser and AuditLog with Express-owned opaque sessions and the current Next.js frontend. One administrator for the MVP; no public registration. Approved implementation on feat/admin-01-auth-dashboard is submitted for review; do not merge or start ADMIN-02 without review.
+Secure provisioning, sessions/CSRF and protected dashboard completed and merged in PR #36.
 
 **Phase:** Admin Dashboard
 
 **Priority:** P0
 
-**Initial status:** In Progress
+**Initial status:** Done
 
 **Labels:** area:api, area:web, area:security, area:database
 
 ## Acceptance criteria
 
-- [ ] Provide one-time secure CLI provisioning with masked prompt/protected stdin, explicit database target, no default password or startup/demo-seed provisioning, salted versioned scrypt hashing (N=2^17,r=8,p=1) and constant-time verification. Lock/check the singleton atomically; refuse existing/multiple admins without overwrite or deletion.
-- [ ] Implement strict Zod login/logout, session verification and CSRF bootstrap endpoints under /api/v1/admin/auth. Require an active AdminUser and return generic invalid-credentials errors; throttle login before hashing with shared persistent account/IP limits and bounded cooldowns.
-- [ ] Store only hashed cryptographically random session tokens in a new AdminSession table, rotate at login, revoke at logout and reject inactive/expired/revoked/tampered sessions. Proposed idle timeout 30 minutes and absolute lifetime 8 hours; fail closed on storage failure.
-- [ ] Use host-only HttpOnly Secure SameSite=Lax cookies (production __Host- prefix, Path=/, no Domain) with explicit loopback-only HTTP development exception and no browser localStorage tokens. Do not log or expose password/session/CSRF secrets.
-- [ ] Protect login/logout and every future admin write with session-bound/signed CSRF tokens, exact Origin checks and JSON/custom-header requirements; Fetch Metadata is additional protection, not a replacement. Use short-lived signed pre-login challenge binding to prevent login CSRF.
-- [ ] Use a fixed-path same-origin Next.js facade to Express; allowlist forwarded cookies/headers and preserve Set-Cookie safely. Verify every protected API resource server-side; frontend links/layout redirects are not authorization.
-- [ ] Build accessible /admin/login and protected /admin layout with Overview, Contestants, Competition, Vote Packages and Payments placeholders and logout. Reject external return URLs; use uncached request-time session checks on protected pages/data access, including client-navigation cases.
-- [ ] Separate public chrome into a Next.js route group so public URLs, homepage and contestant views remain intact. Do not build CRUD, uploads, payment actions or dashboard statistics in this issue.
-- [ ] Reuse AdminUser/AuditLog and add only a reviewed forward migration for AdminSession and shared AdminAuthRateLimit data; preserve historical migrations and all existing business/payment rows. No hosted migration or real admin provisioning runs automatically.
-- [ ] Pass tests for provisioning races/refusal, successful/failed/inactive login, throttle bypass attempts, cookie flags, session fixation/expiry/logout, CSRF/origin failures, unauthenticated/direct protected access and backend outage. Run real localhost HTTP/PostgreSQL plus Next.js login-dashboard-logout/public-regression checks, typechecks/lint/build.
-- [ ] After explicit implementation approval use feat/admin-01-auth-dashboard, push a linked PR, keep this issue open until review/merge and never merge without approval. Do not start ADMIN-02 until ADMIN-01 has been reviewed.
+- [x] Provide one-time secure CLI provisioning with masked prompt/protected stdin, explicit database target, no default password or startup/demo-seed provisioning, salted versioned scrypt hashing (N=2^17,r=8,p=1) and constant-time verification. Lock/check the singleton atomically; refuse existing/multiple admins without overwrite or deletion.
+- [x] Implement strict Zod login/logout, session verification and CSRF bootstrap endpoints under /api/v1/admin/auth. Require an active AdminUser and return generic invalid-credentials errors; throttle login before hashing with shared persistent account/IP limits and bounded cooldowns.
+- [x] Store only hashed cryptographically random session tokens in a new AdminSession table, rotate at login, revoke at logout and reject inactive/expired/revoked/tampered sessions. Proposed idle timeout 30 minutes and absolute lifetime 8 hours; fail closed on storage failure.
+- [x] Use host-only HttpOnly Secure SameSite=Lax cookies (production __Host- prefix, Path=/, no Domain) with explicit loopback-only HTTP development exception and no browser localStorage tokens. Do not log or expose password/session/CSRF secrets.
+- [x] Protect login/logout and every future admin write with session-bound/signed CSRF tokens, exact Origin checks and JSON/custom-header requirements; Fetch Metadata is additional protection, not a replacement. Use short-lived signed pre-login challenge binding to prevent login CSRF.
+- [x] Use a fixed-path same-origin Next.js facade to Express; allowlist forwarded cookies/headers and preserve Set-Cookie safely. Verify every protected API resource server-side; frontend links/layout redirects are not authorization.
+- [x] Build accessible /admin/login and protected /admin layout with Overview, Contestants, Competition, Vote Packages and Payments placeholders and logout. Reject external return URLs; use uncached request-time session checks on protected pages/data access, including client-navigation cases.
+- [x] Separate public chrome into a Next.js route group so public URLs, homepage and contestant views remain intact. Do not build CRUD, uploads, payment actions or dashboard statistics in this issue.
+- [x] Reuse AdminUser/AuditLog and add only a reviewed forward migration for AdminSession and shared AdminAuthRateLimit data; preserve historical migrations and all existing business/payment rows. No hosted migration or real admin provisioning runs automatically.
+- [x] Pass tests for provisioning races/refusal, successful/failed/inactive login, throttle bypass attempts, cookie flags, session fixation/expiry/logout, CSRF/origin failures, unauthenticated/direct protected access and backend outage. Run real localhost HTTP/PostgreSQL plus Next.js login-dashboard-logout/public-regression checks, typechecks/lint/build.
+- [x] After explicit implementation approval use feat/admin-01-auth-dashboard, push a linked PR, keep this issue open until review/merge and never merge without approval. Do not start ADMIN-02 until ADMIN-01 has been reviewed.
 
 ## Dependencies
 
@@ -628,6 +629,7 @@ FIRST IMPLEMENTATION TASK ONLY. Reuse existing AdminUser and AuditLog with Expre
 
 - ADMIN-01 approved by the user; feature branch implements opaque sessions, CSRF, secure provisioning and protected dashboard placeholders.
 - Local tests pass for API auth/public/payment, seed regressions and real Next/Express/PostgreSQL login/session/logout; see docs/admin/authentication.md.
+- Merged in PR #36; issue #8 closed. ADMIN-02 dependency fulfilled.
 
 **Review baseline:** 2026-10-27 (Africa/Lagos). See roadmap.md for current scope and preserved historical evidence.
 

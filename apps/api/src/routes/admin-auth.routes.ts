@@ -5,8 +5,10 @@ import { clearAdminCookies, readCookie, setAdminCookie } from "../auth/cookies";
 import { HttpError } from "../http/errors";
 import { requireAdminCsrf, requireAdminSession } from "../middleware/admin-auth";
 import type { AdminAuthService } from "../services/admin-auth.service";
+import type { AdminContestantService } from "../services/admin-contestants.service";
+import { createAdminContestantsRouter } from "./admin-contestants.routes";
 
-export function createAdminRouter(service?: AdminAuthService) {
+export function createAdminRouter(service?: AdminAuthService, contestants?: AdminContestantService) {
   const router = Router();
   router.use((_req, res, next) => {
     res.set({ "Cache-Control": "private, no-store, max-age=0", Pragma: "no-cache", Vary: "Cookie" });
@@ -34,6 +36,7 @@ export function createAdminRouter(service?: AdminAuthService) {
   });
   // All subsequent resources, including future admin writes, inherit both guards.
   router.use(requireAdminSession(service), requireAdminCsrf(service));
+  if (contestants) router.use("/contestants", createAdminContestantsRouter(contestants));
   router.get("/auth/session", (_req, res) => res.json({ status: "success", data: { admin: res.locals.admin } }));
   router.post("/auth/logout", async (req, res) => {
     if (!z.strictObject({}).safeParse(req.body).success) throw new HttpError(400, "ADMIN_INVALID_INPUT", "Send an empty JSON object to sign out.");

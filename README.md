@@ -2,13 +2,13 @@
 
 A paid talent-show voting platform under development with Next.js, TypeScript, Express, Prisma, PostgreSQL/Supabase and Paystack.
 
-Current implementation: npm workspaces, the public Next.js interface, Express read API, Prisma/PostgreSQL, PAY-01 test checkout initialization, and ADMIN-01 authentication/protected dashboard submitted for review. Payment finalization, paid votes, transactional confirmations and admin management tools remain roadmap work.
+Current implementation: npm workspaces, the public Next.js interface, Express read API, Prisma/PostgreSQL, PAY-01 test checkout initialization, merged ADMIN-01 authentication and ADMIN-02 contestant management submitted for review. Payment finalization, paid votes, transactional confirmations, uploads and competition/package management remain roadmap work.
 
 Product decision (24 October 2026): checkout requires an email address for receipts, voting confirmations, transaction communication and support, with no voter OTP or verification link. Payment verification and vote allocation are independent of email delivery. See [paid voting requirements](docs/product/paid-voting-requirements.md) and the [broader Paystack, API and schema plan](docs/api/checkout-and-confirmations.md). Confirmation delivery and legacy verification removal remain proposals. Marketing requires separate appropriate consent.
 
 PAY-01 adds test-only `POST /api/v1/payments/initialize` with server-owned prices, PENDING purchase snapshots and durable retry protection. See [configuration, request examples and payment tests](docs/api/payment-initialization.md). Checkout initialization does not confirm payment, allocate votes or send email. Paystack credentials are optional as a complete configuration; when absent, public reads work and initialization returns 503.
 
-Current development priority (27 October 2026): Admin Dashboard first; further Paystack implementation is paused. ADMIN-01 is approved and implemented on its feature branch for review. Sign in at `/admin/login` and access the protected workspace at `/admin`; see [admin configuration/provisioning](docs/admin/authentication.md), the [approved plan](docs/admin/admin-dashboard-plan.md) and [roadmap](docs/project-management/roadmap.md). Contestant CRUD, Storage uploads and competition/package management remain later issues; ADMIN-02 waits for ADMIN-01 review.
+Current development priority: Admin Dashboard first; further Paystack implementation is paused. ADMIN-01 is merged in PR #36. ADMIN-02 adds `/admin/contestants`, `/admin/contestants/new` and `/admin/contestants/[id]/edit` on its feature branch for review. Sign in at `/admin/login`; see [admin setup](docs/admin/authentication.md), [contestant API/UI/testing](docs/admin/contestant-management.md) and [roadmap](docs/project-management/roadmap.md). Storage uploads and competition/package management remain later issues. No ADMIN-02 merge without approval.
 
 ## Development setup
 
