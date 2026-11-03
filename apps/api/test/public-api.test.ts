@@ -69,9 +69,9 @@ test("public REST API over real HTTP and isolated PostgreSQL", { timeout: 60000 
     });
 
     await database.$transaction([
-      database.competition.create({ data: { id: "api-current", name: "Current", slug: "api-current", createdAt: new Date("2026-01-03T00:00:00Z"), votingOpens: new Date("2026-01-04T00:00:00Z") } }),
+      database.competition.create({ data: { id: "api-current", name: "Current", slug: "api-current", status: "OPEN", createdAt: new Date("2026-01-03T00:00:00Z"), votingOpens: new Date("2026-01-04T00:00:00Z") } }),
       database.competition.create({ data: { id: "api-previous", name: "Previous", slug: "api-previous", createdAt: new Date("2026-01-01T00:00:00Z"), status: "OPEN" } }),
-      database.competition.create({ data: { id: "api-inactive-show", name: "Inactive only", slug: "api-inactive-show", createdAt: new Date("2026-01-02T00:00:00Z") } }),
+      database.competition.create({ data: { id: "api-inactive-show", name: "Inactive only", slug: "api-inactive-show", status: "SCHEDULED", createdAt: new Date("2026-01-02T00:00:00Z") } }),
     ]);
     await database.$transaction([
       database.contestant.create({ data: { id: "api-active", competitionId: "api-current", number: "001", slug: "active", name: "Visible", totalVotes: 9007199254740993n } }),
@@ -81,7 +81,7 @@ test("public REST API over real HTTP and isolated PostgreSQL", { timeout: 60000 
       database.contestant.create({ data: { id: "api-only-inactive", competitionId: "api-inactive-show", number: "001", slug: "inactive", name: "Hidden", isActive: false } }),
       database.votePackage.create({ data: { id: "api-package", competitionId: "api-current", name: "Starter", voteCount: 10, priceKobo: 100000 } }),
       database.votePackage.create({ data: { id: "api-package-inactive", competitionId: "api-current", name: "Hidden", voteCount: 1, priceKobo: 1, isActive: false } }),
-      database.votePackage.create({ data: { id: "api-package-other", competitionId: "api-previous", name: "Other", voteCount: 1, priceKobo: 1 } }),
+      database.votePackage.create({ data: { id: "api-package-other", competitionId: "api-previous", name: "Other", voteCount: 1, priceKobo: 5000 } }),
       database.votePackage.create({ data: { id: "api-package-only-inactive", competitionId: "api-inactive-show", name: "Hidden", voteCount: 1, priceKobo: 1, isActive: false } }),
     ]);
 

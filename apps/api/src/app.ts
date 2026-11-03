@@ -11,6 +11,7 @@ import type { AdminAuthService } from "./services/admin-auth.service";
 import { AdminContestantService } from "./services/admin-contestants.service";
 import type { ImageStorage } from "./storage/contestant-images";
 import { AdminContestantImageService } from "./services/admin-contestant-images.service";
+import { AdminSettingsService } from "./services/admin-settings.service";
 
 /** Injectable composition keeps HTTP tests on their explicitly selected database. */
 export function createApp(service: PublicApi, payments?: PaymentInitializationApi, admin?: AdminAuthService, storage?: ImageStorage) {
@@ -28,9 +29,10 @@ export function createApp(service: PublicApi, payments?: PaymentInitializationAp
 
   app.use("/api/v1", createPublicRouter(service));
   app.use("/api/v1/payments", createPaymentsRouter(payments));
-  const contestants = admin ? new AdminContestantService(admin.database, service) : undefined;
+  const selection = { getCompetition: () => service.getManagedCompetition ? service.getManagedCompetition() : service.getCompetition() };
+  const contestants = admin ? new AdminContestantService(admin.database, selection) : undefined;
   const images = admin && contestants && storage ? new AdminContestantImageService(admin.database, storage, contestants) : undefined;
-  app.use("/api/v1/admin", createAdminRouter(admin, contestants, images));
+  app.use("/api/v1/admin", createAdminRouter(admin, contestants, images, admin ? new AdminSettingsService(admin.database, selection) : undefined));
   app.use((_request, _response, next) => {
     next(new HttpError(404, "ROUTE_NOT_FOUND", "Route not found."));
   });

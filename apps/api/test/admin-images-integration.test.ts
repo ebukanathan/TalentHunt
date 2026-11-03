@@ -56,7 +56,7 @@ test("ADMIN-03 real HTTP, PostgreSQL journal and injectable storage", { timeout:
     csrf=(await request("/api/v1/admin/auth/csrf")).body.data.csrfToken;
     assert.equal((await request("/api/v1/admin/auth/login","POST",JSON.stringify({email:"images@example.com",password:"A long fixture-only passphrase"}),{"Content-Type":"application/json"})).status,200);
     csrf=(await request("/api/v1/admin/auth/csrf")).body.data.csrfToken;
-    await db.competition.create({data:{id:"images-show",name:"Image fixture",slug:"images-show"}});
+    await db.competition.create({data:{id:"images-show",name:"Image fixture",slug:"images-show",status:"OPEN"}});
     await db.competition.create({data:{id:"other-show",name:"Other fixture",slug:"other-show"}});
     for(const [id,competitionId] of [["person","images-show"],["other-person","other-show"]]) await db.contestant.create({data:{id,competitionId,name:id,number:"001",slug:id}});
     await t.test("origin, CSRF, selected competition and managed metadata contract are enforced",async()=>{

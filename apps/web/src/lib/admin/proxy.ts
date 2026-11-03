@@ -12,6 +12,12 @@ export async function forwardContestants(request: Request, id?: string) {
   if (!allowed.includes(request.method)) return new Response(null, { status: 405 });
   return forward(request, `contestants${id ? "/" + id : ""}`, request.method, 32768);
 }
+export async function forwardSettings(request: Request, resource: "competition" | "vote-packages", id?: string) {
+  if (id && !/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(id)) return Response.json({ status: "error", message: "Invalid package ID." }, { status: 400 });
+  const allowed = resource === "competition" ? ["GET", "PATCH"] : id ? ["PATCH"] : ["GET", "POST"];
+  if (!allowed.includes(request.method) || resource === "competition" && id) return new Response(null, { status: 405 });
+  return forward(request, resource + (id ? "/" + id : ""), request.method, 32768);
+}
 async function forward(request: Request, path: string, method: string, limit: number) {
   try {
     const config = adminConfig();
