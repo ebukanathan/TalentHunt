@@ -11,9 +11,9 @@ const contestant: ManagedContestant = { id: "fixture-person", competitionId: "fi
 const data: ContestantList = { competition: { id: "fixture-show", name: "Fixture competition", slug: "fixture-show", status: "DRAFT", currency: "NGN", description: null, votingOpens: null, votingCloses: null }, items: [contestant], pagination: { page: 1, pageSize: 25, total: 26, pages: 2 } };
 test("forms expose labeled editable fields, preserve leading zeros and escape stored text", () => {
   const form = renderToStaticMarkup(<ContestantForm competitionName="Fixture competition" contestant={contestant} />);
-  for (const field of ["name", "number", "slug", "bio", "imageUrl", "isActive"]) assert.ok(form.includes(`id="${field}"`));
+  for (const field of ["name", "number", "slug", "bio", "image", "isActive"]) assert.ok(form.includes(`id="${field}"`));
   assert.match(form, /value="001"/); assert.match(form, /&lt;script&gt;/); assert.doesNotMatch(form, /<script>|<b>text<\/b>/);
-  assert.doesNotMatch(form, /type="file"|id="totalVotes"|id="competitionId"/);
+  assert.match(form, /type="file"/); assert.doesNotMatch(form, /id="imageUrl"|id="totalVotes"|id="competitionId"/);
   assert.match(form, /Save changes/); assert.match(renderToStaticMarkup(<ContestantForm competitionName="Fixture" />), /Register contestant/);
   assert.equal(suggestSlug("  Ada Étoile & Friends  "), "ada-etoile-friends");
 });

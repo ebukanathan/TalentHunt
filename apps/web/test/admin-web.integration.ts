@@ -11,6 +11,8 @@ import { provisionInitialAdmin } from "../../api/src/auth/provision";
 import { readAdminConfiguration } from "../../api/src/config/admin";
 import { AdminAuthService } from "../../api/src/services/admin-auth.service";
 import { PublicReadService } from "../../api/src/services/public.service";
+import sharp from "sharp";
+import type { ImageStorage } from "../../api/src/storage/contestant-images";
 
 async function main() {
   assert.notEqual(process.env.NODE_ENV, "production");
@@ -27,7 +29,10 @@ async function main() {
   const origin = `http://127.0.0.1:${port}`;
   const config = readAdminConfiguration({ ADMIN_APP_ORIGIN: origin, ADMIN_CSRF_SECRET: "b".repeat(64) })!;
   let now = new Date();
-  const api = createServer(createApp(new PublicReadService(db), undefined, new AdminAuthService(db, config, () => now)));
+  const imageObjects = new Map<string, Buffer>();
+  const storage: ImageStorage = { publicUrl: key => "https://images.example/" + key,
+    async upload(key, bytes) { imageObjects.set(key, bytes); }, async remove(key) { imageObjects.delete(key); } };
+  const api = createServer(createApp(new PublicReadService(db), undefined, new AdminAuthService(db, config, () => now), storage));
   let child: ReturnType<typeof spawn> | undefined;
   const jar = new Map<string, string>();
   const request = async (path: string, method = "GET", data?: object, csrf?: string, custom: Record<string, string> = {}) => {
@@ -38,6 +43,12 @@ async function main() {
     return result;
   };
   const csrf = async () => (await (await request("/api/admin/auth/csrf")).json()).data.csrfToken as string;
+  const image = await sharp({ create: { width: 20, height: 30, channels: 3, background: "red" } }).png().toBuffer();
+  const upload = async (id: string, token: string, bytes = image, custom: Record<string, string> = {}) => {
+    const data = new FormData(); data.append("image", new Blob([new Uint8Array(bytes)], { type: "image/png" }), "photo.png");
+    return fetch(`${origin}/api/admin/contestants/${id}/image`, { method: "POST", body: data, headers: {
+      Cookie: [...jar].map(([k,v]) => k + "=" + v).join("; "), Origin: origin, "X-CSRF-Token": token, ...custom }, signal: AbortSignal.timeout(90000) });
+  };
   const credentials = { email: "web-admin@example.com", password: "A fixture-only web passphrase" };
   const privatePaths = ["/admin", "/admin/contestants", "/admin/contestants/new", "/admin/contestants/unknown/edit", "/admin/competition", "/admin/vote-packages", "/admin/payments"];
   const redirected = async (path: string) => {
@@ -67,6 +78,7 @@ async function main() {
     assert.match(login, /type="password"/); assert.match(login, /autoComplete="current-password"/i);
     for (const path of privatePaths) await redirected(path);
     assert.equal((await request("/api/admin/auth/session")).status, 401);
+    assert.equal((await upload("unknown", "invalid")).status, 401);
     assert.equal((await request("/api/admin/auth/login", "POST", credentials)).status, 403);
     assert.equal((await request("/api/admin/auth/login", "POST", credentials, await csrf(), { Origin: "https://evil.example" })).status, 403);
     assert.equal((await request("/api/admin/auth/login", "POST", { ...credentials, password: "wrong" }, await csrf())).status, 401);
@@ -88,14 +100,30 @@ async function main() {
     assert.equal((await request(`/api/admin/contestants/${person.id}`, "PATCH", { bio: "x".repeat(40000) }, await csrf())).status, 413);
     const editForm = await (await request(`/admin/contestants/${person.id}/edit`)).text();
     assert.match(editForm, /Edit contestant/); assert.match(editForm, /Web Performer/);
+    assert.match(editForm, /type="file"/); assert.match(editForm, /Upload photograph/);
+    assert.equal((await upload(person.id, "invalid")).status, 403);
+    assert.equal((await upload(person.id, await csrf(), image, { Origin: "https://evil.example" })).status, 403);
+    assert.equal((await upload(person.id, await csrf(), Buffer.alloc(5_020_000))).status, 413);
+    assert.equal((await upload(person.id, await csrf(), Buffer.from("fake image"))).status, 400);
+    const firstPhoto = await upload(person.id, await csrf()); assert.equal(firstPhoto.status, 200);
+    const firstUrl = (await firstPhoto.json()).data.imageUrl;
+    const replaced = await upload(person.id, await csrf()); assert.equal(replaced.status, 200);
+    const photoUrl = (await replaced.json()).data.imageUrl; assert.notEqual(photoUrl, firstUrl);
+    assert.equal(imageObjects.size, 2);
     const filtered = await (await request("/admin/contestants?q=Web&status=inactive")).text();
     assert.match(filtered, /Web Performer/); assert.match(filtered, /Inactive/);
     const longBio = await request(`/api/admin/contestants/${person.id}`, "PATCH", { isActive: true, bio: "é".repeat(5000) }, await csrf());
     assert.equal(longBio.status, 200); assert.equal((await longBio.json()).data.bio.length, 5000);
     const active = await (await request("/api/admin/contestants?status=active")).json(); assert.equal(active.data.items[0].id, person.id);
     const publicActive = await fetch(`http://127.0.0.1:${apiPort}/api/v1/contestants`); assert.equal((await publicActive.json()).data[0].id, person.id);
+    const profile = await (await request(`/contestants/${person.id}`)).text();
+    assert.match(profile, /Web Performer/); assert.ok(profile.includes(photoUrl));
+    const listing = await (await request("/contestants")).text(); assert.ok(listing.includes(photoUrl));
+    const removed = await request(`/api/admin/contestants/${person.id}/image`, "DELETE", {}, await csrf());
+    assert.equal(removed.status, 200); assert.equal((await removed.json()).data.imageUrl, null);
     assert.equal((await request(`/api/admin/contestants/${person.id}`, "PATCH", { isActive: false }, await csrf())).status, 200);
     const publicInactive = await fetch(`http://127.0.0.1:${apiPort}/api/v1/contestants`); assert.equal((await publicInactive.json()).data.length, 0);
+    const hidden = await (await request(`/contestants/${person.id}`)).text(); assert.ok(!hidden.includes(photoUrl)); assert.match(hidden, /Contestant unavailable|NEXT_HTTP_ERROR_FALLBACK;404/);
     assert.equal(await db.auditLog.count({ where: { action: "CONTESTANT_CREATED" } }), 1);
     assert.equal(await db.auditLog.count({ where: { action: "CONTESTANT_STATUS_CHANGED" } }), 2);
     assert.equal((await request("/api/admin/auth/logout", "POST", {}, await csrf())).status, 200);
@@ -108,7 +136,7 @@ async function main() {
     assert.equal((await request("/api/admin/auth/session")).status, 503);
     assert.equal((await request("/api/admin/auth/login", "POST", credentials, "x".repeat(43))).status, 503);
     assert.equal(await db.payment.count(), 0);
-    console.log("ADMIN_WEB_INTEGRATION_PASSED: authentication and contestant facade CRUD, forms, filters, public visibility, audit, expiry, outage.");
+    console.log("ADMIN_WEB_INTEGRATION_PASSED: auth, CRUD, image upload proxy/limits/CSRF/replacement/removal, public profile/listing, inactive visibility, audit, expiry, outage.");
   } finally {
     if (child && child.exitCode === null) { child.kill(); await once(child, "exit"); }
     api.closeAllConnections(); if (api.listening) await new Promise<void>(done => api.close(() => done()));

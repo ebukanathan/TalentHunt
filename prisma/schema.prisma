@@ -229,3 +229,21 @@ model AuditLog {
   @@index([adminId, createdAt])
   @@index([entityType, entityId])
 }
+
+// Storage journal contains metadata only; pending objects are quarantined for 24h.
+// No FK cascade: cleanup metadata must survive a missing contestant.
+model ContestantImageOperation {
+  id            String   @id @default(cuid())
+  contestantId  String
+  objectKey     String   @unique
+  imageUrl      String   @unique
+  previousUrl   String?
+  state         String   @default("PENDING")
+  attempts      Int      @default(0)
+  nextAttemptAt DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([state, nextAttemptAt])
+  @@index([contestantId])
+}

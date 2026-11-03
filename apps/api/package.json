@@ -7,7 +7,9 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
-    "test": "tsx --test test/public-api.test.ts test/payment-unit.test.ts test/payment-integration.test.ts test/admin-unit.test.ts test/admin-integration.test.ts test/admin-contestants-unit.test.ts test/admin-contestants-integration.test.ts",
+    "test": "tsx --test --test-concurrency=1 test/public-api.test.ts test/payment-unit.test.ts test/payment-integration.test.ts test/admin-unit.test.ts test/admin-integration.test.ts test/admin-contestants-unit.test.ts test/admin-contestants-integration.test.ts test/admin-images-unit.test.ts test/admin-images-integration.test.ts",
+    "test:admin:images": "tsx --test test/admin-images-unit.test.ts test/admin-images-integration.test.ts",
+    "images:cleanup": "tsx scripts/cleanup-contestant-images.ts",
     "test:admin:contestants": "tsx --test test/admin-contestants-unit.test.ts test/admin-contestants-integration.test.ts",
     "test:admin": "tsx --test test/admin-unit.test.ts test/admin-integration.test.ts",
     "admin:provision": "tsx scripts/provision-admin.ts",
@@ -20,6 +22,7 @@
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
+    "@types/busboy": "^1.5.5",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^20.19.43",
@@ -28,10 +31,13 @@
   },
   "dependencies": {
     "@prisma/client": "^6.19.0",
+    "@supabase/supabase-js": "^2.118.0",
+    "busboy": "^1.6.0",
     "cors": "^2.8.6",
     "dotenv": "^18.0.8",
     "express": "^5.3.0",
     "helmet": "^8.3.0",
+    "sharp": "^0.35.5",
     "zod": "^4.6.7"
   }
 }

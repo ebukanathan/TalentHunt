@@ -243,7 +243,7 @@ test("cards show real names, numbers, exact totals and accessible missing-image 
   assert.ok(html.includes("9,007,199,254,740,993"));
   assert.ok(html.includes("Photograph unavailable for Test Performer"));
   assert.ok(!html.includes("<img"));
-  assert.ok(!html.includes("href="));
+  assert.ok(html.includes('href="/contestants/person-1"'));
   const unsafe = renderToStaticMarkup(
     <ContestantCard
       contestant={{ ...contestant, imageUrl: "javascript:alert(1)" }}

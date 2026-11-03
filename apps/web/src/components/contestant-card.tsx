@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import type { Contestant } from "@/lib/api/schemas";
 import { formatVotes } from "@/lib/format";
 
@@ -66,7 +67,7 @@ export function ContestantCard({ contestant }: { contestant: Contestant }) {
       <div className="card-content">
         <div>
           <p className="eyebrow">THE LINEUP</p>
-          <h3 id={`name-${contestant.id}`}>{contestant.name}</h3>
+          <h3 id={`name-${contestant.id}`}><Link href={`/contestants/${encodeURIComponent(contestant.id)}`}>{contestant.name}</Link></h3>
         </div>
         <p className="vote-total">
           <strong>{formatVotes(contestant.totalVotes)}</strong>

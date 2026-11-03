@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { z } from "zod";
 import { readPaystackConfiguration } from "./paystack";
 import { readAdminConfiguration } from "./admin";
+import { readStorageConfiguration } from "./storage";
 
 // Process environment wins, followed by apps/api/.env, then the repository .env.
 // These paths work from both src/config and dist/config under npm workspaces.
@@ -29,7 +30,7 @@ export function readEnvironment(source: NodeJS.ProcessEnv) {
     const fields = [...new Set(result.error.issues.map(issue => issue.path.join(".")))];
     throw new Error("Invalid API configuration: " + fields.join(", ") + ".");
   }
-  return { ...result.data, paystack: readPaystackConfiguration(source), admin: readAdminConfiguration(source) };
+  return { ...result.data, paystack: readPaystackConfiguration(source), admin: readAdminConfiguration(source), storage: readStorageConfiguration(source) };
 }
 
 export const environment = readEnvironment(process.env);

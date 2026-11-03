@@ -58,7 +58,7 @@ test("ADMIN-02 protected CRUD on real HTTP and isolated PostgreSQL", { timeout: 
     await db.competition.create({ data: { id: "admin02-show", name: "Management fixture", slug: "admin02-show", status: "OPEN" } });
     await db.competition.create({ data: { id: "other-show", name: "Other show", slug: "other-show", createdAt: new Date(now.getTime() + 60000) } });
     await db.contestant.create({ data: { id: "other-person", competitionId: "other-show", number: "001", name: "Other person", slug: "ada-example" } });
-    const input = { name: " Ada Example ", number: "001", slug: "Ada-Example", bio: " A performer. ", imageUrl: "https://images.example.com/ada.jpg", isActive: false };
+    const input = { name: " Ada Example ", number: "001", slug: "Ada-Example", bio: " A performer. ", imageUrl: null, isActive: false };
     let id = "", second = "";
     await t.test("strict invalid input rejects direct votes/IDs/competition reassignment without writes", async () => {
       for (const body of [{}, { ...input, totalVotes: 100000 }, { ...input, competitionId: "other-show" }, { ...input, id: "chosen-id" }, { ...input, imageUrl: "javascript:alert(1)" }, { ...input, isActive: "true" }, { ...input, slug: "../escape" }]) assert.equal((await request(root, "POST", body)).status, 400);
