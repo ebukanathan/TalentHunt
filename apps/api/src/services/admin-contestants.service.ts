@@ -44,6 +44,7 @@ export class AdminContestantService {
     return { competition, contestant };
   }
   async create(input: CreateAdminContestant, adminId: string) {
+    if (input.imageUrl) throw new HttpError(400, "MANAGED_IMAGE_REQUIRED", "Upload photographs through the image endpoint.");
     const competition = await this.publicApi.getCompetition();
     try {
       return await this.database.$transaction(async tx => {
@@ -66,6 +67,7 @@ export class AdminContestantService {
         const locked = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM "Contestant" WHERE id = ${id} AND "competitionId" = ${competition.id} FOR UPDATE`;
         if (!locked.length) throw missing();
         const previous = await tx.contestant.findUniqueOrThrow({ where: { id }, select: selection });
+        if (input.imageUrl !== undefined && input.imageUrl !== previous.imageUrl) throw new HttpError(400, "MANAGED_IMAGE_REQUIRED", "Use the image upload or removal endpoint to change a photograph.");
         const changes: Prisma.InputJsonObject = Object.fromEntries(editable
           .filter(field => input[field] !== undefined && input[field] !== previous[field])
           .map(field => [field, { before: previous[field], after: input[field] }]));

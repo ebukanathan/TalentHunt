@@ -3,24 +3,24 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import type { ManagedContestant } from "@/lib/admin/contestant-schemas";
 import { ContestantMutationError, saveContestant, suggestSlug } from "@/lib/admin/contestant-mutations";
+import { ContestantImage } from "./contestant-image";
 
 export function ContestantForm({ contestant, competitionName }: { contestant?: ManagedContestant; competitionName: string }) {
-  const [values, setValues] = useState({ name: contestant?.name || "", number: contestant?.number || "", slug: contestant?.slug || "", bio: contestant?.bio || "", imageUrl: contestant?.imageUrl || "", isActive: contestant?.isActive ?? true });
+  const [values, setValues] = useState({ name: contestant?.name || "", number: contestant?.number || "", slug: contestant?.slug || "", bio: contestant?.bio || "", isActive: contestant?.isActive ?? true });
   const [slugEdited, setSlugEdited] = useState(Boolean(contestant));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [fields, setFields] = useState<Record<string, string>>({});
   const summary = useRef<HTMLDivElement>(null);
   const fieldError = (name: string) => fields[name] ? <p id={`${name}-error`} className="admin-field-error">{fields[name]}</p> : null;
-  return <form className="admin-contestant-form" onSubmit={async event => {
+  return <><form className="admin-contestant-form" onSubmit={async event => {
     event.preventDefault();
     if (busy) return;
     setBusy(true); setError(""); setFields({});
     try {
-      await saveContestant({ ...values, bio: values.bio || null, imageUrl: values.imageUrl || null }, contestant?.id);
+      const saved = await saveContestant({ ...values, bio: values.bio || null }, contestant?.id);
       // A full navigation discards private router/form state after a committed write.
-      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-      window.location.assign(`/admin/contestants?saved=${contestant ? "updated" : "created"}`);
+      window.location.assign(contestant ? "/admin/contestants?saved=updated" : `/admin/contestants/${encodeURIComponent(saved.id)}/edit`);
     } catch (caught) {
       setError(caught instanceof ContestantMutationError ? caught.message : "Could not save this contestant. Try again.");
       setFields(caught instanceof ContestantMutationError ? caught.fields : {});
@@ -47,14 +47,11 @@ export function ContestantForm({ contestant, competitionName }: { contestant?: M
       <div className="admin-field"><label htmlFor="bio">Biography <span>(optional)</span></label>
         <textarea id="bio" value={values.bio} rows={6} maxLength={5000} aria-invalid={Boolean(fields.bio)} aria-describedby={fields.bio ? "bio-help bio-error" : "bio-help"} onChange={event => setValues({ ...values, bio: event.target.value })} />
         <p id="bio-help" className="admin-field-help">Plain text, up to 5,000 characters.</p>{fieldError("bio")}</div>
-      <div className="admin-field"><label htmlFor="imageUrl">Photograph URL <span>(optional)</span></label>
-        <input id="imageUrl" type="url" pattern="https://.*" value={values.imageUrl} maxLength={2048} aria-invalid={Boolean(fields.imageUrl)} aria-describedby={fields.imageUrl ? "image-help imageUrl-error" : "image-help"} onChange={event => setValues({ ...values, imageUrl: event.target.value })} />
-        <p id="image-help" className="admin-field-help">An existing HTTPS image URL. Leave blank to use the photograph fallback.</p>{fieldError("imageUrl")}</div>
       <div className="admin-field"><label className="admin-checkbox" htmlFor="isActive"><input id="isActive" type="checkbox" checked={values.isActive} onChange={event => setValues({ ...values, isActive: event.target.checked })} /> Active contestant</label>
         <p className="admin-field-help">Inactive contestants are hidden from public contestant views. Their records, votes and payment history are preserved.</p>{fieldError("isActive")}</div>
       <div className="admin-actions"><button type="submit" className="admin-button" disabled={busy}>{busy ? "Saving…" : contestant ? "Save changes" : "Register contestant"}</button><Link href="/admin/contestants">Cancel</Link></div>
     </fieldset>
-  </form>;
+  </form><ContestantImage id={contestant?.id} imageUrl={contestant?.imageUrl || null} name={values.name} /></>;
 }
 export function ContestantStatusButton({ id, active, name }: { id: string; active: boolean; name: string }) {
   const [busy, setBusy] = useState(false);

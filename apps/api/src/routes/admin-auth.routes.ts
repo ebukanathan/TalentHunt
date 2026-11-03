@@ -7,8 +7,10 @@ import { requireAdminCsrf, requireAdminSession } from "../middleware/admin-auth"
 import type { AdminAuthService } from "../services/admin-auth.service";
 import type { AdminContestantService } from "../services/admin-contestants.service";
 import { createAdminContestantsRouter } from "./admin-contestants.routes";
+import { createAdminImagesRouter } from "./admin-contestant-images.routes";
+import type { AdminContestantImageService } from "../services/admin-contestant-images.service";
 
-export function createAdminRouter(service?: AdminAuthService, contestants?: AdminContestantService) {
+export function createAdminRouter(service?: AdminAuthService, contestants?: AdminContestantService, images?: AdminContestantImageService) {
   const router = Router();
   router.use((_req, res, next) => {
     res.set({ "Cache-Control": "private, no-store, max-age=0", Pragma: "no-cache", Vary: "Cookie" });
@@ -35,7 +37,9 @@ export function createAdminRouter(service?: AdminAuthService, contestants?: Admi
     res.json({ status: "success", data: { admin: result.admin } });
   });
   // All subsequent resources, including future admin writes, inherit both guards.
-  router.use(requireAdminSession(service), requireAdminCsrf(service));
+  router.use(requireAdminSession(service));
+  router.use("/contestants/:id/image", createAdminImagesRouter(service, images));
+  router.use(requireAdminCsrf(service));
   if (contestants) router.use("/contestants", createAdminContestantsRouter(contestants));
   router.get("/auth/session", (_req, res) => res.json({ status: "success", data: { admin: res.locals.admin } }));
   router.post("/auth/logout", async (req, res) => {

@@ -9,9 +9,11 @@ import type { PaymentInitializationApi } from "./services/payment-initialization
 import { createAdminRouter } from "./routes/admin-auth.routes";
 import type { AdminAuthService } from "./services/admin-auth.service";
 import { AdminContestantService } from "./services/admin-contestants.service";
+import type { ImageStorage } from "./storage/contestant-images";
+import { AdminContestantImageService } from "./services/admin-contestant-images.service";
 
 /** Injectable composition keeps HTTP tests on their explicitly selected database. */
-export function createApp(service: PublicApi, payments?: PaymentInitializationApi, admin?: AdminAuthService) {
+export function createApp(service: PublicApi, payments?: PaymentInitializationApi, admin?: AdminAuthService, storage?: ImageStorage) {
   const app = express();
   app.use(helmet());
   app.use(cors({ origin: "http://localhost:3000" }));
@@ -26,7 +28,9 @@ export function createApp(service: PublicApi, payments?: PaymentInitializationAp
 
   app.use("/api/v1", createPublicRouter(service));
   app.use("/api/v1/payments", createPaymentsRouter(payments));
-  app.use("/api/v1/admin", createAdminRouter(admin, admin ? new AdminContestantService(admin.database, service) : undefined));
+  const contestants = admin ? new AdminContestantService(admin.database, service) : undefined;
+  const images = admin && contestants && storage ? new AdminContestantImageService(admin.database, storage, contestants) : undefined;
+  app.use("/api/v1/admin", createAdminRouter(admin, contestants, images));
   app.use((_request, _response, next) => {
     next(new HttpError(404, "ROUTE_NOT_FOUND", "Route not found."));
   });
