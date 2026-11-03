@@ -23,6 +23,7 @@ try {
     ADMIN_WEB_TEST_DATABASE_URL = 'talenthunt_admin_test_web_images'
     ADMIN_CONTESTANTS_TEST_DATABASE_URL = 'talenthunt_admin_contestants_test_images'
     ADMIN_IMAGES_TEST_DATABASE_URL = 'talenthunt_images_test_images'
+    ADMIN_SETTINGS_TEST_DATABASE_URL = 'talenthunt_settings_test_images'
   }
   foreach ($key in $targets.Keys) {
     $database = $targets[$key]
@@ -44,7 +45,7 @@ try {
   if ($LASTEXITCODE -ne 0) { throw 'Next/Express/PostgreSQL checks failed.' }
   node node_modules/prisma/build/index.js migrate diff --from-url $env:DATABASE_URL --to-schema-datamodel prisma/schema.prisma --exit-code
   if ($LASTEXITCODE -ne 0) { throw 'Schema drift detected.' }
-  Write-Output 'ADMIN03_CHECKS_PASSED'
+  Write-Output 'ADMIN_SETTINGS_AND_IMAGES_CHECKS_PASSED'
 } finally {
   if ($started) { & "$postgresBin/pg_ctl.exe" -D $imageTestData -m fast -w stop }
   Write-Output "Disposable test files retained at $imageTestRoot"

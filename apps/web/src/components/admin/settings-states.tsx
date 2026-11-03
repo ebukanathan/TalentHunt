@@ -1,0 +1,2 @@
+export function SettingsLoading() { return <div role="status" className="admin-panel">Loading competition settings…</div>; }
+export function SettingsUnavailable({ status }: { status: number }) { return <section className="admin-panel" role="alert"><h2>{status===404?"No competition is configured":status===400?"Invalid page":"Settings are temporarily unavailable"}</h2><p>{status===404?"These settings will be available when a competition is configured.":"Reload this page and try again."}</p></section>; }

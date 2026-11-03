@@ -1,5 +1,6 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { HttpError } from "../http/errors";
+import { votingOpen } from "./competition-policy";
 
 const competitionFields = {
   id: true, name: true, slug: true, description: true, status: true,
@@ -30,15 +31,20 @@ export class PublicReadService {
     });
   }
 
-  async getCompetition() {
+  async getManagedCompetition() {
     const competition = await this.findCompetition();
     if (!competition) throw new HttpError(404, "COMPETITION_NOT_FOUND", "Competition not found.");
+    return competition;
+  }
+  async getCompetition() {
+    const competition = await this.getManagedCompetition();
+    if (competition.status === "DRAFT") throw new HttpError(404, "COMPETITION_NOT_FOUND", "Competition not found.");
     return competition;
   }
 
   async getContestants() {
     const competition = await this.findCompetition();
-    if (!competition) return [];
+    if (!competition || competition.status === "DRAFT") return [];
     return this.database.contestant.findMany({
       where: { competitionId: competition.id, isActive: true },
       orderBy: [{ number: "asc" }, { id: "asc" }],
@@ -48,7 +54,7 @@ export class PublicReadService {
 
   async getContestant(id: string) {
     const competition = await this.findCompetition();
-    const contestant = competition ? await this.database.contestant.findFirst({
+    const contestant = competition && competition.status !== "DRAFT" ? await this.database.contestant.findFirst({
       where: { id, competitionId: competition.id, isActive: true },
       select: contestantFields,
     }) : null;
@@ -58,13 +64,13 @@ export class PublicReadService {
 
   async getVotePackages() {
     const competition = await this.findCompetition();
-    if (!competition) return [];
+    if (!competition || competition.currency !== "NGN" || !votingOpen(competition)) return [];
     return this.database.votePackage.findMany({
-      where: { competitionId: competition.id, isActive: true },
+      where: { competitionId: competition.id, isActive: true, currency: "NGN", priceKobo: { gte: 5000 }, voteCount: { gt: 0 } },
       orderBy: [{ priceKobo: "asc" }, { voteCount: "asc" }, { id: "asc" }],
       select: packageFields,
     });
   }
 }
 
-export type PublicApi = Pick<PublicReadService, "getCompetition" | "getContestants" | "getContestant" | "getVotePackages">;
+export type PublicApi = Pick<PublicReadService, "getCompetition" | "getContestants" | "getContestant" | "getVotePackages"> & Partial<Pick<PublicReadService,"getManagedCompetition">>;

@@ -78,6 +78,7 @@ async function main() {
     assert.match(login, /type="password"/); assert.match(login, /autoComplete="current-password"/i);
     for (const path of privatePaths) await redirected(path);
     assert.equal((await request("/api/admin/auth/session")).status, 401);
+    for (const path of ["/api/admin/competition", "/api/admin/vote-packages"]) assert.equal((await request(path)).status, 401);
     assert.equal((await upload("unknown", "invalid")).status, 401);
     assert.equal((await request("/api/admin/auth/login", "POST", credentials)).status, 403);
     assert.equal((await request("/api/admin/auth/login", "POST", credentials, await csrf(), { Origin: "https://evil.example" })).status, 403);
@@ -88,6 +89,28 @@ async function main() {
       assert.equal(result.status, 200); assert.match(text, /web-admin@example.com/); assert.match(result.headers.get("cache-control")!, /no-store/);
     }
     await db.competition.create({ data: { id: "web-show", name: "Web management fixture", slug: "web-show", status: "OPEN" } });
+    let settings = (await (await request("/api/admin/competition")).json()).data;
+    assert.match(await (await request("/admin/competition")).text(), /Save competition/);
+    assert.match(await (await request("/admin/vote-packages")).text(), /Create package/);
+    assert.equal((await request("/api/admin/competition", "PATCH", { name: "Changed", expectedUpdatedAt: settings.updatedAt })).status, 403);
+    const settingsSaved = await request("/api/admin/competition", "PATCH", { name: "Web configured competition", votingOpens: new Date(Date.now()-60000).toISOString(), votingCloses: new Date(Date.now()+3600000).toISOString(), expectedUpdatedAt: settings.updatedAt }, await csrf());
+    assert.equal(settingsSaved.status, 200); settings = (await settingsSaved.json()).data;
+    assert.match(await (await request("/admin")).text(), /Current competition status/);
+    assert.equal((await request("/api/admin/vote-packages", "POST", { name: "Web package", voteCount: 7, priceNgn: "0.01" }, await csrf())).status, 400);
+    const packageCreated = await request("/api/admin/vote-packages", "POST", { name: "Web package", voteCount: 7, priceNgn: "50.01" }, await csrf());
+    assert.equal(packageCreated.status, 201); let managedPackage = (await packageCreated.json()).data; assert.equal(managedPackage.priceKobo, 5001);
+    const packageUpdated = await request(`/api/admin/vote-packages/${managedPackage.id}`, "PATCH", { priceNgn: "75.25", expectedUpdatedAt: managedPackage.updatedAt }, await csrf());
+    assert.equal(packageUpdated.status, 200); managedPackage = (await packageUpdated.json()).data; assert.equal(managedPackage.priceKobo, 7525);
+    const staleSettings = settings;
+    const closed = await request("/api/admin/competition", "PATCH", { status: "CLOSED", expectedUpdatedAt: settings.updatedAt }, await csrf()); assert.equal(closed.status, 200); settings = (await closed.json()).data;
+    assert.equal((await request("/api/admin/competition", "PATCH", { name: "Stale", expectedUpdatedAt: staleSettings.updatedAt }, await csrf())).status, 409);
+    const publicPackagesUrl = `http://127.0.0.1:${apiPort}/api/v1/vote-packages`;
+    assert.deepEqual((await (await fetch(publicPackagesUrl)).json()).data, []);
+    const reopened = await request("/api/admin/competition", "PATCH", { status: "OPEN", expectedUpdatedAt: settings.updatedAt }, await csrf()); assert.equal(reopened.status, 200);
+    assert.equal((await (await fetch(publicPackagesUrl)).json()).data[0].priceKobo, 7525);
+    assert.equal((await request(`/api/admin/vote-packages/${managedPackage.id}`, "PATCH", { isActive: false, expectedUpdatedAt: managedPackage.updatedAt }, await csrf())).status, 200);
+    assert.deepEqual((await (await fetch(publicPackagesUrl)).json()).data, []);
+    const packagePage = await (await request("/admin/vote-packages")).text(); assert.match(packagePage, /Inactive/); assert.match(packagePage, /75.25/);
     const newForm = await (await request("/admin/contestants/new")).text();
     assert.match(newForm, /Register contestant/); assert.match(newForm, /id="number"/); assert.doesNotMatch(newForm, /type="file"/);
     const input = { name: "Web Performer", number: "001", slug: "web-performer", isActive: false };
@@ -136,7 +159,7 @@ async function main() {
     assert.equal((await request("/api/admin/auth/session")).status, 503);
     assert.equal((await request("/api/admin/auth/login", "POST", credentials, "x".repeat(43))).status, 503);
     assert.equal(await db.payment.count(), 0);
-    console.log("ADMIN_WEB_INTEGRATION_PASSED: auth, CRUD, image upload proxy/limits/CSRF/replacement/removal, public profile/listing, inactive visibility, audit, expiry, outage.");
+    console.log("ADMIN_WEB_INTEGRATION_PASSED: auth, CRUD, images, competition settings, reopening, decimal NGN packages, stale saves, deactivation, public visibility, audit, expiry and outage.");
   } finally {
     if (child && child.exitCode === null) { child.kill(); await once(child, "exit"); }
     api.closeAllConnections(); if (api.listening) await new Promise<void>(done => api.close(() => done()));
