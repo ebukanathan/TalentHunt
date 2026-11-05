@@ -64,6 +64,27 @@ test("ADMIN-04 protected settings and immutable financial history on real HTTP/P
     await db.payment.create({data:{id:"history-payment",reference:"settings-history",competitionId:"settings-show",contestantId:(await db.contestant.findFirstOrThrow({where:{competitionId:"settings-show"}})).id,packageId:item!.id,contactEmail:"voter@example.com",amountKobo:5001,voteCount:7,status:"PAID"}});
     await db.voteAllocation.create({data:{paymentId:"history-payment",contestantId:(await db.contestant.findFirstOrThrow({where:{competitionId:"settings-show"}})).id,voteCount:7}});
     const history=await db.payment.findMany(),allocations=await db.voteAllocation.findMany();
+    await t.test("invalid package updates leave package, audit and financial records unchanged", async () => {
+      const before = await db.votePackage.findUniqueOrThrow({ where: { id: item.id } });
+      const auditCount = await db.auditLog.count();
+      const invalidUpdates = [
+        { priceNgn: "0" }, { priceNgn: "-50" }, { priceNgn: "49.99" },
+        { priceNgn: "50.001" }, { priceNgn: "21474836.48" }, { priceNgn: 50 },
+        { voteCount: 0 }, { voteCount: -1 }, { voteCount: 1.1 }, { voteCount: 2147483648 },
+        { competitionId: "other-show" }, { currency: "USD" }, { priceKobo: 1 },
+        { name: " " }, { expectedUpdatedAt: "invalid" },
+      ];
+      for (const change of invalidUpdates) {
+        const response = await request(root + "/vote-packages/" + item.id, "PATCH", {
+          expectedUpdatedAt: item.updatedAt, ...change,
+        });
+        assert.equal(response.status, 400, JSON.stringify(change));
+      }
+      assert.deepEqual(await db.votePackage.findUniqueOrThrow({ where: { id: item.id } }), before);
+      assert.equal(await db.auditLog.count(), auditCount);
+      assert.deepEqual(await db.payment.findMany(), history);
+      assert.deepEqual(await db.voteAllocation.findMany(), allocations);
+    });
     await t.test("updates reject foreign packages, immutable fields and stale forms while preserving snapshots",async()=>{
       assert.equal((await request(root+"/vote-packages/foreign-package","PATCH",{name:"Changed",expectedUpdatedAt:item.updatedAt})).status,404);
       assert.equal((await request(root+"/vote-packages/"+item.id,"PATCH",{competitionId:"other-show",expectedUpdatedAt:item.updatedAt})).status,400);
@@ -93,7 +114,25 @@ test("ADMIN-04 protected settings and immutable financial history on real HTTP/P
       await db.$executeRawUnsafe(`CREATE FUNCTION reject_settings_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW."entityType" IN ('Competition','VotePackage') THEN RAISE EXCEPTION 'fixture audit failure'; END IF; RETURN NEW; END; $$`);
       await db.$executeRawUnsafe('CREATE TRIGGER settings_audit_failure BEFORE INSERT ON "AuditLog" FOR EACH ROW EXECUTE FUNCTION reject_settings_audit()');
       const previous=await getCompetition(),count=await db.votePackage.count();
-      try{assert.equal((await patch({name:"Rollback"})).status,500);assert.equal((await getCompetition()).name,previous.name);assert.equal((await request(root+"/vote-packages","POST",validPackage)).status,500);assert.equal(await db.votePackage.count(),count);}finally{await db.$executeRawUnsafe('DROP TRIGGER settings_audit_failure ON "AuditLog"');await db.$executeRawUnsafe('DROP FUNCTION reject_settings_audit()');}
+      const previousPackage = await db.votePackage.findUniqueOrThrow({ where: { id: item.id } });
+      const auditCount = await db.auditLog.count();
+      try {
+        assert.equal((await patch({name:"Rollback"})).status,500);
+        assert.deepEqual(await getCompetition(), previous);
+        assert.equal((await request(root+"/vote-packages","POST",validPackage)).status,500);
+        assert.equal(await db.votePackage.count(),count);
+        assert.equal((await request(root + "/vote-packages/" + item.id, "PATCH", {
+          name: "Rollback package", priceNgn: "123.45", voteCount: 99, isActive: true,
+          expectedUpdatedAt: item.updatedAt,
+        })).status, 500);
+        assert.deepEqual(await db.votePackage.findUniqueOrThrow({ where: { id: item.id } }), previousPackage);
+        assert.equal(await db.auditLog.count(), auditCount);
+        assert.deepEqual(await db.payment.findMany(), history);
+        assert.deepEqual(await db.voteAllocation.findMany(), allocations);
+      } finally {
+        await db.$executeRawUnsafe('DROP TRIGGER settings_audit_failure ON "AuditLog"');
+        await db.$executeRawUnsafe('DROP FUNCTION reject_settings_audit()');
+      }
     });
     await t.test("closing, audited reopening and final completion enforce lifecycle boundaries",async()=>{
       assert.equal((await patch({status:"CLOSED"})).status,200);assert.deepEqual((await request("/api/v1/vote-packages")).body.data,[]);

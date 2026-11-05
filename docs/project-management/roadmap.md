@@ -1,6 +1,6 @@
 # TalentHunt - Development Roadmap
 
-Updated 27 October 2026 (Africa/Lagos). Repository: [ebukanathan/TalentHunt](https://github.com/ebukanathan/TalentHunt). [GitHub Project](https://github.com/users/ebukanathan/projects/3).
+Updated 5 November 2026 (Africa/Lagos). Repository: [ebukanathan/TalentHunt](https://github.com/ebukanathan/TalentHunt). [GitHub Project](https://github.com/users/ebukanathan/projects/3).
 
 ## Admin-first priority - 27 October 2026
 
@@ -9,11 +9,11 @@ Further Paystack implementation is deferred; completed PAY-01 remains unchanged.
 | Issue | Scope | Status |
 | --- | --- | --- |
 | [ADMIN-01 #8](https://github.com/ebukanathan/TalentHunt/issues/8) | Admin authentication and protected dashboard layout | Done - merged in PR #36 |
-| [ADMIN-02 #10](https://github.com/ebukanathan/TalentHunt/issues/10) | Contestant CRUD - name, contestant number, bio, image reference, active status | In Progress - implementation submitted for review |
-| [ADMIN-03 #35](https://github.com/ebukanathan/TalentHunt/issues/35) | Secure contestant image upload using Supabase Storage | Backlog |
-| [ADMIN-04 #9](https://github.com/ebukanathan/TalentHunt/issues/9) | Competition configuration and vote-package management | Backlog |
+| [ADMIN-02 #10](https://github.com/ebukanathan/TalentHunt/issues/10) | Contestant CRUD - name, contestant number, bio, image reference, active status | Done - merged in PR #37 |
+| [ADMIN-03 #35](https://github.com/ebukanathan/TalentHunt/issues/35) | Secure contestant image upload using Supabase Storage | Done - merged in PR #38; deployment cleanup scheduling remains |
+| [ADMIN-04 #9](https://github.com/ebukanathan/TalentHunt/issues/9) | Competition configuration and vote-package management | In Progress - implementation merged in PR #39; follow-up regression verification for review |
 
-ADMIN-01 is merged in PR #36 and its dependency gate is fulfilled. The user requested ADMIN-02, whose plan was presented before coding; see [contestant management contracts/tests](../admin/contestant-management.md). Do not merge ADMIN-02 without approval. Its tests migrate/provision only fresh disposable local databases; no hosted contestant writes, schema migration, Paystack modification or Storage changes are included.
+ADMIN-01 through ADMIN-03 are merged and their implementation dependency gates are fulfilled. ADMIN-04 was already merged in PR #39 on 3 November before the renewed development request. Its issue and Project item remain open/In Progress while a follow-up branch verifies the existing feature and strengthens regression coverage. See [competition/package contracts](../admin/competition-and-packages.md) and [verification evidence](../admin/admin04-verification.md). Do not merge the follow-up PR without approval. Write tests use fresh disposable localhost databases. ADMIN-03's recurring image-cleanup schedule remains a deployment follow-up; visual/mobile/keyboard review is still manual.
 
 ## Confirmed product requirements
 
@@ -35,7 +35,7 @@ Read-only configured development database review on 24 October 2026: 0 payments,
 
 Columns: **Backlog -> Next -> In Progress -> Done**. Keep one item In Progress. Completion requires linked implementation/check evidence and appropriate migration validation. Requirements changes alone do not complete implementation issues.
 
-**Current implementation: [ADMIN-02 #10](https://github.com/ebukanathan/TalentHunt/issues/10), P1, In Progress for review.** ADMIN-01 #8 is Done after PR #36. ADMIN-03/04 and future payment work remain Backlog. Only ADMIN-02 is In Progress.
+**Current review: [ADMIN-04 #9](https://github.com/ebukanathan/TalentHunt/issues/9), P1, In Progress for follow-up regression verification.** ADMIN-01 #8, ADMIN-02 #10 and ADMIN-03 #35 are Done after PRs #36, #37 and #38. Only ADMIN-04 is In Progress. Future payment work remains Backlog.
 
 E02 replaces its obsolete OTP-authorization scope. E01 #6 becomes the confirmation delivery worker/provider integration; E03 #12 becomes required-email checkout UI. Preserve issue IDs and history. All three stay open. The phase/milestone formerly called Email Verification is renamed **Checkout Email and Transactional Confirmations**, retaining its existing identity and item assignments.
 
@@ -50,11 +50,11 @@ E02 replaces its obsolete OTP-authorization scope. E01 #6 becomes the confirmati
 | Admin Dashboard | ADMIN-01 to ADMIN-04; later A02/A03 follow-ups | Secure sessions/CSRF, contestant management, authorized Supabase photographs and audited competition/package configuration. Later payment reporting stays deferred. |
 | Testing, CI/CD and Deployment | T01-T05 | Integrity and delivery-failure tests, CI, staging, recovery, monitoring and launch rehearsal. |
 
-Current sequence: **ADMIN-01 approval/implementation/review -> ADMIN-02 -> ADMIN-03 -> ADMIN-04**. Reuse AdminUser, Competition, Contestant, VotePackage and AuditLog; one administrator, no public registration. Proposed database sessions and shared login throttling use new forward migration(s), with server-side authorization on every admin write. Paystack #14-#17 and related future delivery/payment work remain Backlog until a later decision resumes them.
+The ADMIN-01 -> ADMIN-02 -> ADMIN-03 implementation sequence is complete; ADMIN-04 has merged implementation and a follow-up verification review. These features reuse AdminUser, Competition, Contestant, VotePackage and AuditLog; one administrator, no public registration. Database sessions and shared login throttling use the applied forward migration, with server-side authorization on every admin write. Paystack #14-#17 and related future delivery/payment work remain Backlog until a later decision resumes them.
 
 ## Schema and migration rules
 
-ADMIN-01 adds AdminSession and shared auth-throttle persistence alongside existing AdminUser/AuditLog through a forward migration. Its migration passed isolated history-preservation tests; an administrator was subsequently provisioned under a separate explicit user request. ADMIN-02 reuses existing Contestant/Competition/AuditLog models and uniqueness constraints with no migration. ADMIN-03 will store image bytes in Supabase Storage and references in PostgreSQL; reads may be public, but upload/replace/delete require authorization and content/type/size/filename validation.
+ADMIN-01 adds AdminSession and shared auth-throttle persistence alongside existing AdminUser/AuditLog through a forward migration. Its migration passed isolated history-preservation tests; an administrator was subsequently provisioned under a separate explicit user request. ADMIN-02 reuses existing Contestant/Competition/AuditLog models and uniqueness constraints with no migration. ADMIN-03 stores image bytes in Supabase Storage and references in PostgreSQL, with an additive cleanup-journal migration; reads may be public, but upload/replace/delete require authorization and content/type/size/filename validation. ADMIN-04 reuses the existing schema with no migration.
 
 Keep Payment.contactEmail, immutable money/vote/attribution snapshots, historical payments and allocations. Add empty TransactionEmail/EmailDeliveryEvent tables for permanent unique logical confirmations, immutable recipient/payload snapshots, provider IDs/events, leases, retry deadlines and delivery state. PAY-01 adds PaymentInitialization retry state; later session/receipt extensions and P02 webhook inbox remain separate work.
 

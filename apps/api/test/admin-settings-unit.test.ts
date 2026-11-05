@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createPackage, ngnToKobo, patchCompetition, patchPackage } from "../src/validation/admin-settings";
+import { createPackage, ngnToKobo, patchCompetition, patchPackage, statuses } from "../src/validation/admin-settings";
 import { validateCompetitionChange, votingOpen } from "../src/services/competition-policy";
+import { HttpError } from "../src/http/errors";
 
 test("decimal NGN conversion preserves exact kobo and enforces checkout/database bounds",()=>{
   for(const [price,kobo] of [["50",5000],["50.01",5001],["99.9",9990],["21474836.47",2147483647]] as const)assert.equal(ngnToKobo(price),kobo);
@@ -30,4 +31,26 @@ test("lifecycle rules include manual scheduling, cancellation, current-window re
   assert.throws(()=>validateCompetitionChange(draft,{...open,votingOpens:null},now));
   assert.throws(()=>validateCompetitionChange({...open,status:"COMPLETED"},{...open,status:"COMPLETED",votingCloses:new Date("2030-01-02T00:00:00Z")},now));
   assert.equal(votingOpen(open,start),true);assert.equal(votingOpen(open,end),false);assert.equal(votingOpen({...open,status:"SCHEDULED"},now),false);
+});
+
+test("every lifecycle status pair follows the documented transition policy", () => {
+  const now = new Date("2030-01-01T12:00:00Z");
+  const allowed = new Set([
+    "DRAFT:SCHEDULED", "DRAFT:OPEN", "SCHEDULED:DRAFT", "SCHEDULED:OPEN",
+    "OPEN:CLOSED", "CLOSED:OPEN", "CLOSED:COMPLETED",
+  ]);
+  for (const from of statuses) {
+    for (const to of statuses) {
+      // Keep dates unchanged, choosing a valid window for the destination so
+      // date validation cannot hide an incorrect transition decision.
+      const window = {
+        votingOpens: new Date(to === "SCHEDULED" ? "2030-01-01T13:00:00Z" : "2030-01-01T11:00:00Z"),
+        votingCloses: new Date("2030-01-01T14:00:00Z"),
+      };
+      const change = () => validateCompetitionChange({ ...window, status: from }, { ...window, status: to }, now);
+      const pair = `${from}:${to}`;
+      if (from === to || allowed.has(pair)) assert.doesNotThrow(change, pair);
+      else assert.throws(change, error => error instanceof HttpError && error.statusCode === 409 && error.code === "INVALID_STATUS_TRANSITION", pair);
+    }
+  }
 });
