@@ -1,8 +1,8 @@
 # ADMIN-05: Admin Dashboard Overview
 
-Issue: [ADMIN-05 #41](https://github.com/ebukanathan/TalentHunt/issues/41). [Roadmap](../project-management/roadmap.md). This proposal is awaiting implementation approval; publishing it does not authorize coding or merging.
+Issue: [ADMIN-05 #41](https://github.com/ebukanathan/TalentHunt/issues/41). [Roadmap](../project-management/roadmap.md). The user authorized implementation with “continue” on 8 November 2026 (Africa/Lagos). The feature is In Progress on `feat/admin-05-dashboard-overview`; merge approval is still required. See [implemented contracts](dashboard-overview.md).
 
-First task in the non-payment roadmap, 7 November 2026 (Africa/Lagos). Parent: #18. Status: Next, awaiting explicit implementation-plan approval. Do not begin application coding until approval.
+First task in the non-payment roadmap, proposed 7 November 2026 (Africa/Lagos). Parent: #18. The approved implementation plan and its original inspection baseline follow.
 
 ## Inspected baseline and dependencies
 

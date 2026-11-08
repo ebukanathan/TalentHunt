@@ -20,19 +20,19 @@ const packageFields = {
 export class PublicReadService {
   constructor(private readonly database: PrismaClient, private readonly competitionSlug?: string) {}
 
-  private findCompetition() {
+  private findCompetition(database: Pick<PrismaClient, "competition"> = this.database) {
     if (this.competitionSlug) {
-      return this.database.competition.findUnique({
+      return database.competition.findUnique({
         where: { slug: this.competitionSlug }, select: competitionFields,
       });
     }
-    return this.database.competition.findFirst({
+    return database.competition.findFirst({
       orderBy: [{ createdAt: "desc" }, { id: "asc" }], select: competitionFields,
     });
   }
 
-  async getManagedCompetition() {
-    const competition = await this.findCompetition();
+  async getManagedCompetition(database?: Pick<PrismaClient, "competition">) {
+    const competition = await this.findCompetition(database);
     if (!competition) throw new HttpError(404, "COMPETITION_NOT_FOUND", "Competition not found.");
     return competition;
   }
