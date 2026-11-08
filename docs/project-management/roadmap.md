@@ -1,80 +1,38 @@
-# TalentHunt - Development Roadmap
+# TalentHunt — Non-payment development roadmap
 
-Updated 5 November 2026 (Africa/Lagos). Repository: [ebukanathan/TalentHunt](https://github.com/ebukanathan/TalentHunt). [GitHub Project](https://github.com/users/ebukanathan/projects/3).
+Updated 7 November 2026 (Africa/Lagos). This sequence supersedes previous payment-first and admin-foundation plans.
 
-## Admin-first priority - 27 October 2026
+Published to the repository on 8 November 2026 (Africa/Lagos). [GitHub Project](https://github.com/users/ebukanathan/projects/3) · [ADMIN-05 implementation proposal](../admin/dashboard-overview-plan.md). Implementation approval remains pending.
 
-Further Paystack implementation is deferred; completed PAY-01 remains unchanged. Prioritize the existing Next.js/Express Admin Dashboard.
+## Execution order
 
-| Issue | Scope | Status |
-| --- | --- | --- |
-| [ADMIN-01 #8](https://github.com/ebukanathan/TalentHunt/issues/8) | Admin authentication and protected dashboard layout | Done - merged in PR #36 |
-| [ADMIN-02 #10](https://github.com/ebukanathan/TalentHunt/issues/10) | Contestant CRUD - name, contestant number, bio, image reference, active status | Done - merged in PR #37 |
-| [ADMIN-03 #35](https://github.com/ebukanathan/TalentHunt/issues/35) | Secure contestant image upload using Supabase Storage | Done - merged in PR #38; deployment cleanup scheduling remains |
-| [ADMIN-04 #9](https://github.com/ebukanathan/TalentHunt/issues/9) | Competition configuration and vote-package management | In Progress - implementation merged in PR #39; follow-up regression verification for review |
+| Order | Work | Issues | State |
+| --- | --- | --- | --- |
+| 1 | Admin dashboard overview and PostgreSQL competition statistics | [ADMIN-05 #41](https://github.com/ebukanathan/TalentHunt/issues/41); audit explorer parent #18 | Next — plan approval required before coding |
+| 2 | Public leaderboard and completed competition results | [#32](https://github.com/ebukanathan/TalentHunt/issues/32) | Backlog |
+| 3 | Public website completion, responsiveness, accessibility and SEO | [#42](https://github.com/ebukanathan/TalentHunt/issues/42), [#30](https://github.com/ebukanathan/TalentHunt/issues/30), [#31](https://github.com/ebukanathan/TalentHunt/issues/31); parent [#11](https://github.com/ebukanathan/TalentHunt/issues/11) | Backlog |
+| 4 | Standalone transactional email infrastructure and templates | [#43](https://github.com/ebukanathan/TalentHunt/issues/43); configuration support [#5](https://github.com/ebukanathan/TalentHunt/issues/5) | Backlog |
+| 5 | Automated tests, security and CI/CD | [#20](https://github.com/ebukanathan/TalentHunt/issues/20), [#21](https://github.com/ebukanathan/TalentHunt/issues/21), remaining #5 | Backlog; feature tests accompany every change |
+| 6 | Non-payment staging deployment and documentation | scoped [#22](https://github.com/ebukanathan/TalentHunt/issues/22), [#23](https://github.com/ebukanathan/TalentHunt/issues/23), [#4](https://github.com/ebukanathan/TalentHunt/issues/4) | Backlog |
 
-ADMIN-01 through ADMIN-03 are merged and their implementation dependency gates are fulfilled. ADMIN-04 was already merged in PR #39 on 3 November before the renewed development request. Its issue and Project item remain open/In Progress while a follow-up branch verifies the existing feature and strengthens regression coverage. See [competition/package contracts](../admin/competition-and-packages.md) and [verification evidence](../admin/admin04-verification.md). Do not merge the follow-up PR without approval. Write tests use fresh disposable localhost databases. ADMIN-03's recurring image-cleanup schedule remains a deployment follow-up; visual/mobile/keyboard review is still manual.
+Group/filter the board by **Roadmap workstream**, whose numbered options match this order. ADMIN-05 is the only Next task; keep at most one item In Progress after approval. Priorities of open payment-dependent items are P2 and their workstream is Paused, not a promise to resume.
 
-## Confirmed product requirements
+## Verified source and completion
 
-Checkout requires an email address for payment receipts, successful voting confirmations, transaction-related communication and customer support. Voters do not need an account, email OTP or verification link. Keep Payment.contactEmail required. Checkout must not enroll anyone in marketing; any future marketing needs separate appropriate consent.
+Current main is 05557ce (merged PR #40). ADMIN-01 #8, ADMIN-02 #10, ADMIN-03 #35 and ADMIN-04 #9 are closed/Done and implemented through PRs #36–#40. Foundation #1–#3, public API #27 and homepage/list #29 are also Done. PAY-01 #13 is an existing completed baseline, retained without expansion.
 
-Paystack payment verification and atomic vote allocation operate independently of email delivery. After confirmed payment and successful allocation, create one durable confirmation intent in the same database transaction; a background worker sends a combined receipt/voting confirmation through a reliable provider. Permanent unique intent keys, provider idempotency, leases and bounded retries prevent duplicate submissions. Resend is proposed; its 24-hour idempotency window requires reconciliation of uncertain sends before retrying beyond the safe deadline.
+Inspection found a basic protected overview showing competition details/shortcuts, but no aggregate statistics or activity feed. A basic profile route exists while #30's full acceptance is unfinished. Leaderboard/results, package selection, standalone email transport/templates, sitemap/robots and CI workflows are absent. Broader #4/#5/#18/#20/#22/#23 acceptance remains unfinished; existing code is not evidence that those whole issues are Done.
 
-Requirements and API artifacts: [product requirements](../product/paid-voting-requirements.md), [proposed Paystack/API/schema plan](../api/checkout-and-confirmations.md), [implemented read API](../api/core-rest-api.md). The broader plan remains a proposal; the approved PAY-01 contract, retry limitations and test instructions are documented in [payment initialization](../api/payment-initialization.md). These payment changes and the public homepage are now merged into main.
+Fresh inspection tests: 16 admin unit tests and 21 frontend tests passed. Merged ADMIN-04 evidence records 89 API tests, integration, builds and migration-drift checks on disposable databases. New implementation will rerun appropriate full checks; no fresh full-integration run is claimed for this planning update. Image cleanup scheduling, deployment hardening and manual visual/mobile/keyboard review remain follow-ups.
 
-## Current baseline and work in progress
+## Payment suspension and preservation
 
-The repository is published. Foundation/seed/public read API are complete (F01/F02/F03 and #27). The public homepage/list (#29, PR #33) and PAY-01 test initialization (#13, PR #34) are merged and Done. Profiles #30, package selection #31 and leaderboard #32 remain separate Backlog work. Broader setup/configuration/admin issues stay open; no unimplemented admin scope is complete.
+Further Paystack/payment processing is suspended until explicitly instructed to resume. #14–#17, payment reporting #19, payment-linked #6/#7/#12 and paid launch #24 stay Backlog/Paused. Existing initialization code, every payment-related model (including legacy verification models), financial records and all migration files/checksums must remain intact. Earlier model-removal proposals are superseded. Do not generate artificial financial records or infer revenue from packages/votes.
 
-PAY-01 test checkout initialization is merged; further Paystack implementation is paused. payment finalization, webhook processing, votes and transactional email remain unimplemented. The existing ContactVerification model is legacy scaffolding. The seed integration test still counts it and must be adjusted with any reviewed future removal.
+Standalone #43 prepares infrastructure/templates without payment-triggered dispatch. The new non-payment staging slice in #22 does not require paid checkout or claim a paid-voting launch. Preserve all issue IDs and historical requirements; deferred financial work is not marked complete.
 
-Read-only configured development database review on 24 October 2026: 0 payments, 0 non-null Payment.verificationId links, 0 ContactVerification rows and 0 allocations. These aggregate counts do not authorize removal in other environments. No database records were modified.
+## ADMIN-05 approval and delivery gate
 
-## Solo workflow and next issue
+The issue contains the concrete API/UI/data/test plan. Reuse Express-owned session authorization, active-admin checks, Prisma/PostgreSQL and Next.js/Zod. Database counts and a safe bounded recent-activity feed are selected-competition scoped. Financial summaries are read-only recorded values when qualifying rows exist, otherwise explicitly unavailable. Loading, empty/no-competition, financial-unavailable and real upstream errors must be distinct.
 
-Columns: **Backlog -> Next -> In Progress -> Done**. Keep one item In Progress. Completion requires linked implementation/check evidence and appropriate migration validation. Requirements changes alone do not complete implementation issues.
-
-**Current review: [ADMIN-04 #9](https://github.com/ebukanathan/TalentHunt/issues/9), P1, In Progress for follow-up regression verification.** ADMIN-01 #8, ADMIN-02 #10 and ADMIN-03 #35 are Done after PRs #36, #37 and #38. Only ADMIN-04 is In Progress. Future payment work remains Backlog.
-
-E02 replaces its obsolete OTP-authorization scope. E01 #6 becomes the confirmation delivery worker/provider integration; E03 #12 becomes required-email checkout UI. Preserve issue IDs and history. All three stay open. The phase/milestone formerly called Email Verification is renamed **Checkout Email and Transactional Confirmations**, retaining its existing identity and item assignments.
-
-## Milestones and sequence
-
-| Phase / milestone | Issues | Exit gate |
-| --- | --- | --- |
-| Project Foundation | F01-F05 | Repeatable environment, seed, database lifecycle and safe API configuration. |
-| Competition and Contestant Management | C03, #27, #29-#32 | Protected management and real public browsing with honest voting-window state. |
-| Checkout Email and Transactional Confirmations | E01-E03 | Required contact email without OTP/link verification; safe schema transition; deduplicated post-allocation confirmations; transactional-only messaging. |
-| Payments and Vote Allocation | P01-P05 | Server-owned checkout, authenticated and verified Paystack facts, atomic votes/outbox, separate delivery status and reconciliation/refund handling. |
-| Admin Dashboard | ADMIN-01 to ADMIN-04; later A02/A03 follow-ups | Secure sessions/CSRF, contestant management, authorized Supabase photographs and audited competition/package configuration. Later payment reporting stays deferred. |
-| Testing, CI/CD and Deployment | T01-T05 | Integrity and delivery-failure tests, CI, staging, recovery, monitoring and launch rehearsal. |
-
-The ADMIN-01 -> ADMIN-02 -> ADMIN-03 implementation sequence is complete; ADMIN-04 has merged implementation and a follow-up verification review. These features reuse AdminUser, Competition, Contestant, VotePackage and AuditLog; one administrator, no public registration. Database sessions and shared login throttling use the applied forward migration, with server-side authorization on every admin write. Paystack #14-#17 and related future delivery/payment work remain Backlog until a later decision resumes them.
-
-## Schema and migration rules
-
-ADMIN-01 adds AdminSession and shared auth-throttle persistence alongside existing AdminUser/AuditLog through a forward migration. Its migration passed isolated history-preservation tests; an administrator was subsequently provisioned under a separate explicit user request. ADMIN-02 reuses existing Contestant/Competition/AuditLog models and uniqueness constraints with no migration. ADMIN-03 stores image bytes in Supabase Storage and references in PostgreSQL, with an additive cleanup-journal migration; reads may be public, but upload/replace/delete require authorization and content/type/size/filename validation. ADMIN-04 reuses the existing schema with no migration.
-
-Keep Payment.contactEmail, immutable money/vote/attribution snapshots, historical payments and allocations. Add empty TransactionEmail/EmailDeliveryEvent tables for permanent unique logical confirmations, immutable recipient/payload snapshots, provider IDs/events, leases, retry deadlines and delivery state. PAY-01 adds PaymentInitialization retry state; later session/receipt extensions and P02 webhook inbox remain separate work.
-
-PAY-01 adds only PaymentInitialization retry state and preserves all legacy schema. ContactVerification and Payment.verificationId/relation/index/FK can be removed only by a new reviewed forward migration after proving all intended targets have no historical verification rows/links and all consumers are compatible. Lock and assert the preconditions. If any target has history, retain/deprecate the legacy schema and use the same additive migration history across environments. Never clear links, alter existing payments, auto-enqueue historical confirmations, delete data, reset the database or edit/remove historical migrations to make this transition pass.
-
-## Risk register
-
-Owner: ebukanathan. Prospective risks remain open until evidence closes them.
-
-| Risk | Control / release evidence | Issues |
-| --- | --- | --- |
-| Forged or repeated payment grants unpaid/excess votes | Signed raw-body webhooks, server verification of amount/currency/reference/environment, unique provider IDs and PostgreSQL atomicity/concurrency tests. | P01/P02/P03/T01 |
-| Missed events, late payment or refunds desynchronize money/votes | Shared idempotent finalizer, verified payment-time policy, reconciliation and audited reversal ledger preserving original allocations. | P05/A03/T04 |
-| Unverified contact misuse, receipt enumeration or compromised admin access | Input/rate/origin controls, scoped receipt capability independent of email ownership, restricted contacts, secure admin sessions and no marketing without consent. | E03/P01/P04/A01/T05 |
-| Duplicate or lost confirmation after outage/crash | Transactional outbox, permanent unique intent, immutable provider payload/key, 23-hour conservative retry deadline within proposed provider's 24-hour retention, lease races/crash tests, reconciliation before ambiguous later resend. | E02/P03/E01/T01/T04 |
-| Legacy removal destroys history or breaks an old client | Per-target read-only inventory, one compatible migration history, locked empty-data assertions, retain populated legacy objects, snapshot/checksum comparison and staged rollout. | E02/T01/T03 |
-| Database loss or unsafe deployment breaks accounting | Isolated environments, reviewed forward migrations, backup/restore rehearsal, least privilege, monitored pools and ledger checks. | F04/T02/T03/T04/T05 |
-
-## Sources and planning tooling
-
-Provider plans use official [Paystack transactions](https://paystack.com/docs/api/transaction/), [webhooks](https://paystack.com/docs/payments/webhooks/), [verification](https://paystack.com/docs/payments/verify-payments/) and [Resend idempotency](https://resend.com/docs/dashboard/emails/idempotency-keys) documentation checked on 24 October 2026.
-
-backlog.json and proposed-backlog.md track the original keyed issues with updated requirements; Stage 3 child issues and their live progress remain on GitHub. created-resources.json records the historical project setup and must not be treated as current requirements. The original github-roadmap.mjs is a setup/preview tool, not a routine live-project synchronizer. Its --plan mode makes no GitHub requests. Do not run --apply to replay old statuses or recreate the Project. This change uses targeted issue/milestone/field edits, preserving unrelated progress and public/private visibility.
+No application coding has started. After explicit approval: create feat/admin-05-dashboard-overview from current main, implement, test on guarded disposable localhost databases, run lint/typechecks/builds/regressions, push and open a linked PR. Never merge without approval. Project visibility and unrelated completed work remain unchanged.
