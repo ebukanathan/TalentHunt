@@ -2,20 +2,20 @@
 
 Updated 7 November 2026 (Africa/Lagos). This sequence supersedes previous payment-first and admin-foundation plans.
 
-Published to the repository on 8 November 2026 (Africa/Lagos). [GitHub Project](https://github.com/users/ebukanathan/projects/3) · [ADMIN-05 implementation proposal](../admin/dashboard-overview-plan.md). Implementation approval remains pending.
+Updated in the repository on 8 November 2026 (Africa/Lagos). [GitHub Project](https://github.com/users/ebukanathan/projects/3) · [ADMIN-05 implementation plan](../admin/dashboard-overview-plan.md). Implementation is approved; PR merge still requires approval.
 
 ## Execution order
 
 | Order | Work | Issues | State |
 | --- | --- | --- | --- |
-| 1 | Admin dashboard overview and PostgreSQL competition statistics | [ADMIN-05 #41](https://github.com/ebukanathan/TalentHunt/issues/41); audit explorer parent #18 | Next — plan approval required before coding |
+| 1 | Admin dashboard overview and PostgreSQL competition statistics | [ADMIN-05 #41](https://github.com/ebukanathan/TalentHunt/issues/41); audit explorer parent #18 | In Progress — implementation approved |
 | 2 | Public leaderboard and completed competition results | [#32](https://github.com/ebukanathan/TalentHunt/issues/32) | Backlog |
 | 3 | Public website completion, responsiveness, accessibility and SEO | [#42](https://github.com/ebukanathan/TalentHunt/issues/42), [#30](https://github.com/ebukanathan/TalentHunt/issues/30), [#31](https://github.com/ebukanathan/TalentHunt/issues/31); parent [#11](https://github.com/ebukanathan/TalentHunt/issues/11) | Backlog |
 | 4 | Standalone transactional email infrastructure and templates | [#43](https://github.com/ebukanathan/TalentHunt/issues/43); configuration support [#5](https://github.com/ebukanathan/TalentHunt/issues/5) | Backlog |
 | 5 | Automated tests, security and CI/CD | [#20](https://github.com/ebukanathan/TalentHunt/issues/20), [#21](https://github.com/ebukanathan/TalentHunt/issues/21), remaining #5 | Backlog; feature tests accompany every change |
 | 6 | Non-payment staging deployment and documentation | scoped [#22](https://github.com/ebukanathan/TalentHunt/issues/22), [#23](https://github.com/ebukanathan/TalentHunt/issues/23), [#4](https://github.com/ebukanathan/TalentHunt/issues/4) | Backlog |
 
-Group/filter the board by **Roadmap workstream**, whose numbered options match this order. ADMIN-05 is the only Next task; keep at most one item In Progress after approval. Priorities of open payment-dependent items are P2 and their workstream is Paused, not a promise to resume.
+Group/filter the board by **Roadmap workstream**, whose numbered options match this order. ADMIN-05 is the only In Progress task. Priorities of open payment-dependent items are P2 and their workstream is Paused, not a promise to resume.
 
 ## Verified source and completion
 
@@ -35,4 +35,4 @@ Standalone #43 prepares infrastructure/templates without payment-triggered dispa
 
 The issue contains the concrete API/UI/data/test plan. Reuse Express-owned session authorization, active-admin checks, Prisma/PostgreSQL and Next.js/Zod. Database counts and a safe bounded recent-activity feed are selected-competition scoped. Financial summaries are read-only recorded values when qualifying rows exist, otherwise explicitly unavailable. Loading, empty/no-competition, financial-unavailable and real upstream errors must be distinct.
 
-No application coding has started. After explicit approval: create feat/admin-05-dashboard-overview from current main, implement, test on guarded disposable localhost databases, run lint/typechecks/builds/regressions, push and open a linked PR. Never merge without approval. Project visibility and unrelated completed work remain unchanged.
+The user approved implementation on 8 November with “continue”. Implementation uses `feat/admin-05-dashboard-overview` from main, including the previously published roadmap documents. Test on guarded disposable localhost databases, run lint/typechecks/builds/regressions, push and open a linked PR. Never merge without approval. Project visibility and unrelated completed work remain unchanged.

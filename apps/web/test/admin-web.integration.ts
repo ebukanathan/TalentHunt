@@ -78,7 +78,7 @@ async function main() {
     assert.match(login, /type="password"/); assert.match(login, /autoComplete="current-password"/i);
     for (const path of privatePaths) await redirected(path);
     assert.equal((await request("/api/admin/auth/session")).status, 401);
-    for (const path of ["/api/admin/competition", "/api/admin/vote-packages"]) assert.equal((await request(path)).status, 401);
+    for (const path of ["/api/admin/competition", "/api/admin/vote-packages", "/api/admin/overview"]) assert.equal((await request(path)).status, 401);
     assert.equal((await upload("unknown", "invalid")).status, 401);
     assert.equal((await request("/api/admin/auth/login", "POST", credentials)).status, 403);
     assert.equal((await request("/api/admin/auth/login", "POST", credentials, await csrf(), { Origin: "https://evil.example" })).status, 403);
@@ -88,7 +88,12 @@ async function main() {
       const result = await request(path), text = await result.text();
       assert.equal(result.status, 200); assert.match(text, /web-admin@example.com/); assert.match(result.headers.get("cache-control")!, /no-store/);
     }
+    assert.match(await (await request("/admin")).text(), /No competition is configured/);
+    assert.equal((await request("/api/admin/overview")).status, 404);
     await db.competition.create({ data: { id: "web-show", name: "Web management fixture", slug: "web-show", status: "OPEN" } });
+    const emptyOverview = (await (await request("/api/admin/overview")).json()).data;
+    assert.deepEqual(emptyOverview.counts, { totalContestants: 0, activeContestants: 0, activePackages: 0 });
+    assert.deepEqual(emptyOverview.financials, { state: "unavailable", reason: "NO_PAYMENT_DATA" });
     let settings = (await (await request("/api/admin/competition")).json()).data;
     assert.match(await (await request("/admin/competition")).text(), /Save competition/);
     assert.match(await (await request("/admin/vote-packages")).text(), /Create package/);
@@ -149,17 +154,27 @@ async function main() {
     const hidden = await (await request(`/contestants/${person.id}`)).text(); assert.ok(!hidden.includes(photoUrl)); assert.match(hidden, /Contestant unavailable|NEXT_HTTP_ERROR_FALLBACK;404/);
     assert.equal(await db.auditLog.count({ where: { action: "CONTESTANT_CREATED" } }), 1);
     assert.equal(await db.auditLog.count({ where: { action: "CONTESTANT_STATUS_CHANGED" } }), 2);
+    const overviewResponse = await request("/api/admin/overview"), overview = (await overviewResponse.json()).data;
+    assert.match(overviewResponse.headers.get("cache-control")!, /private.*no-store/);
+    assert.deepEqual(overview.counts, { totalContestants: 1, activeContestants: 0, activePackages: 0 });
+    assert.ok(overview.recentActivity.some((item: {action: string}) => item.action === "CONTESTANT_IMAGE_REMOVED"));
+    assert.ok(overview.recentActivity.length <= 10);
+    const dashboard = await (await request("/admin")).text();
+    for (const label of ["Total contestants", "Active contestants", "Active vote packages", "Recent administrative activity", "Payment and revenue metrics unavailable", "Register contestant"]) assert.ok(dashboard.includes(label));
+    assert.equal((await request("/api/admin/overview", "POST", {}, await csrf())).status, 405);
     assert.equal((await request("/api/admin/auth/logout", "POST", {}, await csrf())).status, 200);
     assert.ok(!jar.has(config.cookieName));
     for (const path of privatePaths) await redirected(path);
     assert.equal((await request("/api/admin/auth/login", "POST", credentials, await csrf())).status, 200);
     now = new Date(now.getTime() + 30 * 60000);
     await redirected("/admin/contestants"); assert.equal((await request("/api/admin/auth/session")).status, 401);
+    await redirected("/admin"); assert.equal((await request("/api/admin/overview")).status, 401);
     await new Promise<void>(done => { api.closeAllConnections(); api.close(() => done()); });
     assert.equal((await request("/api/admin/auth/session")).status, 503);
+    assert.equal((await request("/api/admin/overview")).status, 503);
     assert.equal((await request("/api/admin/auth/login", "POST", credentials, "x".repeat(43))).status, 503);
     assert.equal(await db.payment.count(), 0);
-    console.log("ADMIN_WEB_INTEGRATION_PASSED: auth, CRUD, images, competition settings, reopening, decimal NGN packages, stale saves, deactivation, public visibility, audit, expiry and outage.");
+    console.log("ADMIN_WEB_INTEGRATION_PASSED: database overview counts, bounded activity, financial-unavailable states, auth, CRUD, images, competition settings, packages, public visibility, expiry and outage.");
   } finally {
     if (child && child.exitCode === null) { child.kill(); await once(child, "exit"); }
     api.closeAllConnections(); if (api.listening) await new Promise<void>(done => api.close(() => done()));

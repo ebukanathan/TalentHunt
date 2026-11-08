@@ -6,6 +6,9 @@ const unavailable = () => Response.json({ status: "error", message: "Admin sign-
 export async function forwardAdmin(request: Request, endpoint: keyof typeof paths) {
   return forward(request, `auth/${endpoint}`, paths[endpoint], 4096);
 }
+export async function forwardOverview(request: Request) {
+  return forward(request, "overview", "GET", 4096);
+}
 export async function forwardContestants(request: Request, id?: string) {
   if (id && !/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(id)) return Response.json({ status: "error", message: "Invalid contestant ID." }, { status: 400 });
   const allowed = id ? ["GET", "PATCH"] : ["GET", "POST"];
