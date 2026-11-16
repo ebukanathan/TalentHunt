@@ -118,6 +118,7 @@ async function main() {
     const packagePage = await (await request("/admin/vote-packages")).text(); assert.match(packagePage, /Inactive/); assert.match(packagePage, /75.25/);
     const newForm = await (await request("/admin/contestants/new")).text();
     assert.match(newForm, /Register contestant/); assert.match(newForm, /id="number"/); assert.doesNotMatch(newForm, /type="file"/);
+    assert.match(newForm, /id="videoUrls\.0"/); assert.match(newForm, /id="videoUrls\.1"/);
     const input = { name: "Web Performer", number: "001", slug: "web-performer", isActive: false };
     assert.equal((await request("/api/admin/contestants", "POST", input)).status, 403);
     const created = await request("/api/admin/contestants", "POST", input, await csrf());
@@ -146,6 +147,28 @@ async function main() {
     const publicActive = await fetch(`http://127.0.0.1:${apiPort}/api/v1/contestants`); assert.equal((await publicActive.json()).data[0].id, person.id);
     const profile = await (await request(`/contestants/${person.id}`)).text();
     assert.match(profile, /Web Performer/); assert.ok(profile.includes(photoUrl));
+    assert.doesNotMatch(profile, /<iframe|performance-videos-heading/);
+    const videoIds = ["aB0_-123456", "ZyX98765432"];
+    const videoUrls = videoIds.map(id => `https://youtu.be/${id}`);
+    const videoPath = `/api/admin/contestants/${person.id}`;
+    assert.equal((await request(videoPath, "PATCH", { videoUrls })).status, 403);
+    const invalidVideo = await request(videoPath, "PATCH", { videoUrls: ["https://evil.example/video"] }, await csrf());
+    assert.equal(invalidVideo.status, 400);
+    assert.equal((await invalidVideo.json()).details[0].field, "videoUrls.0");
+    const withVideos = await request(videoPath, "PATCH", { videoUrls }, await csrf());
+    assert.equal(withVideos.status, 200);
+    assert.deepEqual((await withVideos.json()).data.videos.map((video: { youtubeVideoId: string }) => video.youtubeVideoId), videoIds);
+    const videoEdit = await (await request(`/admin/contestants/${person.id}/edit`)).text();
+    assert.ok(videoEdit.includes(`https://www.youtube.com/watch?v=${videoIds[0]}`));
+    const videoProfile = await (await request(`/contestants/${person.id}`)).text();
+    assert.match(videoProfile, /Performance Videos/);
+    assert.equal((videoProfile.match(/<iframe/g) ?? []).length, 2);
+    for (const id of videoIds) assert.ok(videoProfile.includes(`https://www.youtube-nocookie.com/embed/${id}`));
+    const singleVideo = await request(videoPath, "PATCH", { videoUrls: ["", videoUrls[1]] }, await csrf());
+    assert.equal(singleVideo.status, 200); assert.equal((await singleVideo.json()).data.videos.length, 1);
+    assert.equal((await request(videoPath, "PATCH", { videoUrls: [] }, await csrf())).status, 200);
+    const emptyVideoProfile = await (await request(`/contestants/${person.id}`)).text();
+    assert.doesNotMatch(emptyVideoProfile, /<iframe|performance-videos-heading/);
     const listing = await (await request("/contestants")).text(); assert.ok(listing.includes(photoUrl));
     const removed = await request(`/api/admin/contestants/${person.id}/image`, "DELETE", {}, await csrf());
     assert.equal(removed.status, 200); assert.equal((await removed.json()).data.imageUrl, null);
@@ -174,7 +197,7 @@ async function main() {
     assert.equal((await request("/api/admin/overview")).status, 503);
     assert.equal((await request("/api/admin/auth/login", "POST", credentials, "x".repeat(43))).status, 503);
     assert.equal(await db.payment.count(), 0);
-    console.log("ADMIN_WEB_INTEGRATION_PASSED: database overview counts, bounded activity, financial-unavailable states, auth, CRUD, images, competition settings, packages, public visibility, expiry and outage.");
+    console.log("ADMIN_WEB_INTEGRATION_PASSED: database overview counts, bounded activity, financial-unavailable states, auth, CRUD, images, performance videos, competition settings, packages, public visibility, expiry and outage.");
   } finally {
     if (child && child.exitCode === null) { child.kill(); await once(child, "exit"); }
     api.closeAllConnections(); if (api.listening) await new Promise<void>(done => api.close(() => done()));

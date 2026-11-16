@@ -25,6 +25,7 @@ try {
     ADMIN_IMAGES_TEST_DATABASE_URL = 'talenthunt_images_test_images'
     ADMIN_SETTINGS_TEST_DATABASE_URL = 'talenthunt_settings_test_images'
     ADMIN_OVERVIEW_TEST_DATABASE_URL = 'talenthunt_overview_test_images'
+    CONTESTANT_VIDEOS_TEST_DATABASE_URL = 'talenthunt_videos_test_images'
   }
   foreach ($key in $targets.Keys) {
     $database = $targets[$key]
@@ -36,6 +37,10 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Isolated migrations failed.' }
   }
   $env:DATABASE_URL = $env:ADMIN_IMAGES_TEST_DATABASE_URL
+  node node_modules/prisma/build/index.js validate
+  if ($LASTEXITCODE -ne 0) { throw 'Prisma schema validation failed.' }
+  node node_modules/prisma/build/index.js generate
+  if ($LASTEXITCODE -ne 0) { throw 'Prisma client generation failed.' }
   npm run build --workspace=apps/api
   if ($LASTEXITCODE -ne 0) { throw 'API build failed.' }
   npm run typecheck:test --workspace=apps/api
@@ -46,7 +51,7 @@ try {
   if ($LASTEXITCODE -ne 0) { throw 'Next/Express/PostgreSQL checks failed.' }
   node node_modules/prisma/build/index.js migrate diff --from-url $env:DATABASE_URL --to-schema-datamodel prisma/schema.prisma --exit-code
   if ($LASTEXITCODE -ne 0) { throw 'Schema drift detected.' }
-  Write-Output 'ADMIN_OVERVIEW_SETTINGS_AND_IMAGES_CHECKS_PASSED'
+  Write-Output 'ADMIN_OVERVIEW_SETTINGS_IMAGES_AND_VIDEOS_CHECKS_PASSED'
 } finally {
   if ($started) { & "$postgresBin/pg_ctl.exe" -D $imageTestData -m fast -w stop }
   Write-Output "Disposable test files retained at $imageTestRoot"

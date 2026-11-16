@@ -1,6 +1,7 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { HttpError } from "../http/errors";
 import { votingOpen } from "./competition-policy";
+import { contestantVideoSelection } from "./contestant-videos";
 
 const competitionFields = {
   id: true, name: true, slug: true, description: true, status: true,
@@ -10,6 +11,7 @@ const competitionFields = {
 const contestantFields = {
   id: true, competitionId: true, number: true, name: true, slug: true,
   bio: true, imageUrl: true, totalVotes: true,
+  videos: contestantVideoSelection,
 } satisfies Prisma.ContestantSelect;
 
 const packageFields = {

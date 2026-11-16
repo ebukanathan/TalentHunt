@@ -6,7 +6,9 @@ import { ContestantMutationError, saveContestant, suggestSlug } from "@/lib/admi
 import { ContestantImage } from "./contestant-image";
 
 export function ContestantForm({ contestant, competitionName }: { contestant?: ManagedContestant; competitionName: string }) {
-  const [values, setValues] = useState({ name: contestant?.name || "", number: contestant?.number || "", slug: contestant?.slug || "", bio: contestant?.bio || "", isActive: contestant?.isActive ?? true });
+  const [values, setValues] = useState({ name: contestant?.name || "", number: contestant?.number || "", slug: contestant?.slug || "", bio: contestant?.bio || "", isActive: contestant?.isActive ?? true,
+    videoUrls: [0, 1].map(index => contestant?.videos[index] ? `https://www.youtube.com/watch?v=${contestant.videos[index].youtubeVideoId}` : ""),
+  });
   const [slugEdited, setSlugEdited] = useState(Boolean(contestant));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -47,6 +49,23 @@ export function ContestantForm({ contestant, competitionName }: { contestant?: M
       <div className="admin-field"><label htmlFor="bio">Biography <span>(optional)</span></label>
         <textarea id="bio" value={values.bio} rows={6} maxLength={5000} aria-invalid={Boolean(fields.bio)} aria-describedby={fields.bio ? "bio-help bio-error" : "bio-help"} onChange={event => setValues({ ...values, bio: event.target.value })} />
         <p id="bio-help" className="admin-field-help">Plain text, up to 5,000 characters.</p>{fieldError("bio")}</div>
+      <fieldset id="videoUrls" aria-describedby="videoUrls-help">
+        <legend>Performance Videos <span>(optional, maximum two)</span></legend>
+        <p id="videoUrls-help" className="admin-field-help">Paste YouTube watch, short, Shorts or embed links. Edit a link to replace a video, or remove it and save to delete it.</p>
+        {fieldError("videoUrls")}
+        {[0, 1].map(index => {
+          const key = `videoUrls.${index}`;
+          return <div className="admin-field" key={key}>
+            <label htmlFor={key}>YouTube video {index + 1} <span>(optional)</span></label>
+            <input id={key} type="url" maxLength={2048} placeholder="https://www.youtube.com/watch?v=..." value={values.videoUrls[index]}
+              aria-invalid={Boolean(fields[key])} aria-describedby={fields[key] ? `videoUrls-help ${key}-error` : "videoUrls-help"}
+              onChange={event => setValues(previous => ({ ...previous, videoUrls: previous.videoUrls.map((url, slot) => slot === index ? event.target.value : url) }))} />
+            {fieldError(key)}
+            <button type="button" className="admin-button admin-button-secondary" disabled={!values.videoUrls[index]}
+              onClick={() => setValues(previous => ({ ...previous, videoUrls: previous.videoUrls.map((url, slot) => slot === index ? "" : url) }))}>Remove video {index + 1}</button>
+          </div>;
+        })}
+      </fieldset>
       <div className="admin-field"><label className="admin-checkbox" htmlFor="isActive"><input id="isActive" type="checkbox" checked={values.isActive} onChange={event => setValues({ ...values, isActive: event.target.checked })} /> Active contestant</label>
         <p className="admin-field-help">Inactive contestants are hidden from public contestant views. Their records, votes and payment history are preserved.</p>{fieldError("isActive")}</div>
       <div className="admin-actions"><button type="submit" className="admin-button" disabled={busy}>{busy ? "Saving…" : contestant ? "Save changes" : "Register contestant"}</button><Link href="/admin/contestants">Cancel</Link></div>

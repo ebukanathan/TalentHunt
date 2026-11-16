@@ -28,6 +28,7 @@ const contestant: Contestant = {
   bio: null,
   imageUrl: null,
   totalVotes: "9007199254740993",
+  videos: [],
 };
 function respond(data: unknown, status = 200) {
   return (async () =>
