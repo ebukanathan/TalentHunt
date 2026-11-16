@@ -68,6 +68,8 @@ Errors follow the existing envelope: 400 validation with field/message details, 
 
 ## Auditing and UI behavior
 
+Contestants also support up to two optional YouTube performance videos in the same create/edit form and protected endpoints. See [performance video contracts, URL support, concurrency rules and verification](contestant-performance-videos.md).
+
 Create writes `CONTESTANT_CREATED` with the validated editable values. Content edits write `CONTESTANT_UPDATED` with exact before/after changes. A status transition writes `CONTESTANT_STATUS_CHANGED`. A combined content/status edit writes both events in the same transaction. Audit admin identity comes only from the verified session.
 
 Edits lock the selected contestant row before reading its previous state, preventing misleading audit values under concurrent updates. If any audit insert fails, the contestant mutation rolls back. Saving identical values returns the existing row without duplicate audit events. Last committed edits win; this issue does not add an optimistic-concurrency revision protocol.

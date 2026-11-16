@@ -35,6 +35,7 @@ const contestants = Array.from({ length: 13 }, (_, index) => ({
   bio: null,
   imageUrl: null,
   totalVotes: index === 0 ? "9007199254740993" : "0",
+  videos: [],
 }));
 async function freePort() {
   const probe = net.createServer();

@@ -7,7 +7,7 @@ import { ContestantLoading, ContestantUnavailable } from "../src/components/admi
 import { ContestantMutationError, saveContestant, suggestSlug } from "../src/lib/admin/contestant-mutations";
 import type { ContestantList, ManagedContestant } from "../src/lib/admin/contestant-schemas";
 
-const contestant: ManagedContestant = { id: "fixture-person", competitionId: "fixture-show", name: "<script>Unsafe name</script>", number: "001", slug: "fixture-person", bio: "Plain <b>text</b>", imageUrl: null, isActive: false, totalVotes: "9007199254740993", createdAt: "2026-10-27T00:00:00.000Z", updatedAt: "2026-10-27T00:00:00.000Z" };
+const contestant: ManagedContestant = { id: "fixture-person", competitionId: "fixture-show", name: "<script>Unsafe name</script>", number: "001", slug: "fixture-person", bio: "Plain <b>text</b>", imageUrl: null, isActive: false, totalVotes: "9007199254740993", videos: [], createdAt: "2026-10-27T00:00:00.000Z", updatedAt: "2026-10-27T00:00:00.000Z" };
 const data: ContestantList = { competition: { id: "fixture-show", name: "Fixture competition", slug: "fixture-show", status: "DRAFT", currency: "NGN", description: null, votingOpens: null, votingCloses: null }, items: [contestant], pagination: { page: 1, pageSize: 25, total: 26, pages: 2 } };
 test("forms expose labeled editable fields, preserve leading zeros and escape stored text", () => {
   const form = renderToStaticMarkup(<ContestantForm competitionName="Fixture competition" contestant={contestant} />);

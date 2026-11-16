@@ -21,8 +21,12 @@ export async function saveContestant(input: object, id?: string) {
   if (!response.ok) {
     const fields: Record<string, string> = {};
     for (const detail of Array.isArray(result.details) ? result.details : []) if (detail && ["name", "number", "slug", "bio", "imageUrl", "isActive"].includes(detail.field) && typeof detail.message === "string") fields[detail.field] = detail.message;
+    for (const detail of Array.isArray(result.details) ? result.details : []) {
+      if (detail && ["videoUrls", "videoUrls.0", "videoUrls.1"].includes(detail.field) && typeof detail.message === "string") fields[detail.field] = detail.message;
+    }
     if (result.code === "CONTESTANT_NUMBER_EXISTS") fields.number = "This number is already used in this competition.";
     if (result.code === "CONTESTANT_SLUG_EXISTS") fields.slug = "This slug is already used in this competition.";
+    if (result.code === "CONTESTANT_VIDEO_CONFLICT") fields.videoUrls = "The performance videos changed. Reload and try again.";
     const message = response.status === 403 ? "Your request expired. Try saving again." : response.status === 404 ? "This contestant or competition is no longer available." : response.status >= 500 ? "The server is temporarily unavailable. Your changes have not been confirmed." : "Check the highlighted fields and try again.";
     throw new ContestantMutationError(message, fields, response.status);
   }

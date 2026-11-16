@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { contestantVideoUrls } from "./contestant-videos";
 
 export const adminContestantId = z.string().min(1).max(128)
   .regex(/^[A-Za-z0-9][A-Za-z0-9_-]*$/, "Invalid contestant ID.");
@@ -20,6 +21,7 @@ const fields = {
   }, "Use an HTTPS image URL without embedded credentials or a fragment.")
     .nullable().transform(value => value || null),
   isActive: z.boolean(),
+  videoUrls: contestantVideoUrls.optional(),
 };
 export const createAdminContestant = z.strictObject({ ...fields,
   bio: fields.bio.optional(), imageUrl: fields.imageUrl.optional(), isActive: fields.isActive.default(true),

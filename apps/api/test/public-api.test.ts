@@ -99,7 +99,8 @@ test("public REST API over real HTTP and isolated PostgreSQL", { timeout: 60000 
       assert.deepEqual(result.body.data.map((row: { id: string }) => row.id), ["api-active", "api-active-2"]);
       assert.equal(result.body.data[0].totalVotes, "9007199254740993");
       assert.equal(result.body.data[1].totalVotes, "0");
-      assert.deepEqual(Object.keys(result.body.data[0]).sort(), ["id", "competitionId", "number", "name", "slug", "bio", "imageUrl", "totalVotes"].sort());
+      assert.deepEqual(Object.keys(result.body.data[0]).sort(), ["id", "competitionId", "number", "name", "slug", "bio", "imageUrl", "totalVotes", "videos"].sort());
+      assert.deepEqual(result.body.data[0].videos, []);
       assert.deepEqual(await get(base, "/contestants/"), result);
     });
     await t.test("contestant detail accepts existing string IDs and returns a safe decimal string", async () => {

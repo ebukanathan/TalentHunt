@@ -68,6 +68,7 @@ model Contestant {
 
   payments    Payment[]
   allocations VoteAllocation[]
+  videos      ContestantVideo[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -75,6 +76,19 @@ model Contestant {
   @@unique([competitionId, number])
   @@unique([competitionId, slug])
   @@index([competitionId, totalVotes])
+}
+
+// Positions are constrained to 1 or 2 by the additive SQL migration.
+model ContestantVideo {
+  id             String     @id @default(cuid())
+  contestantId   String
+  contestant     Contestant @relation(fields: [contestantId], references: [id], onDelete: Cascade)
+  youtubeVideoId String     @db.VarChar(11)
+  position       Int
+  createdAt      DateTime   @default(now())
+
+  @@unique([contestantId, position])
+  @@unique([contestantId, youtubeVideoId])
 }
 
 model VotePackage {

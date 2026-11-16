@@ -2,10 +2,12 @@ import { Prisma, PrismaClient } from "@prisma/client";
 import { HttpError } from "../http/errors";
 import type { PublicApi } from "./public.service";
 import type { AdminContestantQuery, CreateAdminContestant, PatchAdminContestant } from "../validation/admin-contestants";
+import { contestantVideoSelection } from "./contestant-videos";
 
 const selection = {
   id: true, competitionId: true, name: true, number: true, slug: true, bio: true,
   imageUrl: true, isActive: true, totalVotes: true, createdAt: true, updatedAt: true,
+  videos: contestantVideoSelection,
 } satisfies Prisma.ContestantSelect;
 const editable = ["name", "number", "slug", "bio", "imageUrl", "isActive"] as const;
 const missing = () => new HttpError(404, "CONTESTANT_NOT_FOUND", "Contestant not found in the selected competition.");
@@ -14,6 +16,7 @@ function conflict(error: unknown): never {
     const target = String(error.meta?.target || "");
     if (target.includes("number")) throw new HttpError(409, "CONTESTANT_NUMBER_EXISTS", "This contestant number is already used in this competition.");
     if (target.includes("slug")) throw new HttpError(409, "CONTESTANT_SLUG_EXISTS", "This slug is already used in this competition.");
+    if (target.includes("youtubeVideoId") || target.includes("position")) throw new HttpError(409, "CONTESTANT_VIDEO_CONFLICT", "The performance videos changed. Reload and try again.");
     throw new HttpError(409, "CONTESTANT_CONFLICT", "A contestant with these details already exists.");
   }
   throw error;
@@ -51,8 +54,12 @@ export class AdminContestantService {
         const contestant = await tx.contestant.create({ data: {
           competitionId: competition.id, name: input.name, number: input.number, slug: input.slug,
           bio: input.bio ?? null, imageUrl: input.imageUrl ?? null, isActive: input.isActive,
+          videos: { create: (input.videoUrls ?? []).map((youtubeVideoId, index) => ({ youtubeVideoId, position: index + 1 })) },
         }, select: selection });
-        const details = Object.fromEntries(editable.map(field => [field, contestant[field]]));
+        const details = {
+          ...Object.fromEntries(editable.map(field => [field, contestant[field]])),
+          videos: contestant.videos.map(({ youtubeVideoId, position }) => ({ youtubeVideoId, position })),
+        };
         await tx.auditLog.create({ data: { adminId, action: "CONTESTANT_CREATED", entityType: "Contestant", entityId: contestant.id,
           details: { competitionId: competition.id, values: details } } });
         return contestant;
@@ -68,11 +75,22 @@ export class AdminContestantService {
         if (!locked.length) throw missing();
         const previous = await tx.contestant.findUniqueOrThrow({ where: { id }, select: selection });
         if (input.imageUrl !== undefined && input.imageUrl !== previous.imageUrl) throw new HttpError(400, "MANAGED_IMAGE_REQUIRED", "Use the image upload or removal endpoint to change a photograph.");
-        const changes: Prisma.InputJsonObject = Object.fromEntries(editable
+        const changes: Record<string, Prisma.InputJsonValue> = Object.fromEntries(editable
           .filter(field => input[field] !== undefined && input[field] !== previous[field])
           .map(field => [field, { before: previous[field], after: input[field] }]));
+        const nextVideos = input.videoUrls?.map((youtubeVideoId, index) => ({ youtubeVideoId, position: index + 1 }));
+        const previousVideos = previous.videos.map(({ youtubeVideoId, position }) => ({ youtubeVideoId, position }));
+        if (nextVideos && JSON.stringify(nextVideos) !== JSON.stringify(previousVideos)) {
+          changes.videos = { before: previousVideos, after: nextVideos };
+        }
         if (!Object.keys(changes).length) return previous;
         const data = Object.fromEntries(editable.filter(field => input[field] !== undefined).map(field => [field, input[field]]));
+        // Delete/recreate the small ordered set under the parent lock. This also
+        // permits swapping both positions without intermediate unique conflicts.
+        if (changes.videos) {
+          await tx.contestantVideo.deleteMany({ where: { contestantId: id } });
+          await tx.contestantVideo.createMany({ data: nextVideos!.map(video => ({ ...video, contestantId: id })) });
+        }
         const contestant = await tx.contestant.update({ where: { id }, data, select: selection });
         if (Object.keys(changes).some(field => field !== "isActive")) await tx.auditLog.create({ data: {
           adminId, action: "CONTESTANT_UPDATED", entityType: "Contestant", entityId: id,

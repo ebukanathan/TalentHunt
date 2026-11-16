@@ -63,6 +63,8 @@ Test checkout initialization is documented separately in [PAY-01](payment-initia
 
 ## Implementation
 
+Public contestant list/detail responses include `videos: []` or up to two `{ id, youtubeVideoId, position }` objects in ascending position order. Only canonical IDs are returned. See [performance videos](../admin/contestant-performance-videos.md) for the protected write contract and database constraints.
+
 Routes match URLs, controllers validate request parameters with Zod and build response envelopes, and services perform scoped Prisma queries. src/lib/prisma.ts provides the reusable client. The server closes HTTP connections and disconnects Prisma on shutdown; it never disconnects after individual requests. The app factory accepts a service for isolated HTTP tests. BigInt JSON conversion and error handling are centralized.
 
 ## Automated verification
