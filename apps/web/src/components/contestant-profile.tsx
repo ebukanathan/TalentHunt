@@ -7,7 +7,7 @@ import { PerformanceVideos } from "./performance-videos";
 export function ContestantProfile({ contestant, competition }: { contestant: Contestant; competition: Competition }) {
   return <article className="container contestant-profile">
     <Link href="/contestants">← All contestants</Link>
-    <div className="profile-grid"><ContestantPortrait contestant={contestant} /><div>
+    <div className="profile-grid"><ContestantPortrait contestant={contestant} variant="profile" eager /><div>
       <p className="eyebrow">{competition.name} · NO. {contestant.number}</p><h1>{contestant.name}</h1>
       <CompetitionStatus competition={competition} />
       {contestant.totalVotes !== undefined && <p className="vote-total"><strong>{formatVotes(contestant.totalVotes)}</strong><span>votes</span></p>}
