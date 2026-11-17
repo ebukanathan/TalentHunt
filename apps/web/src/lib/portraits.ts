@@ -29,6 +29,6 @@ export function portraitSource(source: string | null, configuredOrigin = process
 export const portraitSizes = {
   card: "(max-width: 370px) calc(100vw - 32px), (max-width: 700px) calc((100vw - 56px) / 2), (max-width: 1050px) calc((100vw - 104px) / 3), (max-width: 1376px) calc((100vw - 152px) / 3), 408px",
   hero: "(max-width: 700px) 68vw, 345px",
-  profile: "(max-width: 700px) calc(100vw - 40px), 380px",
+  profile: "(max-width: 420px) calc(100vw - 40px), 380px",
   thumbnail: "48px",
 } as const;

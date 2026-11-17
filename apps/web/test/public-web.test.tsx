@@ -10,6 +10,7 @@ import { CompetitionStatus } from "../src/components/competition-status";
 import { NoCompetition, PageSkeleton, UnavailableState } from "../src/components/page-states";
 import { NavigationLinks } from "../src/components/site-navigation";
 import { managedPortraitOrigin, portraitSource } from "../src/lib/portraits";
+import { ContestantProfile } from "../src/components/contestant-profile";
 
 const competition: Competition = {
   id: "show-1",
@@ -328,4 +329,20 @@ test("portrait variants keep legacy images browser-only and distinguish above-fo
   assert.ok(profile.includes('alt="Portrait of Test Performer"'));
   const thumbnail = renderToStaticMarkup(<ContestantPortrait contestant={person} variant="thumbnail" />);
   assert.ok(thumbnail.includes('width="48"'));
+});
+
+test("profiles link to package selection only during an eligible window and preserve hidden totals", () => {
+  const open = { ...competition, status: "OPEN" as const };
+  const hidden = { ...contestant };
+  delete hidden.totalVotes;
+  const html = renderToStaticMarkup(<ContestantProfile contestant={hidden} competition={open} />);
+  assert.ok(html.includes('href="/contestants/person-1/vote"'));
+  assert.ok(html.includes('href="/leaderboard"'));
+  assert.ok(!html.includes("9,007,199,254,740,993"));
+  assert.ok(!html.includes("Performance Videos"));
+  for (const state of [competition, { ...competition, status: "COMPLETED" as const }, { ...open, votingCloses: "2000-01-01T00:00:00Z" }]) {
+    const page = renderToStaticMarkup(<ContestantProfile contestant={contestant} competition={state} />);
+    assert.ok(!page.includes('href="/contestants/person-1/vote"'));
+    assert.ok(page.includes("This contestant’s story is coming soon."));
+  }
 });
