@@ -9,6 +9,12 @@ export async function forwardAdmin(request: Request, endpoint: keyof typeof path
 export async function forwardOverview(request: Request) {
   return forward(request, "overview", "GET", 4096);
 }
+export async function forwardLeaderboard(request: Request) {
+  return forward(request, "leaderboard", "GET", 4096);
+}
+export async function forwardPublication(request: Request) {
+  return forward(request, "competition/publish-results", "POST", 4096);
+}
 export async function forwardContestants(request: Request, id?: string) {
   if (id && !/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(id)) return Response.json({ status: "error", message: "Invalid contestant ID." }, { status: 400 });
   const allowed = id ? ["GET", "PATCH"] : ["GET", "POST"];

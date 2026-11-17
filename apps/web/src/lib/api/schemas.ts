@@ -32,7 +32,7 @@ export const contestantSchema = z.object({
   slug: z.string().min(1),
   bio: z.string().nullable(),
   imageUrl: z.string().nullable(),
-  totalVotes: z.string().regex(/^(0|[1-9][0-9]*)$/),
+  totalVotes: z.string().regex(/^(0|[1-9][0-9]*)$/).optional(),
   videos: contestantVideos,
 });
 export const votePackageSchema = z.object({

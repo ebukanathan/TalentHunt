@@ -26,6 +26,8 @@ Scheduling does not automatically change status to OPEN: the administrator must 
 
 ## REST API
 
+Competition Settings also controls public leaderboard visibility and a separate confirmed final-results publication action. See [leaderboard visibility and publication](leaderboard-visibility.md) for the schema, contracts, audit rules and irreversible publication policy.
+
 All paths below start with `/api/v1/admin`; the browser uses the equivalent same-origin `/api/admin` facade.
 
 | Method/path | Purpose |

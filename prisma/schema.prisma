@@ -21,6 +21,12 @@ enum CompetitionStatus {
   COMPLETED
 }
 
+enum LeaderboardVisibility {
+  LIVE
+  RANK_ONLY
+  HIDDEN
+}
+
 enum PaymentStatus {
   PENDING
   PAID
@@ -44,6 +50,8 @@ model Competition {
   votingOpens  DateTime?
   votingCloses DateTime?
   currency     String            @default("NGN")
+  leaderboardVisibility LeaderboardVisibility @default(HIDDEN)
+  resultsPublishedAt DateTime?
 
   contestants Contestant[]
   packages    VotePackage[]

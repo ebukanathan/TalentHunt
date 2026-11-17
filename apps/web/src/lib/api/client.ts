@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { publicLeaderboardSchema } from "./leaderboard-schemas";
 import {
   competitionSchema,
   contestantSchema,
@@ -65,6 +66,7 @@ export function createApiClient(
     }
   }
   return {
+    leaderboard: (page = "1") => request("/leaderboard?page=" + encodeURIComponent(page), publicLeaderboardSchema),
     async competition() {
       try {
         return await request("/competition", competitionSchema);

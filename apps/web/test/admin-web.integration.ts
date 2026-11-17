@@ -1,6 +1,6 @@
 // Real Next.js -> Express -> PostgreSQL requests. Requires a separate fresh local DB.
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -50,7 +50,7 @@ async function main() {
       Cookie: [...jar].map(([k,v]) => k + "=" + v).join("; "), Origin: origin, "X-CSRF-Token": token, ...custom }, signal: AbortSignal.timeout(90000) });
   };
   const credentials = { email: "web-admin@example.com", password: "A fixture-only web passphrase" };
-  const privatePaths = ["/admin", "/admin/contestants", "/admin/contestants/new", "/admin/contestants/unknown/edit", "/admin/competition", "/admin/vote-packages", "/admin/payments"];
+  const privatePaths = ["/admin", "/admin/contestants", "/admin/contestants/new", "/admin/contestants/unknown/edit", "/admin/competition", "/admin/leaderboard", "/admin/vote-packages", "/admin/payments"];
   const redirected = async (path: string) => {
     const response = await request(path), text = await response.text();
     assert.ok(response.headers.get("location")?.includes("/admin/login") || text.includes('url=/admin/login'), "Anonymous private pages redirect to login.");
@@ -61,15 +61,35 @@ async function main() {
     await provisionInitialAdmin(db, credentials);
     api.listen(0, "127.0.0.1"); await once(api, "listening");
     const apiPort = (api.address() as AddressInfo).port;
-    child = spawn(process.execPath, [resolve("../../node_modules/next/dist/bin/next"), "dev", "--hostname", "127.0.0.1", "--port", String(port)], {
-      cwd: process.cwd(), windowsHide: true, env: { ...process.env, NODE_ENV: "development", ADMIN_APP_ORIGIN: origin, API_BASE_URL: `http://127.0.0.1:${apiPort}/api/v1`, NEXT_DIST_DIR: ".next-admin-test" }, stdio: ["ignore", "pipe", "pipe"],
-    });
     // Sanitized diagnostics only; don't forward logs containing request data.
-    child.stdout?.resume();
-    child.stderr?.resume();
-    let ready = false;
+    let startupFailure = "startup error";
+    const classifyStartup = (chunk: Buffer) => {
+      const message = chunk.toString();
+      if (/Unable to acquire lock|another instance of next dev/.test(message)) startupFailure = "development lock";
+      else if (/SecurityFatalError|known security vulnerability/.test(message)) startupFailure = "Next.js security advisory";
+      else if (/EADDRINUSE/.test(message)) startupFailure = "test port already in use";
+    };
+    const startNext = () => {
+      startupFailure = "startup error";
+      const instance = spawn(process.execPath, [resolve("../../node_modules/next/dist/bin/next"), "dev", "--hostname", "127.0.0.1", "--port", String(port)], {
+        cwd: process.cwd(), windowsHide: true, env: { ...process.env, NODE_ENV: "development", ADMIN_APP_ORIGIN: origin, API_BASE_URL: `http://127.0.0.1:${apiPort}/api/v1`, NEXT_DIST_DIR: ".next-admin-test" }, stdio: ["ignore", "pipe", "pipe"],
+      });
+      instance.stdout?.on("data", classifyStartup);
+      instance.stderr?.on("data", classifyStartup);
+      return instance;
+    };
+    child = startNext();
+    let ready = false, retriedAdvisory = false;
     for (let attempt = 0; attempt < 120; attempt++) {
-      if (child.exitCode !== null) throw new Error("Next test server exited before readiness.");
+      if (child.exitCode !== null) {
+        if (startupFailure === "Next.js security advisory" && !retriedAdvisory) {
+          // Next explicitly permits one normal command retry after displaying
+          // its reminder. Keep the warning visible; change no security setting.
+          console.warn("Next.js reported an existing security advisory; retrying the identical local test-server command once.");
+          retriedAdvisory = true;
+          child = startNext();
+        } else throw new Error(`Next test server exited before readiness (${startupFailure}).`);
+      }
       try { if ((await request("/admin/login")).ok) { ready = true; break; } } catch {}
       await new Promise(done => setTimeout(done, 250));
     }
@@ -169,6 +189,37 @@ async function main() {
     assert.equal((await request(videoPath, "PATCH", { videoUrls: [] }, await csrf())).status, 200);
     const emptyVideoProfile = await (await request(`/contestants/${person.id}`)).text();
     assert.doesNotMatch(emptyVideoProfile, /<iframe|performance-videos-heading/);
+    assert.doesNotMatch(profile,/class="vote-total"/);
+    assert.match(await (await request("/leaderboard")).text(),/Results have not been published/);
+    const visibilitySave = async (leaderboardVisibility: string) => {
+      const current=(await (await request("/api/admin/competition")).json()).data;
+      const response=await request("/api/admin/competition","PATCH",{leaderboardVisibility,expectedUpdatedAt:current.updatedAt},await csrf());assert.equal(response.status,200);
+    };
+    await visibilitySave("LIVE");
+    assert.match(await (await request("/leaderboard")).text(),/No votes have been recorded yet/);
+    await db.contestant.update({where:{id:person.id},data:{totalVotes:BigInt("9007199254740993")}});
+    assert.match(await (await request("/leaderboard")).text(),/9,007,199,254,740,993/);
+    await visibilitySave("RANK_ONLY");
+    for(const route of ["/","/contestants",`/contestants/${person.id}`,"/leaderboard"]){
+      const html=await (await request(route)).text();assert.doesNotMatch(html,/9007199254740993|9,007,199,254,740,993/);
+    }
+    assert.match(await (await request("/admin/leaderboard")).text(),/9,007,199,254,740,993/);
+    await visibilitySave("HIDDEN");
+    assert.match(await (await request("/leaderboard")).text(),/Results have not been published/);
+    const updateStatus = async(status:string)=>{
+      const current=(await (await request("/api/admin/competition")).json()).data;
+      const response=await request("/api/admin/competition","PATCH",{status,expectedUpdatedAt:current.updatedAt},await csrf());assert.equal(response.status,200);
+    };
+    await updateStatus("CLOSED");await updateStatus("COMPLETED");
+    const beforePublication=(await (await request("/api/admin/competition")).json()).data;
+    const publicationPath="/api/admin/competition/publish-results";
+    const confirmation={competitionId:beforePublication.id,expectedUpdatedAt:beforePublication.updatedAt,confirmationName:beforePublication.name};
+    assert.equal((await request(publicationPath,"POST",confirmation)).status,403);
+    assert.equal((await request(publicationPath,"POST",{...confirmation,confirmationName:"wrong"},await csrf())).status,400);
+    const settingsHtml=await (await request("/admin/competition")).text();assert.match(settingsHtml,/publication-confirmation/);assert.match(settingsHtml,/Confirm final result publication/);
+    assert.equal((await request(publicationPath,"POST",confirmation,await csrf())).status,200);
+    assert.match(await (await request("/leaderboard")).text(),/Published final results/);
+    assert.equal((await (await request("/api/admin/leaderboard")).json()).data.items[0].totalVotes,"9007199254740993");
     const listing = await (await request("/contestants")).text(); assert.ok(listing.includes(photoUrl));
     const removed = await request(`/api/admin/contestants/${person.id}/image`, "DELETE", {}, await csrf());
     assert.equal(removed.status, 200); assert.equal((await removed.json()).data.imageUrl, null);
@@ -197,9 +248,16 @@ async function main() {
     assert.equal((await request("/api/admin/overview")).status, 503);
     assert.equal((await request("/api/admin/auth/login", "POST", credentials, "x".repeat(43))).status, 503);
     assert.equal(await db.payment.count(), 0);
-    console.log("ADMIN_WEB_INTEGRATION_PASSED: database overview counts, bounded activity, financial-unavailable states, auth, CRUD, images, performance videos, competition settings, packages, public visibility, expiry and outage.");
+    console.log("ADMIN_WEB_INTEGRATION_PASSED: leaderboard privacy across public HTML/RSC, confirmed publication, private standings, performance videos, overview, auth, CRUD, images, settings, packages, expiry and outage.");
   } finally {
-    if (child && child.exitCode === null) { child.kill(); await once(child, "exit"); }
+    if (child && child.exitCode === null) {
+      const exited = once(child, "exit");
+      // Next forks a server process. Terminate only this test's process tree so
+      // repeated Windows runs do not retain its development directory lock.
+      if (process.platform === "win32" && child.pid) spawnSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { windowsHide: true, stdio: "ignore" });
+      else child.kill();
+      await exited;
+    }
     api.closeAllConnections(); if (api.listening) await new Promise<void>(done => api.close(() => done()));
     await db.$disconnect();
   }

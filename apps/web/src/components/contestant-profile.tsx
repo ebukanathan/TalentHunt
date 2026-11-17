@@ -10,7 +10,7 @@ export function ContestantProfile({ contestant, competition }: { contestant: Con
     <div className="profile-grid"><ContestantPortrait contestant={contestant} /><div>
       <p className="eyebrow">{competition.name} · NO. {contestant.number}</p><h1>{contestant.name}</h1>
       <CompetitionStatus competition={competition} />
-      <p className="vote-total"><strong>{formatVotes(contestant.totalVotes)}</strong><span>votes</span></p>
+      {contestant.totalVotes !== undefined && <p className="vote-total"><strong>{formatVotes(contestant.totalVotes)}</strong><span>votes</span></p>}
       <h2>Meet {contestant.name}</h2><p className="profile-bio">{contestant.bio || "This contestant’s story is coming soon."}</p>
     </div></div>
     <PerformanceVideos videos={contestant.videos} contestantName={contestant.name} />

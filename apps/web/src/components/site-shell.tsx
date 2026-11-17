@@ -9,6 +9,7 @@ export function SiteHeader() {
         <nav aria-label="Main navigation">
           <Link href="/">Home</Link>
           <Link href="/contestants">Contestants</Link>
+          <Link href="/leaderboard">Leaderboard</Link>
         </nav>
         <Link href="/contestants" className="header-cta">
           Discover talent <span aria-hidden="true">↗</span>
@@ -28,6 +29,7 @@ export function SiteFooter() {
         <nav aria-label="Footer navigation">
           <Link href="/">Home</Link>
           <Link href="/contestants">Meet the contestants</Link>
+          <Link href="/leaderboard">Leaderboard</Link>
         </nav>
         <p className="footer-note">Every great story starts with a moment.</p>
       </div>

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { adminConfig } from "./config";
 import { requireAdmin } from "./session";
 import { managedCompetition, packageList } from "./settings-schemas";
+import { adminLeaderboardSchema } from "@/lib/api/leaderboard-schemas";
 export class SettingsDataError extends Error { constructor(readonly status: number) { super("Settings unavailable."); } }
 async function read(path: string) {
   await requireAdmin();
@@ -17,4 +18,5 @@ async function read(path: string) {
   catch { throw new SettingsDataError(503); }
 }
 export async function loadCompetition() { const result = managedCompetition.safeParse(await read("competition")); if (!result.success) throw new SettingsDataError(503); return result.data; }
+export async function loadLeaderboard(page: string) { const result = adminLeaderboardSchema.safeParse(await read("leaderboard?page=" + encodeURIComponent(page))); if (!result.success) throw new SettingsDataError(503); return result.data; }
 export async function loadPackages(page: string) { const result = packageList.safeParse(await read("vote-packages?page=" + encodeURIComponent(page))); if (!result.success) throw new SettingsDataError(503); return result.data; }

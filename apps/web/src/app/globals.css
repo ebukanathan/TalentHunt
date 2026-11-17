@@ -1,5 +1,20 @@
 @import "tailwindcss";
 
+.leaderboard h1 { font-size: clamp(2.5rem, 6vw, 4rem); margin-block: 1rem; }
+.leaderboard-message { margin-block: 1.75rem; line-height: 1.8; }
+.leaderboard-scroll { overflow-x: auto; margin-block: 1.5rem; }
+.leaderboard-table { width: 100%; border-collapse: collapse; text-align: left; }
+.leaderboard-table td, .leaderboard-table th { padding: 1rem; border-bottom: 1px solid #7c8e8655; }
+.leaderboard-table td { font-variant-numeric: tabular-nums; }
+.leaderboard-person { display: flex; align-items: center; gap: 1rem; min-width: 150px; }
+.leaderboard-person .portrait { width: 48px; height: 60px; flex-shrink: 0; }
+.leaderboard-person .portrait-initials { font-size: 20px; }
+.leaderboard-person .portrait-note, .leaderboard-person .contestant-number { display: none; }
+.leaderboard-person a { display: grid; gap: .3rem; overflow-wrap: anywhere; }
+.leaderboard-person a span { font-size: .7rem; font-weight: 400; }
+.leaderboard-note { font-size: .8rem; line-height: 1.8; }
+@media (max-width: 700px) { .leaderboard-table td, .leaderboard-table th { padding: .65rem .4rem; } .leaderboard-person { gap: .5rem; } }
+
 :root {
   --background: #08131f;
   --foreground: #f6f1e8;

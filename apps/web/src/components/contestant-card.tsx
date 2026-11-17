@@ -69,10 +69,10 @@ export function ContestantCard({ contestant }: { contestant: Contestant }) {
           <p className="eyebrow">THE LINEUP</p>
           <h3 id={`name-${contestant.id}`}><Link href={`/contestants/${encodeURIComponent(contestant.id)}`}>{contestant.name}</Link></h3>
         </div>
-        <p className="vote-total">
+        {contestant.totalVotes !== undefined && <p className="vote-total">
           <strong>{formatVotes(contestant.totalVotes)}</strong>
           <span>votes</span>
-        </p>
+        </p>}
       </div>
     </article>
   );

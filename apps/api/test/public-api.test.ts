@@ -69,7 +69,7 @@ test("public REST API over real HTTP and isolated PostgreSQL", { timeout: 60000 
     });
 
     await database.$transaction([
-      database.competition.create({ data: { id: "api-current", name: "Current", slug: "api-current", status: "OPEN", createdAt: new Date("2026-01-03T00:00:00Z"), votingOpens: new Date("2026-01-04T00:00:00Z") } }),
+      database.competition.create({ data: { id: "api-current", name: "Current", slug: "api-current", status: "OPEN", leaderboardVisibility: "LIVE", createdAt: new Date("2026-01-03T00:00:00Z"), votingOpens: new Date("2026-01-04T00:00:00Z") } }),
       database.competition.create({ data: { id: "api-previous", name: "Previous", slug: "api-previous", createdAt: new Date("2026-01-01T00:00:00Z"), status: "OPEN" } }),
       database.competition.create({ data: { id: "api-inactive-show", name: "Inactive only", slug: "api-inactive-show", status: "SCHEDULED", createdAt: new Date("2026-01-02T00:00:00Z") } }),
     ]);

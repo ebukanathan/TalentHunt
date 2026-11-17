@@ -3,6 +3,7 @@ import { HttpError } from "../http/errors";
 import type { PublicApi } from "./public.service";
 import { validateCompetitionChange } from "./competition-policy";
 import type { CompetitionPatch, PackageCreate, PackagePatch } from "../validation/admin-settings";
+import type { PublishResultsInput } from "../validation/leaderboard";
 
 const missing = () => new HttpError(404, "PACKAGE_NOT_FOUND", "Vote package not found in the selected competition.");
 const stale = () => new HttpError(409, "SETTINGS_CHANGED", "These settings changed. Reload before saving again.");
@@ -26,6 +27,8 @@ export class AdminSettingsService {
       await tx.$queryRaw`SELECT id FROM "Competition" WHERE id = ${selected.id} FOR UPDATE`;
       const previous = await tx.competition.findUniqueOrThrow({ where: { id: selected.id } });
       if (previous.updatedAt.toISOString() !== input.expectedUpdatedAt) throw stale();
+      if (previous.resultsPublishedAt && input.leaderboardVisibility !== undefined && input.leaderboardVisibility !== previous.leaderboardVisibility)
+        throw new HttpError(409, "RESULTS_ALREADY_PUBLISHED", "Final results have been published. Visibility is now final.");
       const { expectedUpdatedAt: _version, votingOpens, votingCloses, ...data } = input;
       const dates = { ...data, ...(votingOpens !== undefined ? { votingOpens: votingOpens ? new Date(votingOpens) : null } : {}), ...(votingCloses !== undefined ? { votingCloses: votingCloses ? new Date(votingCloses) : null } : {}) };
       validateCompetitionChange(previous, { ...previous, ...dates }, this.now());
@@ -33,6 +36,37 @@ export class AdminSettingsService {
       if (!changed.length) return previous;
       const current = await tx.competition.update({ where: { id: previous.id }, data: { ...dates, updatedAt: new Date(Math.max(this.now().getTime(), previous.updatedAt.getTime() + 1)) } });
       await tx.auditLog.create({ data: { adminId, action: "COMPETITION_UPDATED", entityType: "Competition", entityId: previous.id, details: { changes: JSON.parse(JSON.stringify(Object.fromEntries(changed.map(([key]) => [key, { before: previous[key as keyof typeof previous], after: current[key as keyof typeof current] }])))) as Prisma.InputJsonObject } } });
+      if (previous.leaderboardVisibility !== current.leaderboardVisibility) await tx.auditLog.create({ data: {
+        adminId, action: "LEADERBOARD_VISIBILITY_CHANGED", entityType: "Competition", entityId: previous.id,
+        details: { before: previous.leaderboardVisibility, after: current.leaderboardVisibility },
+      } });
+      return current;
+    });
+  }
+  async publishResults(input: PublishResultsInput, adminId: string) {
+    const selected = await this.selection.getCompetition();
+    if (selected.id !== input.competitionId) throw new HttpError(409, "SETTINGS_CHANGED", "The selected competition changed. Reload before publishing.");
+    return this.db.$transaction(async tx => {
+      await tx.$queryRaw`SELECT id FROM "Competition" WHERE id = ${selected.id} FOR UPDATE`;
+      const previous = await tx.competition.findUniqueOrThrow({ where: { id: selected.id } });
+      if (input.confirmationName !== previous.name) throw new HttpError(400, "PUBLICATION_CONFIRMATION_REQUIRED", "Type the competition name exactly to confirm publication.");
+      // Repeating the same confirmed action is safe after a lost HTTP response.
+      if (previous.resultsPublishedAt) return previous;
+      if (previous.updatedAt.toISOString() !== input.expectedUpdatedAt) throw stale();
+      if (previous.status !== "COMPLETED") throw new HttpError(409, "COMPETITION_NOT_COMPLETED", "Complete the competition before publishing final results.");
+      if (!await tx.contestant.count({ where: { competitionId: previous.id, isActive: true, totalVotes: { gt: 0 } } }))
+        throw new HttpError(409, "NO_RESULTS_TO_PUBLISH", "No votes have been recorded for active contestants. There are no ranked results to publish.");
+      const publishedAt = this.now();
+      const current = await tx.competition.update({ where: { id: previous.id }, data: {
+        resultsPublishedAt: publishedAt, leaderboardVisibility: "LIVE",
+        updatedAt: new Date(Math.max(publishedAt.getTime(), previous.updatedAt.getTime() + 1)),
+      } });
+      if (previous.leaderboardVisibility !== "LIVE") await tx.auditLog.create({ data: {
+        adminId, action: "LEADERBOARD_VISIBILITY_CHANGED", entityType: "Competition", entityId: previous.id,
+        details: { before: previous.leaderboardVisibility, after: "LIVE" },
+      } });
+      await tx.auditLog.create({ data: { adminId, action: "RESULTS_PUBLISHED", entityType: "Competition", entityId: previous.id,
+        details: { before: null, after: publishedAt.toISOString() } } });
       return current;
     });
   }

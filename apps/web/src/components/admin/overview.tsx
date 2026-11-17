@@ -5,6 +5,7 @@ import { formatVotes } from "@/lib/format";
 import { OverviewRetry } from "./overview-retry";
 
 const actions = {
+  LEADERBOARD_VISIBILITY_CHANGED: "Leaderboard visibility changed", RESULTS_PUBLISHED: "Final results published",
   COMPETITION_UPDATED: "Competition settings updated", CONTESTANT_CREATED: "Contestant registered",
   CONTESTANT_UPDATED: "Contestant details updated", CONTESTANT_STATUS_CHANGED: "Contestant active status changed",
   CONTESTANT_IMAGE_CHANGED: "Contestant photograph changed", CONTESTANT_IMAGE_REMOVED: "Contestant photograph removed",

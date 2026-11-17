@@ -17,7 +17,7 @@ export const overviewSchema = z.object({
     reason: z.enum(["NO_PAYMENT_DATA", "NO_RECORDED_PAID_DATA", "UNSUPPORTED_CURRENCY"]),
   })]),
   recentActivity: z.array(z.object({ id: z.string().min(1).max(128),
-    action: z.enum(["COMPETITION_UPDATED", "CONTESTANT_CREATED", "CONTESTANT_UPDATED", "CONTESTANT_STATUS_CHANGED",
+    action: z.enum(["COMPETITION_UPDATED", "LEADERBOARD_VISIBILITY_CHANGED", "RESULTS_PUBLISHED", "CONTESTANT_CREATED", "CONTESTANT_UPDATED", "CONTESTANT_STATUS_CHANGED",
       "CONTESTANT_IMAGE_CHANGED", "CONTESTANT_IMAGE_REMOVED", "VOTE_PACKAGE_CREATED", "VOTE_PACKAGE_UPDATED"]),
     entityType: z.enum(["Competition", "Contestant", "VotePackage"]), entityId: z.string().min(1).max(128),
     actor: z.string().max(320).nullable(), createdAt: z.iso.datetime(),

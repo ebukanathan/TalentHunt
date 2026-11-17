@@ -50,7 +50,7 @@ export class AdminOverviewService {
       const recentActivity = await tx.$queryRaw<ActivityRow[]>`
         SELECT a.id, a.action, a."entityType", a."entityId", u.email AS actor, a."createdAt"
         FROM "AuditLog" a LEFT JOIN "AdminUser" u ON u.id = a."adminId"
-        WHERE (a."entityType" = 'Competition' AND a."entityId" = ${competition.id} AND a.action = 'COMPETITION_UPDATED')
+        WHERE (a."entityType" = 'Competition' AND a."entityId" = ${competition.id} AND a.action IN ('COMPETITION_UPDATED', 'LEADERBOARD_VISIBILITY_CHANGED', 'RESULTS_PUBLISHED'))
           OR (a."entityType" = 'Contestant' AND a.action IN ('CONTESTANT_CREATED', 'CONTESTANT_UPDATED',
               'CONTESTANT_STATUS_CHANGED', 'CONTESTANT_IMAGE_CHANGED', 'CONTESTANT_IMAGE_REMOVED')
             AND EXISTS (SELECT 1 FROM "Contestant" c WHERE c.id = a."entityId" AND c."competitionId" = ${competition.id}))
