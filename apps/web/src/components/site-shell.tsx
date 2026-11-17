@@ -1,16 +1,17 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { Brand } from "./ui";
+import { NavigationLinks, SiteNavigation } from "./site-navigation";
 
 export function SiteHeader() {
   return (
     <header className="site-header">
       <div className="container header-inner">
         <Brand />
-        <nav aria-label="Main navigation">
-          <Link href="/">Home</Link>
-          <Link href="/contestants">Contestants</Link>
-          <Link href="/leaderboard">Leaderboard</Link>
-        </nav>
+        <Suspense fallback={<nav aria-label="Main navigation"><NavigationLinks /></nav>}>
+          <SiteNavigation />
+        </Suspense>
+        <noscript><style>{`.public-navigation .nav-links { display: flex; position: static; flex-wrap: wrap; } .navigation-toggle { display: none; }`}</style></noscript>
         <Link href="/contestants" className="header-cta">
           Discover talent <span aria-hidden="true">↗</span>
         </Link>

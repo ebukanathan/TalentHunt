@@ -7,7 +7,7 @@ import { ContestantProfile } from "@/components/contestant-profile";
 import { PageSkeleton, UnavailableState } from "@/components/page-states";
 export const metadata = { title: "Contestant profile" };
 type Props = { params: Promise<{ id: string }> };
-export default function Page(props: Props) { return <Suspense fallback={<PageSkeleton />}><Content {...props} /></Suspense>; }
+export default function Page(props: Props) { return <Suspense fallback={<PageSkeleton kind="profile" />}><Content {...props} /></Suspense>; }
 async function Content({ params }: Props) {
   const { id } = await params;
   let data: [Contestant, Competition | null] | undefined;
