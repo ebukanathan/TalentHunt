@@ -507,19 +507,19 @@ em {
 .card-content .eyebrow {
   font-size: var(--text-label);
 }
-.card-content h3 {
+.card-content :is(h2, h3) {
   font-family: Georgia, serif;
   font-size: 25px;
   font-weight: 400;
   margin-top: 7px;
   overflow-wrap: anywhere;
 }
-.card-content h3 a {
+.card-content :is(h2, h3) a {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
 }
-.card-content h3 a:hover { color: var(--gold); }
+.card-content :is(h2, h3) a:hover { color: var(--gold); }
 .vote-total {
   display: flex;
   flex-direction: column;
@@ -730,7 +730,7 @@ em {
   .contestant-grid {
     gap: 20px;
   }
-  .card-content h3 {
+  .card-content :is(h2, h3) {
     font-size: 22px;
   }
   .footer-note {
@@ -873,7 +873,7 @@ em {
     align-items: start;
     padding-block: 16px;
   }
-  .card-content h3 {
+  .card-content :is(h2, h3) {
     font-size: 22px;
   }
   .vote-total {

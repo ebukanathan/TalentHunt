@@ -3,6 +3,7 @@ import { createPublicControllers } from "../controllers/public.controller";
 import type { PublicApi } from "../services/public.service";
 import { leaderboardQuery } from "../validation/leaderboard";
 import { HttpError } from "../http/errors";
+import { contestantCardsQuery } from "../validation/public-contestants";
 
 export function createPublicRouter(service: PublicApi) {
   const router = Router();
@@ -14,6 +15,9 @@ export function createPublicRouter(service: PublicApi) {
     res.json({ status: "success", data: await service.getLeaderboard(leaderboardQuery.parse(req.query)) });
   });
   router.get("/contestants", controllers.contestants);
+  router.get("/contestant-cards", async (req, res) => {
+    res.json({ status: "success", data: await service.getContestantCards(contestantCardsQuery.parse(req.query)) });
+  });
   router.get("/contestants/:id", controllers.contestant);
   router.get("/vote-packages", controllers.votePackages);
   return router;

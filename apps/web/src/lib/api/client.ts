@@ -5,6 +5,7 @@ import {
   contestantSchema,
   contestantIdSchema,
   votePackageSchema,
+  contestantCardsSchema,
 } from "./schemas";
 
 export class ApiError extends Error {
@@ -77,6 +78,10 @@ export function createApiClient(
       }
     },
     contestants: () => request("/contestants", z.array(contestantSchema)),
+    contestantCards: (page = 1, pageSize = 12) => {
+      if (!Number.isInteger(page) || page < 1 || page > 100000 || !Number.isInteger(pageSize) || pageSize < 1 || pageSize > 24) return Promise.reject(new ApiError("BAD_REQUEST"));
+      return request(`/contestant-cards?page=${page}&pageSize=${pageSize}`, contestantCardsSchema);
+    },
     contestant: (id: string) => {
       if (!contestantIdSchema.safeParse(id).success)
         return Promise.reject(new ApiError("BAD_REQUEST"));

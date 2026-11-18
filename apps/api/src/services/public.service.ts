@@ -5,6 +5,7 @@ import { contestantVideoSelection } from "./contestant-videos";
 import { publicCompetition, showPublicVotes } from "./leaderboard-policy";
 import { LeaderboardService } from "./leaderboard.service";
 import type { LeaderboardQuery } from "../validation/leaderboard";
+import type { ContestantCardsQuery } from "../validation/public-contestants";
 
 const competitionFields = {
   id: true, name: true, slug: true, description: true, status: true,
@@ -74,6 +75,23 @@ export class PublicReadService {
     }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
   }
 
+  async getContestantCards({ page, pageSize }: ContestantCardsQuery) {
+    return this.database.$transaction(async tx => {
+      const competition = await this.findCompetition(tx);
+      if (!competition || competition.status === "DRAFT") return { competitionId: null, items: [], pagination: { page, pageSize, total: 0, pages: 0 } };
+      const where = { competitionId: competition.id, isActive: true };
+      const exposeVotes = showPublicVotes(competition);
+      const [total, items] = await Promise.all([
+        tx.contestant.count({ where }),
+        tx.contestant.findMany({ where, orderBy: [{ number: "asc" }, { id: "asc" }],
+          skip: (page - 1) * pageSize, take: pageSize,
+          select: { id: true, competitionId: true, number: true, name: true, imageUrl: true, ...(exposeVotes ? { totalVotes: true } : {}) },
+        }),
+      ]);
+      return { competitionId: competition.id, items, pagination: { page, pageSize, total, pages: Math.ceil(total / pageSize) } };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
+  }
+
   getLeaderboard(query: LeaderboardQuery) {
     return new LeaderboardService(this.database, tx => this.getManagedCompetition(tx)).public(query);
   }
@@ -89,4 +107,4 @@ export class PublicReadService {
   }
 }
 
-export type PublicApi = Pick<PublicReadService, "getCompetition" | "getContestants" | "getContestant" | "getVotePackages"> & Partial<Pick<PublicReadService,"getManagedCompetition" | "getLeaderboard">>;
+export type PublicApi = Pick<PublicReadService, "getCompetition" | "getContestants" | "getContestant" | "getVotePackages" | "getContestantCards"> & Partial<Pick<PublicReadService,"getManagedCompetition" | "getLeaderboard">>;
