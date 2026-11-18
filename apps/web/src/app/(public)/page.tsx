@@ -58,7 +58,7 @@ async function HomeContent() {
           </div>
           {featured ? (
             <div className="featured-talent">
-              <ContestantPortrait contestant={featured} />
+              <ContestantPortrait contestant={featured} variant="hero" eager />
               <div className="featured-caption">
                 <span className="eyebrow">DISCOVER THE LINEUP</span>
                 <span>{featured.name}</span>

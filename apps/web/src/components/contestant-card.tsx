@@ -2,21 +2,19 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import type { Contestant } from "@/lib/api/schemas";
 import { formatVotes } from "@/lib/format";
+import { portraitSizes, portraitSource } from "@/lib/portraits";
 
-export function ContestantPortrait({ contestant }: { contestant: Contestant }) {
+export function ContestantPortrait({ contestant, variant = "card", eager = false }: {
+  contestant: Pick<Contestant, "name" | "number" | "imageUrl">;
+  variant?: keyof typeof portraitSizes;
+  eager?: boolean;
+}) {
   const [failedSource, setFailedSource] = useState<string | null>(null);
   const source = contestant.imageUrl;
-  let safe = false;
-  if (source) {
-    try {
-      const url = new URL(source);
-      safe = url.protocol === "https:" && !url.username && !url.password;
-    } catch {
-      /* Missing/invalid portraits use the same fallback. */
-    }
-  }
+  const image = portraitSource(source);
   const initials = contestant.name
     .trim()
     .split(/\s+/)
@@ -25,16 +23,18 @@ export function ContestantPortrait({ contestant }: { contestant: Contestant }) {
     .join("");
   return (
     <div className="portrait">
-      {source && safe && source !== failedSource ? (
-        // API portraits load directly in the browser; no open server-side image proxy.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={source}
+      {image && source !== failedSource ? (
+        <Image
+          src={image.src}
+          unoptimized={!image.optimized}
           alt={`Portrait of ${contestant.name}`}
-          width="600"
-          height="750"
-          loading="lazy"
+          width={variant === "thumbnail" ? 48 : 600}
+          height={variant === "thumbnail" ? 60 : 750}
+          sizes={portraitSizes[variant]}
+          loading={eager ? "eager" : "lazy"}
+          fetchPriority={eager ? "high" : "auto"}
           decoding="async"
+          referrerPolicy="no-referrer"
           onError={() => setFailedSource(source)}
         />
       ) : (
