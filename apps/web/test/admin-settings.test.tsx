@@ -5,7 +5,7 @@ import { CompetitionForm, PackageForm } from "../src/components/admin/settings-f
 import { SettingsLoading, SettingsUnavailable } from "../src/components/admin/settings-states";
 import { fromLagos, koboToNgn, savedVotingDate, saveSettings, SettingsMutationError, toLagos } from "../src/lib/admin/settings-mutations";
 import type { ManagedCompetition, ManagedPackage } from "../src/lib/admin/settings-schemas";
-const competition:ManagedCompetition={id:"show",name:"<script>Show</script>",description:"Description",slug:"show",status:"OPEN",currency:"NGN",votingOpens:"2030-01-01T10:00:00.000Z",votingCloses:"2030-01-02T10:00:00.000Z",createdAt:"2026-11-03T00:00:00.000Z",updatedAt:"2026-11-03T00:00:00.000Z"};
+const competition:ManagedCompetition={id:"show",name:"<script>Show</script>",description:"Description",slug:"show",status:"OPEN",currency:"NGN",votingOpens:"2030-01-01T10:00:00.000Z",votingCloses:"2030-01-02T10:00:00.000Z",createdAt:"2026-11-03T00:00:00.000Z",updatedAt:"2026-11-03T00:00:00.000Z",leaderboardVisibility:"HIDDEN",resultsPublishedAt:null};
 const item:ManagedPackage={id:"package",competitionId:"show",name:"Starter",voteCount:7,priceKobo:5001,currency:"NGN",isActive:false,createdAt:competition.createdAt,updatedAt:competition.updatedAt};
 test("forms label editable settings, current state and NGN pricing without editable attribution or raw kobo",()=>{
   const html=renderToStaticMarkup(<CompetitionForm competition={competition}/>);

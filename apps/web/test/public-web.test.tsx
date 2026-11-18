@@ -5,9 +5,12 @@ import { createApiClient, ApiError } from "../src/lib/api/client";
 import type { Competition, Contestant } from "../src/lib/api/schemas";
 import { formatKobo, formatVotes } from "../src/lib/format";
 import { getVotingState } from "../src/lib/voting";
-import { ContestantCard } from "../src/components/contestant-card";
+import { ContestantCard, ContestantPortrait } from "../src/components/contestant-card";
 import { CompetitionStatus } from "../src/components/competition-status";
-import { NoCompetition, UnavailableState } from "../src/components/page-states";
+import { NoCompetition, PageSkeleton, UnavailableState } from "../src/components/page-states";
+import { NavigationLinks } from "../src/components/site-navigation";
+import { managedPortraitOrigin, portraitSource } from "../src/lib/portraits";
+import { ContestantProfile } from "../src/components/contestant-profile";
 
 const competition: Competition = {
   id: "show-1",
@@ -281,4 +284,65 @@ test("an expired scheduled window is closed and full-page states have a main hea
   );
   assert.ok(renderToStaticMarkup(<NoCompetition />).includes("<h1>"));
   assert.ok(renderToStaticMarkup(<UnavailableState />).includes("<h1>"));
+});
+
+test("navigation identifies the current page without marking a profile as the listing page", () => {
+  const listing = renderToStaticMarkup(<NavigationLinks pathname="/contestants" />);
+  assert.equal((listing.match(/aria-current="page"/g) || []).length, 1);
+  assert.match(listing, /<a(?=[^>]*href="\/contestants")(?=[^>]*aria-current="page")[^>]*>/);
+  const profile = renderToStaticMarkup(<NavigationLinks pathname="/contestants/person-1" />);
+  assert.ok(!profile.includes("aria-current"));
+  assert.ok(profile.includes('class="is-current-section"'));
+  assert.ok(profile.includes('href="/leaderboard"'));
+});
+
+test("route loading states announce the requested content and hide decorative skeletons", () => {
+  for (const [kind, label] of [["profile", "contestant profile"], ["leaderboard", "leaderboard"], ["selection", "vote packages"]] as const) {
+    const html = renderToStaticMarkup(<PageSkeleton kind={kind} />);
+    assert.ok(html.includes(`aria-label="Loading ${label}"`));
+    assert.ok(html.includes('aria-hidden="true"'));
+    assert.ok(html.includes('role="status"'));
+  }
+});
+
+test("only managed portrait objects on the configured exact origin are optimised", () => {
+  const origin = "https://project.supabase.co";
+  const image = `${origin}/storage/v1/object/public/contestant-images/contestants/show/person/12345678-1234-1234-1234-123456789abc.webp`;
+  assert.equal(portraitSource(image, origin)?.optimized, true);
+  for (const source of [image.replace("project.supabase.co", "project.supabase.co.evil.test"), image.replace("contestant-images/", "private/"), `${image}?token=value`, `${image}#fragment`, image.replace(".webp", ".svg"), image.replace("/show/", "/show%2fother/"), "https://legacy.test/photo.jpg"]) {
+    assert.equal(portraitSource(source, origin)?.optimized, false);
+  }
+  assert.equal(portraitSource(image, "")?.optimized, false);
+  for (const source of ["javascript:alert(1)", "http://legacy.test/photo.jpg", "https://user:secret@legacy.test/photo.jpg", "not a URL"]) assert.equal(portraitSource(source, origin), undefined);
+  for (const value of ["http://project.supabase.co", `${origin}/bucket`, `${origin}?token=value`, "https://*.supabase.co", "https://127.0.0.1", "https://user:secret@project.supabase.co", "https://project.supabase.co:444"]) assert.equal(managedPortraitOrigin(value), undefined);
+});
+
+test("portrait variants keep legacy images browser-only and distinguish above-fold loading", () => {
+  const person = { ...contestant, imageUrl: "https://legacy.test/photo.jpg" };
+  const card = renderToStaticMarkup(<ContestantPortrait contestant={person} />);
+  assert.ok(card.includes('loading="lazy"'));
+  assert.ok(card.includes('src="https://legacy.test/photo.jpg"'));
+  assert.ok(!card.includes("/_next/image"));
+  const profile = renderToStaticMarkup(<ContestantPortrait contestant={person} variant="profile" eager />);
+  assert.ok(profile.includes('loading="eager"'));
+  assert.ok(profile.includes('fetchPriority="high"'));
+  assert.ok(profile.includes('alt="Portrait of Test Performer"'));
+  const thumbnail = renderToStaticMarkup(<ContestantPortrait contestant={person} variant="thumbnail" />);
+  assert.ok(thumbnail.includes('width="48"'));
+});
+
+test("profiles link to package selection only during an eligible window and preserve hidden totals", () => {
+  const open = { ...competition, status: "OPEN" as const };
+  const hidden = { ...contestant };
+  delete hidden.totalVotes;
+  const html = renderToStaticMarkup(<ContestantProfile contestant={hidden} competition={open} />);
+  assert.ok(html.includes('href="/contestants/person-1/vote"'));
+  assert.ok(html.includes('href="/leaderboard"'));
+  assert.ok(!html.includes("9,007,199,254,740,993"));
+  assert.ok(!html.includes("Performance Videos"));
+  for (const state of [competition, { ...competition, status: "COMPLETED" as const }, { ...open, votingCloses: "2000-01-01T00:00:00Z" }]) {
+    const page = renderToStaticMarkup(<ContestantProfile contestant={contestant} competition={state} />);
+    assert.ok(!page.includes('href="/contestants/person-1/vote"'));
+    assert.ok(page.includes("This contestant’s story is coming soon."));
+  }
 });

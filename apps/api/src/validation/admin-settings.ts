@@ -8,6 +8,7 @@ export const patchCompetition = z.strictObject({
   description: z.string().trim().max(5000).refine(v => !/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(v), "Invalid description.").nullable().optional(),
   status: z.enum(statuses).optional(), votingOpens: timestamp.nullable().optional(), votingCloses: timestamp.nullable().optional(),
   expectedUpdatedAt: timestamp,
+  leaderboardVisibility: z.enum(["LIVE", "RANK_ONLY", "HIDDEN"]).optional(),
 }).refine(v => Object.keys(v).some(key => key !== "expectedUpdatedAt"), "Provide a setting to change.");
 
 /** Parse decimal NGN text exactly. Database Int is signed 32-bit; checkout minimum is 5000 kobo. */

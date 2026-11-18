@@ -10,7 +10,8 @@
     "db:seed": "prisma db seed",
     "typecheck:seed": "tsc -p prisma/tsconfig.json",
     "test:seed": "tsx --test prisma/seed.test.ts",
-    "test:seed:integration": "tsx --test prisma/seed.integration.test.ts"
+    "test:seed:integration": "tsx --test prisma/seed.integration.test.ts",
+    "test:categories:integration": "tsx --test --test-concurrency=1 prisma/category-schema.integration.test.ts"
   },
   "keywords": [],
   "author": "",

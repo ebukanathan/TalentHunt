@@ -2,21 +2,19 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import type { Contestant } from "@/lib/api/schemas";
+import Image from "next/image";
+import type { Contestant, ContestantCardData } from "@/lib/api/schemas";
 import { formatVotes } from "@/lib/format";
+import { portraitSizes, portraitSource } from "@/lib/portraits";
 
-export function ContestantPortrait({ contestant }: { contestant: Contestant }) {
+export function ContestantPortrait({ contestant, variant = "card", eager = false }: {
+  contestant: Pick<Contestant, "name" | "number" | "imageUrl">;
+  variant?: keyof typeof portraitSizes;
+  eager?: boolean;
+}) {
   const [failedSource, setFailedSource] = useState<string | null>(null);
   const source = contestant.imageUrl;
-  let safe = false;
-  if (source) {
-    try {
-      const url = new URL(source);
-      safe = url.protocol === "https:" && !url.username && !url.password;
-    } catch {
-      /* Missing/invalid portraits use the same fallback. */
-    }
-  }
+  const image = portraitSource(source);
   const initials = contestant.name
     .trim()
     .split(/\s+/)
@@ -25,16 +23,18 @@ export function ContestantPortrait({ contestant }: { contestant: Contestant }) {
     .join("");
   return (
     <div className="portrait">
-      {source && safe && source !== failedSource ? (
-        // API portraits load directly in the browser; no open server-side image proxy.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={source}
+      {image && source !== failedSource ? (
+        <Image
+          src={image.src}
+          unoptimized={!image.optimized}
           alt={`Portrait of ${contestant.name}`}
-          width="600"
-          height="750"
-          loading="lazy"
+          width={variant === "thumbnail" ? 48 : 600}
+          height={variant === "thumbnail" ? 60 : 750}
+          sizes={portraitSizes[variant]}
+          loading={eager ? "eager" : "lazy"}
+          fetchPriority={eager ? "high" : "auto"}
           decoding="async"
+          referrerPolicy="no-referrer"
           onError={() => setFailedSource(source)}
         />
       ) : (
@@ -56,7 +56,7 @@ export function ContestantPortrait({ contestant }: { contestant: Contestant }) {
     </div>
   );
 }
-export function ContestantCard({ contestant }: { contestant: Contestant }) {
+export function ContestantCard({ contestant, heading: Heading = "h3" }: { contestant: ContestantCardData | Contestant; heading?: "h2" | "h3" }) {
   return (
     <article
       className="contestant-card"
@@ -67,12 +67,12 @@ export function ContestantCard({ contestant }: { contestant: Contestant }) {
       <div className="card-content">
         <div>
           <p className="eyebrow">THE LINEUP</p>
-          <h3 id={`name-${contestant.id}`}><Link href={`/contestants/${encodeURIComponent(contestant.id)}`}>{contestant.name}</Link></h3>
+          <Heading id={`name-${contestant.id}`}><Link prefetch={false} href={`/contestants/${encodeURIComponent(contestant.id)}`}>{contestant.name}</Link></Heading>
         </div>
-        <p className="vote-total">
+        {contestant.totalVotes !== undefined && <p className="vote-total">
           <strong>{formatVotes(contestant.totalVotes)}</strong>
           <span>votes</span>
-        </p>
+        </p>}
       </div>
     </article>
   );

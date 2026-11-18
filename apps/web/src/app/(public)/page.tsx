@@ -11,6 +11,13 @@ import {
   UnavailableState,
 } from "@/components/page-states";
 import { Arrow, ButtonLink, EmptyState, SectionHeading } from "@/components/ui";
+import { competitionMetadata } from "@/lib/seo";
+import { ApiError } from "@/lib/api/client";
+
+export async function generateMetadata() {
+  try { const show = await getPublicShow(1, 3); return competitionMetadata(show.kind === "ready" ? show.competition : null); }
+  catch (error) { if (!(error instanceof ApiError)) throw error; return competitionMetadata(null); }
+}
 
 export default function HomePage() {
   return (
@@ -20,7 +27,7 @@ export default function HomePage() {
   );
 }
 async function HomeContent() {
-  const show = await getPublicShow();
+  const show = await getPublicShow(1, 3);
   if (show.kind === "empty") return <NoCompetition />;
   if (show.kind === "unavailable") return <UnavailableState />;
   const { competition, contestants } = show;
@@ -58,7 +65,7 @@ async function HomeContent() {
           </div>
           {featured ? (
             <div className="featured-talent">
-              <ContestantPortrait contestant={featured} />
+              <ContestantPortrait contestant={featured} variant="hero" eager />
               <div className="featured-caption">
                 <span className="eyebrow">DISCOVER THE LINEUP</span>
                 <span>{featured.name}</span>

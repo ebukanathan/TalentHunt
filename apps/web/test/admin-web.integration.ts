@@ -1,6 +1,6 @@
 // Real Next.js -> Express -> PostgreSQL requests. Requires a separate fresh local DB.
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -50,7 +50,7 @@ async function main() {
       Cookie: [...jar].map(([k,v]) => k + "=" + v).join("; "), Origin: origin, "X-CSRF-Token": token, ...custom }, signal: AbortSignal.timeout(90000) });
   };
   const credentials = { email: "web-admin@example.com", password: "A fixture-only web passphrase" };
-  const privatePaths = ["/admin", "/admin/contestants", "/admin/contestants/new", "/admin/contestants/unknown/edit", "/admin/competition", "/admin/vote-packages", "/admin/payments"];
+  const privatePaths = ["/admin", "/admin/contestants", "/admin/contestants/new", "/admin/contestants/unknown/edit", "/admin/competition", "/admin/leaderboard", "/admin/vote-packages", "/admin/payments"];
   const redirected = async (path: string) => {
     const response = await request(path), text = await response.text();
     assert.ok(response.headers.get("location")?.includes("/admin/login") || text.includes('url=/admin/login'), "Anonymous private pages redirect to login.");
@@ -61,15 +61,35 @@ async function main() {
     await provisionInitialAdmin(db, credentials);
     api.listen(0, "127.0.0.1"); await once(api, "listening");
     const apiPort = (api.address() as AddressInfo).port;
-    child = spawn(process.execPath, [resolve("../../node_modules/next/dist/bin/next"), "dev", "--hostname", "127.0.0.1", "--port", String(port)], {
-      cwd: process.cwd(), windowsHide: true, env: { ...process.env, NODE_ENV: "development", ADMIN_APP_ORIGIN: origin, API_BASE_URL: `http://127.0.0.1:${apiPort}/api/v1`, NEXT_DIST_DIR: ".next-admin-test" }, stdio: ["ignore", "pipe", "pipe"],
-    });
     // Sanitized diagnostics only; don't forward logs containing request data.
-    child.stdout?.resume();
-    child.stderr?.resume();
-    let ready = false;
+    let startupFailure = "startup error";
+    const classifyStartup = (chunk: Buffer) => {
+      const message = chunk.toString();
+      if (/Unable to acquire lock|another instance of next dev/.test(message)) startupFailure = "development lock";
+      else if (/SecurityFatalError|known security vulnerability/.test(message)) startupFailure = "Next.js security advisory";
+      else if (/EADDRINUSE/.test(message)) startupFailure = "test port already in use";
+    };
+    const startNext = () => {
+      startupFailure = "startup error";
+      const instance = spawn(process.execPath, [resolve("../../node_modules/next/dist/bin/next"), "dev", "--hostname", "127.0.0.1", "--port", String(port)], {
+        cwd: process.cwd(), windowsHide: true, env: { ...process.env, NODE_ENV: "development", ADMIN_APP_ORIGIN: origin, API_BASE_URL: `http://127.0.0.1:${apiPort}/api/v1`, NEXT_DIST_DIR: ".next-admin-test" }, stdio: ["ignore", "pipe", "pipe"],
+      });
+      instance.stdout?.on("data", classifyStartup);
+      instance.stderr?.on("data", classifyStartup);
+      return instance;
+    };
+    child = startNext();
+    let ready = false, retriedAdvisory = false;
     for (let attempt = 0; attempt < 120; attempt++) {
-      if (child.exitCode !== null) throw new Error("Next test server exited before readiness.");
+      if (child.exitCode !== null) {
+        if (startupFailure === "Next.js security advisory" && !retriedAdvisory) {
+          // Next explicitly permits one normal command retry after displaying
+          // its reminder. Keep the warning visible; change no security setting.
+          console.warn("Next.js reported an existing security advisory; retrying the identical local test-server command once.");
+          retriedAdvisory = true;
+          child = startNext();
+        } else throw new Error(`Next test server exited before readiness (${startupFailure}).`);
+      }
       try { if ((await request("/admin/login")).ok) { ready = true; break; } } catch {}
       await new Promise(done => setTimeout(done, 250));
     }
@@ -78,7 +98,7 @@ async function main() {
     assert.match(login, /type="password"/); assert.match(login, /autoComplete="current-password"/i);
     for (const path of privatePaths) await redirected(path);
     assert.equal((await request("/api/admin/auth/session")).status, 401);
-    for (const path of ["/api/admin/competition", "/api/admin/vote-packages", "/api/admin/overview"]) assert.equal((await request(path)).status, 401);
+    for (const path of ["/api/admin/competition", "/api/admin/vote-packages", "/api/admin/overview", "/api/admin/categories"]) assert.equal((await request(path)).status, 401);
     assert.equal((await upload("unknown", "invalid")).status, 401);
     assert.equal((await request("/api/admin/auth/login", "POST", credentials)).status, 403);
     assert.equal((await request("/api/admin/auth/login", "POST", credentials, await csrf(), { Origin: "https://evil.example" })).status, 403);
@@ -94,6 +114,20 @@ async function main() {
     const emptyOverview = (await (await request("/api/admin/overview")).json()).data;
     assert.deepEqual(emptyOverview.counts, { totalContestants: 0, activeContestants: 0, activePackages: 0 });
     assert.deepEqual(emptyOverview.financials, { state: "unavailable", reason: "NO_PAYMENT_DATA" });
+    assert.deepEqual(emptyOverview.taxonomyCounts, { categories: 0, subcategories: 0, pendingAssignments: 0 });
+    assert.match(await (await request("/admin/categories")).text(), /Create category/);
+    const categoryCreated = await request("/api/admin/categories", "POST", { name: "Web category", slug: "web-category" }, await csrf());
+    assert.equal(categoryCreated.status, 201); const category = (await categoryCreated.json()).data;
+    const childCreated = await request(`/api/admin/categories/${category.id}/subcategories`, "POST", { name: "Web subcategory", slug: "web-subcategory" }, await csrf());
+    assert.equal(childCreated.status, 201); const subcategory = (await childCreated.json()).data;
+    assert.match(await (await request(`/admin/categories/${category.id}`)).text(), /Create subcategory/);
+    const childPage = await request(`/admin/categories/${category.id}/subcategories/${subcategory.id}`);
+    assert.equal(childPage.status, 200); assert.match(await childPage.text(), /Deactivation impact/);
+    const childPath = `/api/admin/categories/${category.id}/subcategories/${subcategory.id}`;
+    assert.equal((await request(childPath, "PATCH", { name: "Denied", expectedRevision: subcategory.revision })).status, 403);
+    const childSaved = await request(childPath, "PATCH", { name: "Renamed subcategory", expectedRevision: subcategory.revision }, await csrf());
+    assert.equal(childSaved.status, 200);
+    assert.equal((await request(childPath, "PATCH", { name: "Stale", expectedRevision: subcategory.revision }, await csrf())).status, 409);
     let settings = (await (await request("/api/admin/competition")).json()).data;
     assert.match(await (await request("/admin/competition")).text(), /Save competition/);
     assert.match(await (await request("/admin/vote-packages")).text(), /Create package/);
@@ -169,12 +203,57 @@ async function main() {
     assert.equal((await request(videoPath, "PATCH", { videoUrls: [] }, await csrf())).status, 200);
     const emptyVideoProfile = await (await request(`/contestants/${person.id}`)).text();
     assert.doesNotMatch(emptyVideoProfile, /<iframe|performance-videos-heading/);
+    assert.doesNotMatch(profile,/class="vote-total"/);
+    assert.match(profile, /Explore vote packages/);
+    await db.votePackage.update({where:{id:managedPackage.id},data:{isActive:true}});
+    const selection = await (await request(`/contestants/${person.id}/vote`)).text();
+    assert.match(selection, /type="radio"/); assert.match(selection, /75.25/);
+    assert.match(selection, /does not purchase or add any votes/);
+    assert.doesNotMatch(selection, /type="submit"|type="email"/);
+    await db.votePackage.update({where:{id:managedPackage.id},data:{isActive:false}});
+    assert.match(await (await request(`/contestants/${person.id}/vote`)).text(), /No vote packages are available/);
+    const robots = await request("/robots.txt"); assert.match(robots.headers.get("cache-control")!, /no-store/);
+    const sitemap = await request("/sitemap.xml"); assert.match(sitemap.headers.get("cache-control")!, /no-store/);
+    assert.match(await sitemap.text(), new RegExp(`/contestants/${person.id}`));
+    assert.match(await (await request("/leaderboard")).text(),/Results have not been published/);
+    const visibilitySave = async (leaderboardVisibility: string) => {
+      const current=(await (await request("/api/admin/competition")).json()).data;
+      const response=await request("/api/admin/competition","PATCH",{leaderboardVisibility,expectedUpdatedAt:current.updatedAt},await csrf());assert.equal(response.status,200);
+    };
+    await visibilitySave("LIVE");
+    assert.match(await (await request("/leaderboard")).text(),/No votes have been recorded yet/);
+    await db.contestant.update({where:{id:person.id},data:{totalVotes:BigInt("9007199254740993")}});
+    assert.match(await (await request("/leaderboard")).text(),/9,007,199,254,740,993/);
+    await visibilitySave("RANK_ONLY");
+    for(const route of ["/","/contestants",`/contestants/${person.id}`,"/leaderboard"]){
+      const html=await (await request(route)).text();assert.doesNotMatch(html,/9007199254740993|9,007,199,254,740,993/);
+    }
+    assert.match(await (await request("/admin/leaderboard")).text(),/9,007,199,254,740,993/);
+    await visibilitySave("HIDDEN");
+    assert.match(await (await request("/leaderboard")).text(),/Results have not been published/);
+    const updateStatus = async(status:string)=>{
+      const current=(await (await request("/api/admin/competition")).json()).data;
+      const response=await request("/api/admin/competition","PATCH",{status,expectedUpdatedAt:current.updatedAt},await csrf());assert.equal(response.status,200);
+    };
+    await updateStatus("CLOSED");await updateStatus("COMPLETED");
+    assert.doesNotMatch(await (await request(`/contestants/${person.id}/vote`)).text(), /type="radio"/);
+    const beforePublication=(await (await request("/api/admin/competition")).json()).data;
+    const publicationPath="/api/admin/competition/publish-results";
+    const confirmation={competitionId:beforePublication.id,expectedUpdatedAt:beforePublication.updatedAt,confirmationName:beforePublication.name};
+    assert.equal((await request(publicationPath,"POST",confirmation)).status,403);
+    assert.equal((await request(publicationPath,"POST",{...confirmation,confirmationName:"wrong"},await csrf())).status,400);
+    const settingsHtml=await (await request("/admin/competition")).text();assert.match(settingsHtml,/publication-confirmation/);assert.match(settingsHtml,/Confirm final result publication/);
+    assert.equal((await request(publicationPath,"POST",confirmation,await csrf())).status,200);
+    assert.match(await (await request("/leaderboard")).text(),/Published final results/);
+    assert.equal((await (await request("/api/admin/leaderboard")).json()).data.items[0].totalVotes,"9007199254740993");
     const listing = await (await request("/contestants")).text(); assert.ok(listing.includes(photoUrl));
     const removed = await request(`/api/admin/contestants/${person.id}/image`, "DELETE", {}, await csrf());
     assert.equal(removed.status, 200); assert.equal((await removed.json()).data.imageUrl, null);
     assert.equal((await request(`/api/admin/contestants/${person.id}`, "PATCH", { isActive: false }, await csrf())).status, 200);
     const publicInactive = await fetch(`http://127.0.0.1:${apiPort}/api/v1/contestants`); assert.equal((await publicInactive.json()).data.length, 0);
     const hidden = await (await request(`/contestants/${person.id}`)).text(); assert.ok(!hidden.includes(photoUrl)); assert.match(hidden, /Contestant unavailable|NEXT_HTTP_ERROR_FALLBACK;404/);
+    assert.equal((await request(`/share/contestants/${person.id}`)).status, 404);
+    assert.ok(!(await (await request("/sitemap.xml")).text()).includes(`/contestants/${person.id}`));
     assert.equal(await db.auditLog.count({ where: { action: "CONTESTANT_CREATED" } }), 1);
     assert.equal(await db.auditLog.count({ where: { action: "CONTESTANT_STATUS_CHANGED" } }), 2);
     const overviewResponse = await request("/api/admin/overview"), overview = (await overviewResponse.json()).data;
@@ -197,9 +276,16 @@ async function main() {
     assert.equal((await request("/api/admin/overview")).status, 503);
     assert.equal((await request("/api/admin/auth/login", "POST", credentials, "x".repeat(43))).status, 503);
     assert.equal(await db.payment.count(), 0);
-    console.log("ADMIN_WEB_INTEGRATION_PASSED: database overview counts, bounded activity, financial-unavailable states, auth, CRUD, images, performance videos, competition settings, packages, public visibility, expiry and outage.");
+    console.log("ADMIN_WEB_INTEGRATION_PASSED: public selection, uncached discovery, inactive indexing, leaderboard privacy across HTML/RSC, publication, videos, overview, auth, CRUD, images, settings, packages, expiry and outage.");
   } finally {
-    if (child && child.exitCode === null) { child.kill(); await once(child, "exit"); }
+    if (child && child.exitCode === null) {
+      const exited = once(child, "exit");
+      // Next forks a server process. Terminate only this test's process tree so
+      // repeated Windows runs do not retain its development directory lock.
+      if (process.platform === "win32" && child.pid) spawnSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { windowsHide: true, stdio: "ignore" });
+      else child.kill();
+      await exited;
+    }
     api.closeAllConnections(); if (api.listening) await new Promise<void>(done => api.close(() => done()));
     await db.$disconnect();
   }

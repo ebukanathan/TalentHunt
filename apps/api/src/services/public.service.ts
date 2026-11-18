@@ -1,11 +1,15 @@
-import type { Prisma, PrismaClient } from "@prisma/client";
+import { Prisma, type PrismaClient } from "@prisma/client";
 import { HttpError } from "../http/errors";
 import { votingOpen } from "./competition-policy";
 import { contestantVideoSelection } from "./contestant-videos";
+import { publicCompetition, showPublicVotes } from "./leaderboard-policy";
+import { LeaderboardService } from "./leaderboard.service";
+import type { LeaderboardQuery } from "../validation/leaderboard";
+import type { ContestantCardsQuery } from "../validation/public-contestants";
 
 const competitionFields = {
   id: true, name: true, slug: true, description: true, status: true,
-  votingOpens: true, votingCloses: true, currency: true,
+  votingOpens: true, votingCloses: true, currency: true, leaderboardVisibility: true, resultsPublishedAt: true,
 } satisfies Prisma.CompetitionSelect;
 
 const contestantFields = {
@@ -41,27 +45,55 @@ export class PublicReadService {
   async getCompetition() {
     const competition = await this.getManagedCompetition();
     if (competition.status === "DRAFT") throw new HttpError(404, "COMPETITION_NOT_FOUND", "Competition not found.");
-    return competition;
+    return publicCompetition(competition);
   }
 
   async getContestants() {
-    const competition = await this.findCompetition();
-    if (!competition || competition.status === "DRAFT") return [];
-    return this.database.contestant.findMany({
-      where: { competitionId: competition.id, isActive: true },
-      orderBy: [{ number: "asc" }, { id: "asc" }],
-      select: contestantFields,
-    });
+    return this.database.$transaction(async tx => {
+      const competition = await this.findCompetition(tx);
+      if (!competition || competition.status === "DRAFT") return [];
+      const contestants = await tx.contestant.findMany({
+        where: { competitionId: competition.id, isActive: true },
+        orderBy: [{ number: "asc" }, { id: "asc" }], select: contestantFields,
+      });
+      return contestants.map(contestant => {
+        const { totalVotes, ...profile } = contestant;
+        return { ...profile, ...(showPublicVotes(competition) ? { totalVotes } : {}) };
+      });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
   }
 
   async getContestant(id: string) {
-    const competition = await this.findCompetition();
-    const contestant = competition && competition.status !== "DRAFT" ? await this.database.contestant.findFirst({
-      where: { id, competitionId: competition.id, isActive: true },
-      select: contestantFields,
-    }) : null;
-    if (!contestant) throw new HttpError(404, "CONTESTANT_NOT_FOUND", "Contestant not found.");
-    return contestant;
+    return this.database.$transaction(async tx => {
+      const competition = await this.findCompetition(tx);
+      const contestant = competition && competition.status !== "DRAFT" ? await tx.contestant.findFirst({
+        where: { id, competitionId: competition.id, isActive: true }, select: contestantFields,
+      }) : null;
+      if (!competition || !contestant) throw new HttpError(404, "CONTESTANT_NOT_FOUND", "Contestant not found.");
+      const { totalVotes, ...profile } = contestant;
+      return { ...profile, ...(showPublicVotes(competition) ? { totalVotes } : {}) };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
+  }
+
+  async getContestantCards({ page, pageSize }: ContestantCardsQuery) {
+    return this.database.$transaction(async tx => {
+      const competition = await this.findCompetition(tx);
+      if (!competition || competition.status === "DRAFT") return { competitionId: null, items: [], pagination: { page, pageSize, total: 0, pages: 0 } };
+      const where = { competitionId: competition.id, isActive: true };
+      const exposeVotes = showPublicVotes(competition);
+      const [total, items] = await Promise.all([
+        tx.contestant.count({ where }),
+        tx.contestant.findMany({ where, orderBy: [{ number: "asc" }, { id: "asc" }],
+          skip: (page - 1) * pageSize, take: pageSize,
+          select: { id: true, competitionId: true, number: true, name: true, imageUrl: true, ...(exposeVotes ? { totalVotes: true } : {}) },
+        }),
+      ]);
+      return { competitionId: competition.id, items, pagination: { page, pageSize, total, pages: Math.ceil(total / pageSize) } };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
+  }
+
+  getLeaderboard(query: LeaderboardQuery) {
+    return new LeaderboardService(this.database, tx => this.getManagedCompetition(tx)).public(query);
   }
 
   async getVotePackages() {
@@ -75,4 +107,4 @@ export class PublicReadService {
   }
 }
 
-export type PublicApi = Pick<PublicReadService, "getCompetition" | "getContestants" | "getContestant" | "getVotePackages"> & Partial<Pick<PublicReadService,"getManagedCompetition">>;
+export type PublicApi = Pick<PublicReadService, "getCompetition" | "getContestants" | "getContestant" | "getVotePackages" | "getContestantCards"> & Partial<Pick<PublicReadService,"getManagedCompetition" | "getLeaderboard">>;

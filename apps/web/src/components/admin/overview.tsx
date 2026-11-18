@@ -5,10 +5,13 @@ import { formatVotes } from "@/lib/format";
 import { OverviewRetry } from "./overview-retry";
 
 const actions = {
+  LEADERBOARD_VISIBILITY_CHANGED: "Leaderboard visibility changed", RESULTS_PUBLISHED: "Final results published",
   COMPETITION_UPDATED: "Competition settings updated", CONTESTANT_CREATED: "Contestant registered",
   CONTESTANT_UPDATED: "Contestant details updated", CONTESTANT_STATUS_CHANGED: "Contestant active status changed",
   CONTESTANT_IMAGE_CHANGED: "Contestant photograph changed", CONTESTANT_IMAGE_REMOVED: "Contestant photograph removed",
   VOTE_PACKAGE_CREATED: "Vote package created", VOTE_PACKAGE_UPDATED: "Vote package updated",
+  CATEGORY_CREATED: "Category created", CATEGORY_UPDATED: "Category updated", CATEGORY_STATUS_CHANGED: "Category active status changed",
+  SUBCATEGORY_CREATED: "Subcategory created", SUBCATEGORY_UPDATED: "Subcategory updated", SUBCATEGORY_STATUS_CHANGED: "Subcategory active status changed",
 };
 function date(value: string | null) {
   return value ? new Date(value).toLocaleString("en-NG", { timeZone: "Africa/Lagos", dateStyle: "medium", timeStyle: "short" }) : "Not set";
@@ -38,6 +41,9 @@ export function OverviewContent({ data }: { data: OverviewData }) {
         <div><dt>Total contestants</dt><dd>{counts.totalContestants.toLocaleString("en-NG")}</dd></div>
         <div><dt>Active contestants</dt><dd>{counts.activeContestants.toLocaleString("en-NG")}</dd></div>
         <div><dt>Active vote packages</dt><dd>{counts.activePackages.toLocaleString("en-NG")}</dd></div>
+        <div><dt>Categories</dt><dd>{data.taxonomyCounts.categories.toLocaleString("en-NG")}</dd></div>
+        <div><dt>Subcategories</dt><dd>{data.taxonomyCounts.subcategories.toLocaleString("en-NG")}</dd></div>
+        <div><dt>Pending assignments</dt><dd>{data.taxonomyCounts.pendingAssignments.toLocaleString("en-NG")}</dd></div>
       </dl><p className="admin-muted">Active packages are enabled in settings. Purchases also depend on competition status and voting dates.</p>
     </section>
     <nav className="admin-panel" aria-label="Competition management"><h2>Manage your competition</h2>
@@ -45,6 +51,7 @@ export function OverviewContent({ data }: { data: OverviewData }) {
         <Link href="/admin/contestants">Manage contestants</Link><Link href="/admin/contestants/new">Register contestant</Link>
         <Link href="/admin/contestants?status=active">View active contestants</Link><Link href="/admin/vote-packages">Manage vote packages</Link>
         <Link href="/admin/competition">Competition settings</Link>
+        <Link href="/admin/categories">Manage categories</Link>
       </div>
     </nav>
     <section className="admin-panel" aria-labelledby="overview-financials"><h2 id="overview-financials">Payment records</h2>
@@ -64,8 +71,8 @@ export function OverviewContent({ data }: { data: OverviewData }) {
       <p className="admin-muted">The latest 10 changes for this competition.</p>
       {data.recentActivity.length ? <ol className="admin-overview-activity">{data.recentActivity.map(item => <li key={item.id}>
         <div><p><strong>{actions[item.action]}</strong></p><p className="admin-muted">{item.actor || "System"}</p>
-          <Link href={item.entityType === "Contestant" ? `/admin/contestants/${encodeURIComponent(item.entityId)}/edit` : item.entityType === "Competition" ? "/admin/competition" : "/admin/vote-packages"}>
-            {item.entityType === "Contestant" ? "View contestant" : item.entityType === "Competition" ? "View competition settings" : "View vote packages"}
+          <Link href={item.entityType === "Contestant" ? `/admin/contestants/${encodeURIComponent(item.entityId)}/edit` : item.entityType === "Competition" ? "/admin/competition" : item.entityType === "Category" ? `/admin/categories/${encodeURIComponent(item.entityId)}` : item.entityType === "Subcategory" ? "/admin/categories" : "/admin/vote-packages"}>
+            {item.entityType === "Contestant" ? "View contestant" : item.entityType === "Competition" ? "View competition settings" : ["Category", "Subcategory"].includes(item.entityType) ? "Manage categories" : "View vote packages"}
           </Link></div><time dateTime={item.createdAt}>{date(item.createdAt)}</time>
       </li>)}</ol> : <p>No administrative activity yet for this competition.</p>}
     </section>

@@ -1,9 +1,11 @@
 import { z } from "zod";
+import { publicLeaderboardSchema } from "./leaderboard-schemas";
 import {
   competitionSchema,
   contestantSchema,
   contestantIdSchema,
   votePackageSchema,
+  contestantCardsSchema,
 } from "./schemas";
 
 export class ApiError extends Error {
@@ -65,6 +67,7 @@ export function createApiClient(
     }
   }
   return {
+    leaderboard: (page = "1") => request("/leaderboard?page=" + encodeURIComponent(page), publicLeaderboardSchema),
     async competition() {
       try {
         return await request("/competition", competitionSchema);
@@ -75,6 +78,10 @@ export function createApiClient(
       }
     },
     contestants: () => request("/contestants", z.array(contestantSchema)),
+    contestantCards: (page = 1, pageSize = 12) => {
+      if (!Number.isInteger(page) || page < 1 || page > 100000 || !Number.isInteger(pageSize) || pageSize < 1 || pageSize > 24) return Promise.reject(new ApiError("BAD_REQUEST"));
+      return request(`/contestant-cards?page=${page}&pageSize=${pageSize}`, contestantCardsSchema);
+    },
     contestant: (id: string) => {
       if (!contestantIdSchema.safeParse(id).success)
         return Promise.reject(new ApiError("BAD_REQUEST"));

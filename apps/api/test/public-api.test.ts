@@ -46,6 +46,7 @@ test("public REST API over real HTTP and isolated PostgreSQL", { timeout: 60000 
     return {
       getCompetition: async () => { throw error; },
       getContestants: async () => [],
+      getContestantCards: async () => { throw error; },
       getContestant: async () => { throw error; },
       getVotePackages: async () => [],
     };
@@ -69,7 +70,7 @@ test("public REST API over real HTTP and isolated PostgreSQL", { timeout: 60000 
     });
 
     await database.$transaction([
-      database.competition.create({ data: { id: "api-current", name: "Current", slug: "api-current", status: "OPEN", createdAt: new Date("2026-01-03T00:00:00Z"), votingOpens: new Date("2026-01-04T00:00:00Z") } }),
+      database.competition.create({ data: { id: "api-current", name: "Current", slug: "api-current", status: "OPEN", leaderboardVisibility: "LIVE", createdAt: new Date("2026-01-03T00:00:00Z"), votingOpens: new Date("2026-01-04T00:00:00Z") } }),
       database.competition.create({ data: { id: "api-previous", name: "Previous", slug: "api-previous", createdAt: new Date("2026-01-01T00:00:00Z"), status: "OPEN" } }),
       database.competition.create({ data: { id: "api-inactive-show", name: "Inactive only", slug: "api-inactive-show", status: "SCHEDULED", createdAt: new Date("2026-01-02T00:00:00Z") } }),
     ]);
@@ -108,6 +109,17 @@ test("public REST API over real HTTP and isolated PostgreSQL", { timeout: 60000 
       assert.equal(result.status, 200);
       assert.equal(result.body.data.id, "api-active");
       assert.equal(result.body.data.totalVotes, "9007199254740993");
+    });
+    await t.test("card pages are bounded, minimal, deterministic and strictly validated", async () => {
+      const first = await get(base, "/contestant-cards?pageSize=1");
+      assert.equal(first.status, 200);
+      assert.deepEqual(first.body.data.pagination, { page: 1, pageSize: 1, total: 2, pages: 2 });
+      assert.equal(first.body.data.items[0].id, "api-active");
+      assert.equal(first.body.data.items[0].totalVotes, "9007199254740993");
+      assert.deepEqual(Object.keys(first.body.data.items[0]).sort(), ["id", "competitionId", "number", "name", "imageUrl", "totalVotes"].sort());
+      assert.equal((await get(base, "/contestant-cards?pageSize=1&page=2")).body.data.items[0].id, "api-active-2");
+      assert.deepEqual((await get(base, "/contestant-cards?page=999")).body.data.items, []);
+      for (const query of ["?page=0", "?page=1&page=2", "?pageSize=25", "?page=100001", "?visibility=LIVE", "?includeVotes=true"]) assert.equal((await get(base, "/contestant-cards" + query)).status, 400);
     });
     await t.test("unknown, inactive and other-competition detail IDs all return the same 404", async () => {
       for (const id of ["unknown-id", "api-inactive", "api-other"]) {

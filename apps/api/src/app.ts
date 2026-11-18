@@ -13,6 +13,8 @@ import type { ImageStorage } from "./storage/contestant-images";
 import { AdminContestantImageService } from "./services/admin-contestant-images.service";
 import { AdminSettingsService } from "./services/admin-settings.service";
 import { AdminOverviewService } from "./services/admin-overview.service";
+import { LeaderboardService } from "./services/leaderboard.service";
+import { AdminTaxonomyService } from "./services/admin-taxonomy.service";
 
 /** Injectable composition keeps HTTP tests on their explicitly selected database. */
 export function createApp(service: PublicApi, payments?: PaymentInitializationApi, admin?: AdminAuthService, storage?: ImageStorage) {
@@ -35,7 +37,9 @@ export function createApp(service: PublicApi, payments?: PaymentInitializationAp
   const images = admin && contestants && storage ? new AdminContestantImageService(admin.database, storage, contestants) : undefined;
   const overview = admin ? new AdminOverviewService(admin.database, tx =>
     service.getManagedCompetition ? service.getManagedCompetition(tx) : service.getCompetition()) : undefined;
-  app.use("/api/v1/admin", createAdminRouter(admin, contestants, images, admin ? new AdminSettingsService(admin.database, selection) : undefined, overview));
+  const leaderboard = admin ? new LeaderboardService(admin.database, tx => service.getManagedCompetition ? service.getManagedCompetition(tx) : service.getCompetition()) : undefined;
+  const taxonomy = admin ? new AdminTaxonomyService(admin.database, tx => service.getManagedCompetition ? service.getManagedCompetition(tx) : service.getCompetition()) : undefined;
+  app.use("/api/v1/admin", createAdminRouter(admin, contestants, images, admin ? new AdminSettingsService(admin.database, selection) : undefined, overview, leaderboard, taxonomy));
   app.use((_request, _response, next) => {
     next(new HttpError(404, "ROUTE_NOT_FOUND", "Route not found."));
   });

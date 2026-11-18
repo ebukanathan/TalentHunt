@@ -1,24 +1,24 @@
 import "server-only";
 import { ApiError } from "./client";
 import { getPublicApi } from "./server";
+import { getPublicCompetition } from "./public-competition";
+import { cache } from "react";
 
-export async function getPublicShow() {
-  const api = await getPublicApi();
+export const getPublicShow = cache(async (page = 1, pageSize = 12) => {
   try {
-    const [competition, contestants] = await Promise.all([
-      api.competition(),
-      api.contestants(),
+    const api = await getPublicApi();
+    const [competition, cards] = await Promise.all([
+      getPublicCompetition(),
+      api.contestantCards(page, pageSize),
     ]);
-    if (!competition) return { kind: "empty" } as const;
+    if (!competition || competition.status === "DRAFT") return { kind: "empty" } as const;
     if (
-      contestants.some(
-        (contestant) => contestant.competitionId !== competition.id,
-      )
+      cards.competitionId !== competition.id
     )
       throw new ApiError("INVALID_RESPONSE");
-    return { kind: "ready", competition, contestants } as const;
+    return { kind: "ready", competition, contestants: cards.items, pagination: cards.pagination } as const;
   } catch (error) {
     if (error instanceof ApiError) return { kind: "unavailable" } as const;
     throw error;
   }
-}
+});
