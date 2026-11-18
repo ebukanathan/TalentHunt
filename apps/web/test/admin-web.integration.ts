@@ -190,6 +190,17 @@ async function main() {
     const emptyVideoProfile = await (await request(`/contestants/${person.id}`)).text();
     assert.doesNotMatch(emptyVideoProfile, /<iframe|performance-videos-heading/);
     assert.doesNotMatch(profile,/class="vote-total"/);
+    assert.match(profile, /Explore vote packages/);
+    await db.votePackage.update({where:{id:managedPackage.id},data:{isActive:true}});
+    const selection = await (await request(`/contestants/${person.id}/vote`)).text();
+    assert.match(selection, /type="radio"/); assert.match(selection, /75.25/);
+    assert.match(selection, /does not purchase or add any votes/);
+    assert.doesNotMatch(selection, /type="submit"|type="email"/);
+    await db.votePackage.update({where:{id:managedPackage.id},data:{isActive:false}});
+    assert.match(await (await request(`/contestants/${person.id}/vote`)).text(), /No vote packages are available/);
+    const robots = await request("/robots.txt"); assert.match(robots.headers.get("cache-control")!, /no-store/);
+    const sitemap = await request("/sitemap.xml"); assert.match(sitemap.headers.get("cache-control")!, /no-store/);
+    assert.match(await sitemap.text(), new RegExp(`/contestants/${person.id}`));
     assert.match(await (await request("/leaderboard")).text(),/Results have not been published/);
     const visibilitySave = async (leaderboardVisibility: string) => {
       const current=(await (await request("/api/admin/competition")).json()).data;
@@ -211,6 +222,7 @@ async function main() {
       const response=await request("/api/admin/competition","PATCH",{status,expectedUpdatedAt:current.updatedAt},await csrf());assert.equal(response.status,200);
     };
     await updateStatus("CLOSED");await updateStatus("COMPLETED");
+    assert.doesNotMatch(await (await request(`/contestants/${person.id}/vote`)).text(), /type="radio"/);
     const beforePublication=(await (await request("/api/admin/competition")).json()).data;
     const publicationPath="/api/admin/competition/publish-results";
     const confirmation={competitionId:beforePublication.id,expectedUpdatedAt:beforePublication.updatedAt,confirmationName:beforePublication.name};
@@ -226,6 +238,8 @@ async function main() {
     assert.equal((await request(`/api/admin/contestants/${person.id}`, "PATCH", { isActive: false }, await csrf())).status, 200);
     const publicInactive = await fetch(`http://127.0.0.1:${apiPort}/api/v1/contestants`); assert.equal((await publicInactive.json()).data.length, 0);
     const hidden = await (await request(`/contestants/${person.id}`)).text(); assert.ok(!hidden.includes(photoUrl)); assert.match(hidden, /Contestant unavailable|NEXT_HTTP_ERROR_FALLBACK;404/);
+    assert.equal((await request(`/share/contestants/${person.id}`)).status, 404);
+    assert.ok(!(await (await request("/sitemap.xml")).text()).includes(`/contestants/${person.id}`));
     assert.equal(await db.auditLog.count({ where: { action: "CONTESTANT_CREATED" } }), 1);
     assert.equal(await db.auditLog.count({ where: { action: "CONTESTANT_STATUS_CHANGED" } }), 2);
     const overviewResponse = await request("/api/admin/overview"), overview = (await overviewResponse.json()).data;
@@ -248,7 +262,7 @@ async function main() {
     assert.equal((await request("/api/admin/overview")).status, 503);
     assert.equal((await request("/api/admin/auth/login", "POST", credentials, "x".repeat(43))).status, 503);
     assert.equal(await db.payment.count(), 0);
-    console.log("ADMIN_WEB_INTEGRATION_PASSED: leaderboard privacy across public HTML/RSC, confirmed publication, private standings, performance videos, overview, auth, CRUD, images, settings, packages, expiry and outage.");
+    console.log("ADMIN_WEB_INTEGRATION_PASSED: public selection, uncached discovery, inactive indexing, leaderboard privacy across HTML/RSC, publication, videos, overview, auth, CRUD, images, settings, packages, expiry and outage.");
   } finally {
     if (child && child.exitCode === null) {
       const exited = once(child, "exit");

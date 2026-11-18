@@ -23,7 +23,7 @@ export function Arrow({ className = "" }: { className?: string }) {
 }
 export function Brand() {
   return (
-    <Link href="/" className="brand" aria-label="TalentHunt home">
+    <Link prefetch={false} href="/" className="brand" aria-label="TalentHunt home">
       <svg
         aria-hidden="true"
         viewBox="0 0 32 32"

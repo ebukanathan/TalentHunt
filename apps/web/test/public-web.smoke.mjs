@@ -21,7 +21,7 @@ const competition = {
   name: "Integration Showcase",
   slug: "integration-show",
   description: "Live API contract fixture",
-  status: "DRAFT",
+  status: "SCHEDULED",
   votingOpens: null,
   votingCloses: null,
   currency: "NGN",
@@ -99,7 +99,8 @@ try {
         );
         return;
       }
-      if (request.url === "/api/v1/competition") {
+      const requested = new URL(request.url, "http://fixture.test");
+      if (requested.pathname === "/api/v1/competition") {
         if (scenario === "missing") {
           response.statusCode = 404;
           response.end(JSON.stringify({ status: "error" }));
@@ -107,6 +108,11 @@ try {
           response.end(
             JSON.stringify({ status: "success", data: competition }),
           );
+      } else if (requested.pathname === "/api/v1/contestant-cards") {
+        const page = Number(requested.searchParams.get("page") || 1), pageSize = Number(requested.searchParams.get("pageSize") || 12);
+        const items = ["empty", "missing"].includes(scenario) ? [] : scenario === "mismatch" ? [{ ...contestants[0], competitionId: "other-show" }] : contestants;
+        response.end(JSON.stringify({ status: "success", data: { competitionId: scenario === "missing" ? null : scenario === "mismatch" ? "other-show" : competition.id,
+          items: items.slice((page - 1) * pageSize, page * pageSize), pagination: { page, pageSize, total: items.length, pages: Math.ceil(items.length / pageSize) } } }));
       } else
         response.end(
           JSON.stringify({
@@ -165,8 +171,8 @@ try {
     assert.equal(home.status, 200);
     assert.equal(list.status, 200);
     assert.ok(home.text.includes(competition.name));
-    assert.ok(home.text.includes("Voting not open"));
-    assert.ok(home.text.includes("Loading competition information"));
+    assert.ok(home.text.includes("Opens soon"));
+    assert.ok(home.text.includes('aria-label="Loading competition and contestants"'));
     assert.ok(list.text.includes("9,007,199,254,740,993"));
     assert.equal(
       (list.text.match(/class="contestant-card"/g) ?? []).length,
