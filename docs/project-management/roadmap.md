@@ -1,5 +1,13 @@
 # TalentHunt — Non-payment development roadmap
 
+## Current priority: dynamic category hierarchy
+
+18 November 2026: the user approved the [category design and starting CAT-01](category-scope-plan.md). Existing issues are reused: CAT-01 #62 (In Progress), CAT-02 #63, CAT-03 #64, CAT-04 #65, CAT-05 #32 (Backlog). All are P0 in `0. Categories and subcategories`. See the [CAT-01 migration runbook](../database/category-hierarchy.md).
+
+Implement one issue/feature branch/linked PR at a time and stop at the review gate. CAT-01 expands the schema without inventing assignments or modifying historical payments/votes/media. Exact-one enforcement follows explicit classification in a separately gated CAT-03 migration. All business taxonomy is dynamically administrator-created.
+
+The visibility/public-refinement stack below is retained as a review foundation; its competition-wide ranking is superseded by required subcategory isolation. No automatic merges or hosted migrations. Paystack development remains paused. The prior delivery notes below retain their historical context.
+
 Updated 18 November 2026 (Africa/Lagos). [Project board](https://github.com/users/ebukanathan/projects/3). The public website audit/plan is approved; implementation is delivered through small stacked feature branches. Merging still requires user approval.
 
 ## Execution order

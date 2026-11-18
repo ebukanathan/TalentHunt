@@ -52,7 +52,10 @@ model Competition {
   currency     String            @default("NGN")
   leaderboardVisibility LeaderboardVisibility @default(HIDDEN)
   resultsPublishedAt DateTime?
+  // NULL until an administrator reviews the category rollout (CAT-03).
+  categorySetupCompletedAt DateTime?
 
+  categories  Category[]
   contestants Contestant[]
   packages    VotePackage[]
   payments    Payment[]
@@ -61,10 +64,60 @@ model Competition {
   updatedAt DateTime @updatedAt
 }
 
+model Category {
+  id            String      @id @default(cuid())
+  competitionId String
+  competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  name          String      @db.VarChar(120)
+  // Maintained by the migration's normalization trigger, including raw SQL writes.
+  nameKey       String      @default("") @db.VarChar(120)
+  slug          String      @db.VarChar(120)
+  isActive      Boolean     @default(true)
+  sortOrder     Int         @default(0)
+  revision      Int         @default(1)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  subcategories Subcategory[]
+
+  @@unique([competitionId, id])
+  @@unique([competitionId, nameKey])
+  @@unique([competitionId, slug])
+  @@index([competitionId, isActive, sortOrder, id])
+}
+
+model Subcategory {
+  id            String   @id @default(cuid())
+  competitionId String
+  categoryId    String
+  category      Category @relation(fields: [competitionId, categoryId], references: [competitionId, id], onDelete: Restrict, onUpdate: Restrict)
+  name          String   @db.VarChar(120)
+  // The database owns this key; callers need only supply a display name.
+  nameKey       String   @default("") @db.VarChar(120)
+  slug          String   @db.VarChar(120)
+  isActive      Boolean  @default(true)
+  sortOrder     Int      @default(0)
+  revision      Int      @default(1)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  contestants Contestant[]
+
+  @@unique([competitionId, categoryId, id])
+  @@unique([competitionId, categoryId, nameKey])
+  @@unique([competitionId, categoryId, slug])
+  @@index([competitionId, categoryId, isActive, sortOrder, id])
+}
+
 model Contestant {
   id            String      @id @default(cuid())
   competitionId String
   competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Restrict)
+  // Expansion phase: legacy rows stay unassigned; CAT-03 gates NOT NULL.
+  categoryId    String?
+  subcategoryId String?
+  subcategory   Subcategory? @relation(fields: [competitionId, categoryId, subcategoryId], references: [competitionId, categoryId, id], onDelete: Restrict, onUpdate: Restrict)
+  assignmentRevision Int    @default(1)
 
   number     String
   name       String
@@ -77,6 +130,7 @@ model Contestant {
   payments    Payment[]
   allocations VoteAllocation[]
   videos      ContestantVideo[]
+  paymentScopes PaymentScope[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -84,6 +138,8 @@ model Contestant {
   @@unique([competitionId, number])
   @@unique([competitionId, slug])
   @@index([competitionId, totalVotes])
+  @@unique([competitionId, categoryId, subcategoryId, id], map: "Contestant_scope_identity_key")
+  @@index([competitionId, categoryId, subcategoryId, isActive, totalVotes(sort: Desc), number, id], map: "Contestant_scoped_ranking_idx")
 }
 
 // Positions are constrained to 1 or 2 by the additive SQL migration.
@@ -111,11 +167,13 @@ model VotePackage {
   isActive  Boolean @default(true)
 
   payments Payment[]
+  paymentScopes PaymentScope[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([competitionId, isActive])
+  @@unique([competitionId, id])
 }
 
 model ContactVerification {
@@ -161,6 +219,7 @@ model Payment {
 
   allocation     VoteAllocation?
   initialization PaymentInitialization?
+  scope          PaymentScope?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -168,6 +227,27 @@ model Payment {
   @@index([status, createdAt])
   @@index([competitionId, createdAt])
   @@index([contestantId, status])
+  @@unique([id, competitionId, contestantId, packageId], map: "Payment_scope_identity_key")
+}
+
+// Empty during expansion. CAT-03 captures new scopes atomically at reservation;
+// no historical Payment is backfilled with an inferred category.
+model PaymentScope {
+  paymentId     String   @id
+  competitionId String
+  categoryId    String
+  subcategoryId String
+  contestantId  String
+  packageId     String
+  createdAt     DateTime @default(now())
+
+  payment    Payment     @relation(fields: [paymentId, competitionId, contestantId, packageId], references: [id, competitionId, contestantId, packageId], onDelete: Restrict, onUpdate: Restrict, map: "PaymentScope_payment_fkey")
+  contestant Contestant  @relation(fields: [competitionId, categoryId, subcategoryId, contestantId], references: [competitionId, categoryId, subcategoryId, id], onDelete: Restrict, onUpdate: Restrict, map: "PaymentScope_contestant_fkey")
+  package    VotePackage @relation(fields: [competitionId, packageId], references: [competitionId, id], onDelete: Restrict, onUpdate: Restrict, map: "PaymentScope_package_fkey")
+
+  @@unique([paymentId, competitionId, contestantId, packageId], map: "PaymentScope_payment_identity_key")
+  @@index([competitionId, categoryId, subcategoryId, contestantId], map: "PaymentScope_assignment_idx")
+  @@index([competitionId, packageId])
 }
 
 // One permanent retry capability and at most one provider dispatch per payment.
