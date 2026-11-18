@@ -69,6 +69,10 @@ test("leaderboard visibility and confirmed publication on real HTTP/PostgreSQL",
       assert.ok(people.every((p:object)=>!("totalVotes" in p)&&!("rank" in p)));
       const detail=(await request("/api/v1/contestants/tie-a")).body.data;
       assert.equal("totalVotes" in detail,false);assert.equal("rank" in detail,false);
+      const cards = await request("/api/v1/contestant-cards?pageSize=2");
+      assert.match(cards.headers.get("cache-control")!, /no-store/);
+      assert.deepEqual(cards.body.data.items.map((p:{id:string}) => p.id), ["tie-a", "tie-b"]);
+      assert.ok(cards.body.data.items.every((p:object) => !("totalVotes" in p) && !("rank" in p) && !("bio" in p) && !("videos" in p)));
       for(const query of ["?visibility=LIVE","?includeVotes=true","?admin=true"])assert.equal((await request(publicPath+query)).status,400);
     });
     await t.test("private leaderboard includes exact totals and inactive exclusions with global tied ranks",async()=>{
@@ -86,6 +90,7 @@ test("leaderboard visibility and confirmed publication on real HTTP/PostgreSQL",
       assert.equal((await request(settings,"PATCH",{leaderboardVisibility:"HIDDEN",expectedUpdatedAt:before.updatedAt})).status,409);
       const response=await request(publicPath+"?pageSize=1&page=2");assert.equal(response.body.data.state,"PROVISIONAL");assert.equal(response.body.data.publishedAt,null);assert.equal(response.body.data.items[0].rank,1);assert.equal(response.body.data.items[0].totalVotes,"9007199254740993");
       assert.equal((await request("/api/v1/contestants/tie-a")).body.data.totalVotes,"9007199254740993");
+      assert.equal((await request("/api/v1/contestant-cards?pageSize=1&page=2")).body.data.items[0].totalVotes,"9007199254740993");
       const audits=await db.auditLog.count({where:{action:"LEADERBOARD_VISIBILITY_CHANGED"}});assert.equal(audits,1);
       await update({leaderboardVisibility:"LIVE"});assert.equal(await db.auditLog.count({where:{action:"LEADERBOARD_VISIBILITY_CHANGED"}}),audits);
     });
@@ -94,6 +99,8 @@ test("leaderboard visibility and confirmed publication on real HTTP/PostgreSQL",
       const response=await request(publicPath);assert.deepEqual(response.body.data.items.map((p:{rank:number})=>p.rank),[1,1,3,4]);assert.ok(response.body.data.items.every((p:object)=>!("totalVotes" in p)));assert.ok(!JSON.stringify(response.body).includes("9007199254740993"));
       for(const path of ["/api/v1/contestants","/api/v1/contestants/tie-a"]){const data=(await request(path)).body.data;assert.ok((Array.isArray(data)?data:[data]).every((p:object)=>!("totalVotes" in p)));}
       assert.equal((await request(adminPath)).body.data.items[0].totalVotes,"9007199254740993");
+      const cards = (await request("/api/v1/contestant-cards")).body.data;
+      assert.ok(cards.items.every((item:object) => !("totalVotes" in item) && !("rank" in item)));
     });
     await t.test("empty/all-zero data and drafts never acquire meaningful public rankings or final labels",async()=>{
       await db.competition.create({data:{id:"empty",name:"Empty",slug:"empty",status:"COMPLETED",leaderboardVisibility:"LIVE"}});
@@ -102,6 +109,7 @@ test("leaderboard visibility and confirmed publication on real HTTP/PostgreSQL",
       const zero=await service.getLeaderboard({page:1,pageSize:25});assert.equal(zero.state,"NO_VOTES");assert.deepEqual(zero.items,[]);assert.equal(zero.publishedAt,null);
       await db.competition.update({where:{id:"empty"},data:{leaderboardVisibility:"RANK_ONLY"}});assert.deepEqual((await service.getLeaderboard({page:1,pageSize:25})).items,[]);
       await assert.rejects(new PublicReadService(db,"other").getLeaderboard({page:1,pageSize:25}));
+      assert.deepEqual((await new PublicReadService(db,"other").getContestantCards({page:1,pageSize:12})).items, []);
     });
     await t.test("publication requires separate explicit confirmation, completion, scope, CSRF and actual votes",async()=>{
       assert.equal((await publication({confirmationName:"wrong"})).status,400);

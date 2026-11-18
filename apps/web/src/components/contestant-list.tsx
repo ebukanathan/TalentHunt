@@ -1,53 +1,25 @@
-"use client";
-
-import { useState } from "react";
-import type { Contestant } from "@/lib/api/schemas";
+import Link from "next/link";
+import type { ContestantCards } from "@/lib/api/schemas";
 import { ContestantCard } from "./contestant-card";
+import { ButtonLink, EmptyState } from "./ui";
 
-const pageSize = 12;
-export function ContestantList({ contestants }: { contestants: Contestant[] }) {
-  const [page, setPage] = useState(1);
-  const pages = Math.ceil(contestants.length / pageSize);
-  const current = Math.min(page, Math.max(1, pages));
-  function changePage(next: number) {
-    setPage(next);
-    document.getElementById("lineup-heading")?.focus();
-  }
+const pageLink = (page: number) => `/contestants${page > 1 ? `?page=${page}` : ""}#lineup-heading`;
+export function ContestantList({ contestants, pagination }: { contestants: ContestantCards["items"]; pagination: ContestantCards["pagination"] }) {
+  const { total, page, pages } = pagination;
   return (
     <>
       <p className="listing-count" role="status">
-        {contestants.length}{" "}
-        {contestants.length === 1 ? "contestant" : "contestants"}
-        {pages > 1 ? ` · Page ${current} of ${pages}` : ""}
+        {total} {total === 1 ? "contestant" : "contestants"}
+        {pages > 1 && page <= pages ? ` · Page ${page} of ${pages}` : ""}
       </p>
-      <div className="contestant-grid">
-        {contestants
-          .slice((current - 1) * pageSize, current * pageSize)
-          .map((contestant) => (
-            <ContestantCard key={contestant.id} contestant={contestant} />
-          ))}
-      </div>
-      {pages > 1 && (
+      {contestants.length ? <div className="contestant-grid">
+        {contestants.map(contestant => <ContestantCard key={contestant.id} contestant={contestant} heading="h2" />)}
+      </div> : <EmptyState title="That page is outside the lineup">Return to the first page to explore the contestants.</EmptyState>}
+      {page > pages ? <p className="state-action"><ButtonLink href="/contestants">Back to the lineup</ButtonLink></p> : pages > 1 && (
         <nav className="pagination" aria-label="Contestant pages">
-          <button
-            type="button"
-            className="button button-secondary"
-            disabled={current === 1}
-            onClick={() => changePage(current - 1)}
-          >
-            Previous
-          </button>
-          <span>
-            Page {current} of {pages}
-          </span>
-          <button
-            type="button"
-            className="button button-secondary"
-            disabled={current === pages}
-            onClick={() => changePage(current + 1)}
-          >
-            Next
-          </button>
+          {page > 1 && <Link className="button button-secondary" prefetch={false} href={pageLink(page - 1)}>Previous</Link>}
+          <span>Page {page} of {pages}</span>
+          {page < pages && <Link className="button button-secondary" prefetch={false} href={pageLink(page + 1)}>Next</Link>}
         </nav>
       )}
     </>

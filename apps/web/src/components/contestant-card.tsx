@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import type { Contestant } from "@/lib/api/schemas";
+import type { Contestant, ContestantCardData } from "@/lib/api/schemas";
 import { formatVotes } from "@/lib/format";
 import { portraitSizes, portraitSource } from "@/lib/portraits";
 
@@ -56,7 +56,7 @@ export function ContestantPortrait({ contestant, variant = "card", eager = false
     </div>
   );
 }
-export function ContestantCard({ contestant }: { contestant: Contestant }) {
+export function ContestantCard({ contestant, heading: Heading = "h3" }: { contestant: ContestantCardData | Contestant; heading?: "h2" | "h3" }) {
   return (
     <article
       className="contestant-card"
@@ -67,7 +67,7 @@ export function ContestantCard({ contestant }: { contestant: Contestant }) {
       <div className="card-content">
         <div>
           <p className="eyebrow">THE LINEUP</p>
-          <h3 id={`name-${contestant.id}`}><Link prefetch={false} href={`/contestants/${encodeURIComponent(contestant.id)}`}>{contestant.name}</Link></h3>
+          <Heading id={`name-${contestant.id}`}><Link prefetch={false} href={`/contestants/${encodeURIComponent(contestant.id)}`}>{contestant.name}</Link></Heading>
         </div>
         {contestant.totalVotes !== undefined && <p className="vote-total">
           <strong>{formatVotes(contestant.totalVotes)}</strong>

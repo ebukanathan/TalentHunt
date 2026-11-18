@@ -29,11 +29,11 @@ export function profileMetadata(profile: Pick<Contestant, "id" | "name" | "numbe
   return publicMetadata(`${profile.name} — ${competition.name}`, `Meet ${profile.name}, contestant ${profile.number} in ${competition.name}. Discover their story and performance videos on TalentHunt.`, `/contestants/${encodeURIComponent(profile.id)}`, true, origin, `/share/contestants/${encodeURIComponent(profile.id)}`);
 }
 
-export function competitionMetadata(competition: Competition | null, listing = false, origin = siteOrigin()) {
+export function competitionMetadata(competition: Competition | null, listing = false, origin = siteOrigin(), page = 1) {
   if (competition?.status === "DRAFT") competition = null;
   const title = competition ? `${listing ? "Contestants — " : ""}${competition.name}` : "TalentHunt — Discover remarkable talent";
   const description = competition ? `Discover the contestants and performance videos in ${competition.name} on TalentHunt.` : "Explore remarkable talent and discover the next TalentHunt lineup.";
-  return publicMetadata(title, description, listing ? "/contestants" : "/", !!competition && competition.status !== "DRAFT", origin);
+  return publicMetadata(title, description, listing ? `/contestants${page > 1 ? `?page=${page}` : ""}` : "/", !!competition, origin);
 }
 
 export function publicSitemap(origin: string | undefined, competition: Competition | null, contestants: Pick<Contestant, "id" | "competitionId">[]): MetadataRoute.Sitemap {

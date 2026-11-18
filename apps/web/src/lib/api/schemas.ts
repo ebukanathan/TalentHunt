@@ -44,6 +44,20 @@ export const votePackageSchema = z.object({
   currency,
 });
 export const contestantIdSchema = id;
+export const contestantCardSchema = contestantSchema.pick({ id: true, competitionId: true, number: true, name: true, imageUrl: true, totalVotes: true });
+export const contestantCardsSchema = z.object({
+  competitionId: id.nullable(), items: z.array(contestantCardSchema).max(24),
+  pagination: z.object({ page: z.number().int().positive().max(100000), pageSize: z.number().int().positive().max(24), total: z.number().int().nonnegative(), pages: z.number().int().nonnegative() }),
+}).superRefine((data, context) => {
+  const { page, pageSize, total, pages } = data.pagination;
+  if (pages !== Math.ceil(total / pageSize) || data.items.length !== Math.max(0, Math.min(pageSize, total - (page - 1) * pageSize)) ||
+      (data.competitionId === null && total !== 0) || new Set(data.items.map(item => item.id)).size !== data.items.length ||
+      data.items.some(item => item.competitionId !== data.competitionId)) {
+    context.addIssue({ code: "custom", message: "Inconsistent contestant page." });
+  }
+});
+export type ContestantCardData = z.infer<typeof contestantCardSchema>;
+export type ContestantCards = z.infer<typeof contestantCardsSchema>;
 export type Competition = z.infer<typeof competitionSchema>;
 export type Contestant = z.infer<typeof contestantSchema>;
 export type ContestantVideo = z.infer<typeof contestantVideoSchema>;
