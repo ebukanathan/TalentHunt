@@ -1,6 +1,6 @@
 # Dynamic competition categories and subcategories
 
-Prepared 18 November 2026 (Africa/Lagos). **Design and starting CAT-01 approved by the user on 18 November 2026.** CAT-01 is implemented on `feat/cat-01-category-schema`; verification/review gates apply. Later CAT issues remain Backlog. See the [CAT-01 migration runbook](../database/category-hierarchy.md).
+Prepared 18 November 2026 (Africa/Lagos). **Design and CAT-01 approved by the user, followed by approval of its review gate and continuation on 18 November 2026.** CAT-01 PR #66 merged into its declared dependency branch as `29596e2`; main and the earlier PR stack remain unmerged. CAT-02 is implemented on `feat/cat-02-admin-taxonomy` for its separate review. CAT-03 through CAT-05 remain Backlog. See the [CAT-01 migration runbook](../database/category-hierarchy.md) and [CAT-02 admin contract](../admin/category-management.md).
 
 ## Inspection and baseline
 
@@ -110,7 +110,7 @@ Do not merge PR #48's flat ranking as acceptance of this scope. Preserve its pri
 | CAT-04 | #65 | `feat/cat-04-public-categories` | Dynamic discovery/navigation, scoped filtering/cards/profiles and safe metadata |
 | CAT-05 | #32 | `feat/cat-05-scoped-leaderboards` | Scoped public/admin rankings, visibility redaction, publication and isolation |
 
-Project workstream remains `0. Categories and subcategories`, all five P0. CAT-01 is In Progress following approval; CAT-02 through CAT-05 are Backlog with dependencies. Existing open review PRs remain open and are not marked complete. Payment-dependent issues stay Backlog in their Paused workstream.
+Project workstream remains `0. Categories and subcategories`, all five P0. CAT-01 is accepted/Done after its approved dependency-branch merge; CAT-02 is In Progress, and CAT-03 through CAT-05 are Backlog with dependencies. Earlier open review PRs remain open and are not marked complete. Payment-dependent issues stay Backlog in their Paused workstream.
 
 Implement one issue at a time, run its checks, open a linked PR with scope/dependency/verification evidence, then stop at the review gate before proceeding to the next implementation issue. Never merge without approval. User approval authorizes CAT-01 implementation and disposable local migration tests; it does not authorize a hosted migration or resumed payment processing.
 
