@@ -11,6 +11,14 @@ import {
   UnavailableState,
 } from "@/components/page-states";
 import { Arrow, ButtonLink, EmptyState, SectionHeading } from "@/components/ui";
+import { getPublicCompetition } from "@/lib/api/public-competition";
+import { competitionMetadata } from "@/lib/seo";
+import { ApiError } from "@/lib/api/client";
+
+export async function generateMetadata() {
+  try { return competitionMetadata(await getPublicCompetition()); }
+  catch (error) { if (!(error instanceof ApiError)) throw error; return competitionMetadata(null); }
+}
 
 export default function HomePage() {
   return (

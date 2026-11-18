@@ -1,15 +1,16 @@
 import "server-only";
 import { ApiError } from "./client";
 import { getPublicApi } from "./server";
+import { getPublicCompetition } from "./public-competition";
 
 export async function getPublicShow() {
   const api = await getPublicApi();
   try {
     const [competition, contestants] = await Promise.all([
-      api.competition(),
+      getPublicCompetition(),
       api.contestants(),
     ]);
-    if (!competition) return { kind: "empty" } as const;
+    if (!competition || competition.status === "DRAFT") return { kind: "empty" } as const;
     if (
       contestants.some(
         (contestant) => contestant.competitionId !== competition.id,
