@@ -7,10 +7,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test test/public-web.test.tsx test/admin-contestants.test.tsx test/admin-images.test.tsx test/admin-settings.test.tsx test/admin-overview.test.tsx test/contestant-videos.test.tsx test/leaderboard.test.tsx test/vote-selection.test.tsx test/public-seo.test.ts test/public-pagination.test.tsx",
+    "test": "tsx --test test/public-web.test.tsx test/admin-contestants.test.tsx test/admin-images.test.tsx test/admin-settings.test.tsx test/admin-overview.test.tsx test/contestant-videos.test.tsx test/leaderboard.test.tsx test/vote-selection.test.tsx test/public-seo.test.ts test/public-pagination.test.tsx test/admin-taxonomy.test.tsx",
     "test:admin:integration": "tsx test/admin-web.integration.ts",
     "typecheck": "tsc --noEmit",
     "test:smoke": "node test/public-web.smoke.mjs",
+    "test:public:refinement": "node test/public-refinement.smoke.mjs",
     "test:smoke:development": "node test/public-web.smoke.mjs --development-api"
   },
   "dependencies": {

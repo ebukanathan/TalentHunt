@@ -1,3 +1,4 @@
+param([switch]$TaxonomyOnly)
 $ErrorActionPreference = 'Stop'
 # Run from repository root. No existing database is used or reset.
 $postgresBin = 'C:/Program Files/PostgreSQL/18/bin'
@@ -16,6 +17,7 @@ try {
   if ($LASTEXITCODE -ne 0) { throw 'Isolated PostgreSQL startup failed.' }
   $started = $true
   $env:NODE_ENV = 'test'
+  $env:SITE_URL = 'https://talenthunt-taxonomy.example.test'
   $targets = @{
     API_TEST_DATABASE_URL = 'talenthunt_api_test_images'
     PAYMENTS_TEST_DATABASE_URL = 'talenthunt_payments_test_images'
@@ -27,6 +29,10 @@ try {
     ADMIN_OVERVIEW_TEST_DATABASE_URL = 'talenthunt_overview_test_images'
     CONTESTANT_VIDEOS_TEST_DATABASE_URL = 'talenthunt_videos_test_images'
     LEADERBOARD_TEST_DATABASE_URL = 'talenthunt_leaderboard_test_images'
+    ADMIN_TAXONOMY_TEST_DATABASE_URL = 'talenthunt_taxonomy_test_images'
+  }
+  if ($TaxonomyOnly) {
+    $targets = @{ ADMIN_TAXONOMY_TEST_DATABASE_URL = 'talenthunt_taxonomy_test_images'; ADMIN_WEB_TEST_DATABASE_URL = 'talenthunt_admin_test_web_images' }
   }
   foreach ($key in $targets.Keys) {
     $database = $targets[$key]
@@ -37,7 +43,7 @@ try {
     node node_modules/prisma/build/index.js migrate deploy
     if ($LASTEXITCODE -ne 0) { throw 'Isolated migrations failed.' }
   }
-  $env:DATABASE_URL = $env:ADMIN_IMAGES_TEST_DATABASE_URL
+  $env:DATABASE_URL = if ($TaxonomyOnly) { $env:ADMIN_TAXONOMY_TEST_DATABASE_URL } else { $env:ADMIN_IMAGES_TEST_DATABASE_URL }
   node node_modules/prisma/build/index.js validate
   if ($LASTEXITCODE -ne 0) { throw 'Prisma schema validation failed.' }
   node node_modules/prisma/build/index.js generate
@@ -46,7 +52,8 @@ try {
   if ($LASTEXITCODE -ne 0) { throw 'API build failed.' }
   npm run typecheck:test --workspace=apps/api
   if ($LASTEXITCODE -ne 0) { throw 'API test typecheck failed.' }
-  npm test --workspace=apps/api
+  if ($TaxonomyOnly) { npm run test:admin:taxonomy --workspace=apps/api }
+  else { npm test --workspace=apps/api }
   if ($LASTEXITCODE -ne 0) { throw 'API regression and image checks failed.' }
   npm run test:admin:integration --workspace=apps/web
   if ($LASTEXITCODE -ne 0) { throw 'Next/Express/PostgreSQL checks failed.' }

@@ -15,6 +15,13 @@ export async function forwardLeaderboard(request: Request) {
 export async function forwardPublication(request: Request) {
   return forward(request, "competition/publish-results", "POST", 4096);
 }
+export async function forwardTaxonomy(request: Request, categoryId?: string, children = false, subcategoryId?: string) {
+  if ([categoryId, subcategoryId].some(id => id !== undefined && !/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(id)) || children && !categoryId || subcategoryId && !children)
+    return Response.json({ status: "error", message: "Invalid category selection." }, { status: 400, headers: { "Cache-Control": "no-store" } });
+  const detail = children ? Boolean(subcategoryId) : Boolean(categoryId);
+  if (!(detail ? ["GET", "PATCH"] : ["GET", "POST"]).includes(request.method)) return new Response(null, { status: 405 });
+  return forward(request, `categories${categoryId ? `/${categoryId}` : ""}${children ? "/subcategories" : ""}${subcategoryId ? `/${subcategoryId}` : ""}`, request.method, 4096);
+}
 export async function forwardContestants(request: Request, id?: string) {
   if (id && !/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(id)) return Response.json({ status: "error", message: "Invalid contestant ID." }, { status: 400 });
   const allowed = id ? ["GET", "PATCH"] : ["GET", "POST"];

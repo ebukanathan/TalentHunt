@@ -13,7 +13,7 @@ const nextConfig: NextConfig = {
   distDir: process.env.NEXT_DIST_DIR || ".next",
   partialPrefetching: true,
   images: {
-    remotePatterns: portraitOrigin ? [new URL(`${portraitOrigin}${managedPortraitPath}contestants/**`)] : [],
+    remotePatterns: portraitOrigin ? [new URL(`${portraitOrigin}${managedPortraitPath}contestants/*/*/*.webp`)] : [],
     localPatterns: [],
     maximumRedirects: 0,
     dangerouslyAllowLocalIP: false,
