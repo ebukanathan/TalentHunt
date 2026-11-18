@@ -25,3 +25,9 @@ Manual acceptance: inspect image requests at mobile/desktop sizes with the confi
 There is no checkout form, email collection, payment initialization or vote mutation. The page is non-indexable and explicitly says payments are unavailable. Missing/inactive/draft contestants use not-found; network failures use the shared recovery state; empty and closed windows explain package availability.
 
 Manual acceptance: open an eligible profile's `/vote` route, use Tab then arrow keys/Space to choose both packages, and confirm the summary announces exact NGN amounts. Test empty packages, missing/inactive contestants, upstream failures and every competition status. Leave the page open across closing time and verify controls disable. No payment/provider request or success message should occur.
+
+## Contestant profiles (#30)
+
+Profiles and selection share one request-scoped public loader: invalid IDs, inactive/missing/draft contestants and wrong-competition responses cannot render a profile. Profile actions link to package exploration only inside an eligible voting window and provide a leaderboard link for every public status. Route links do not prefetch changing public data. Totals render only when the public API supplies them; zero videos hide the full section. Portraits, biographies, long names, totals and action groups reflow independently.
+
+Manual acceptance: follow a card to its profile and back on mobile/desktop; check an open window, future opening, exact closing time and completed status. Check an empty biography, long unbroken name, very large public total, hidden totals and all video counts. Invalid/missing/inactive/draft URLs must give not-found without profile data. Metadata and search-discovery acceptance is completed by #51, with production HTTP/privacy validation in #52.

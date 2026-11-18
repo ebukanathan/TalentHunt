@@ -55,6 +55,7 @@ export function ButtonLink({
   return (
     <Link
       href={href}
+      prefetch={false}
       className={`button ${secondary ? "button-secondary" : "button-primary"}`}
     >
       {children}
