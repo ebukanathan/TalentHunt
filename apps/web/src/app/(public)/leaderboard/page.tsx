@@ -5,7 +5,7 @@ import { Leaderboard } from "@/components/leaderboard";
 import { NoCompetition, PageSkeleton, UnavailableState } from "@/components/page-states";
 export const metadata = { title: "Leaderboard" };
 type Props = { searchParams: Promise<Record<string,string|string[]|undefined>> };
-export default function Page(props: Props) { return <Suspense fallback={<PageSkeleton/>}><Content {...props}/></Suspense>; }
+export default function Page(props: Props) { return <Suspense fallback={<PageSkeleton kind="leaderboard"/>}><Content {...props}/></Suspense>; }
 async function Content({ searchParams }: Props) {
   const search = await searchParams;
   let data;

@@ -7,7 +7,8 @@ import { formatKobo, formatVotes } from "../src/lib/format";
 import { getVotingState } from "../src/lib/voting";
 import { ContestantCard } from "../src/components/contestant-card";
 import { CompetitionStatus } from "../src/components/competition-status";
-import { NoCompetition, UnavailableState } from "../src/components/page-states";
+import { NoCompetition, PageSkeleton, UnavailableState } from "../src/components/page-states";
+import { NavigationLinks } from "../src/components/site-navigation";
 
 const competition: Competition = {
   id: "show-1",
@@ -281,4 +282,23 @@ test("an expired scheduled window is closed and full-page states have a main hea
   );
   assert.ok(renderToStaticMarkup(<NoCompetition />).includes("<h1>"));
   assert.ok(renderToStaticMarkup(<UnavailableState />).includes("<h1>"));
+});
+
+test("navigation identifies the current page without marking a profile as the listing page", () => {
+  const listing = renderToStaticMarkup(<NavigationLinks pathname="/contestants" />);
+  assert.equal((listing.match(/aria-current="page"/g) || []).length, 1);
+  assert.match(listing, /<a(?=[^>]*href="\/contestants")(?=[^>]*aria-current="page")[^>]*>/);
+  const profile = renderToStaticMarkup(<NavigationLinks pathname="/contestants/person-1" />);
+  assert.ok(!profile.includes("aria-current"));
+  assert.ok(profile.includes('class="is-current-section"'));
+  assert.ok(profile.includes('href="/leaderboard"'));
+});
+
+test("route loading states announce the requested content and hide decorative skeletons", () => {
+  for (const [kind, label] of [["profile", "contestant profile"], ["leaderboard", "leaderboard"], ["selection", "vote packages"]] as const) {
+    const html = renderToStaticMarkup(<PageSkeleton kind={kind} />);
+    assert.ok(html.includes(`aria-label="Loading ${label}"`));
+    assert.ok(html.includes('aria-hidden="true"'));
+    assert.ok(html.includes('role="status"'));
+  }
 });

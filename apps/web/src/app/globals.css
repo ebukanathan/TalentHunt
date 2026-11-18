@@ -1,26 +1,22 @@
 @import "tailwindcss";
 
-.leaderboard h1 { font-size: clamp(2.5rem, 6vw, 4rem); margin-block: 1rem; }
-.leaderboard-message { margin-block: 1.75rem; line-height: 1.8; }
-.leaderboard-scroll { overflow-x: auto; margin-block: 1.5rem; }
-.leaderboard-table { width: 100%; border-collapse: collapse; text-align: left; }
-.leaderboard-table td, .leaderboard-table th { padding: 1rem; border-bottom: 1px solid #7c8e8655; }
-.leaderboard-table td { font-variant-numeric: tabular-nums; }
-.leaderboard-person { display: flex; align-items: center; gap: 1rem; min-width: 150px; }
-.leaderboard-person .portrait { width: 48px; height: 60px; flex-shrink: 0; }
-.leaderboard-person .portrait-initials { font-size: 20px; }
-.leaderboard-person .portrait-note, .leaderboard-person .contestant-number { display: none; }
-.leaderboard-person a { display: grid; gap: .3rem; overflow-wrap: anywhere; }
-.leaderboard-person a span { font-size: .7rem; font-weight: 400; }
-.leaderboard-note { font-size: .8rem; line-height: 1.8; }
-@media (max-width: 700px) { .leaderboard-table td, .leaderboard-table th { padding: .65rem .4rem; } .leaderboard-person { gap: .5rem; } }
-
 :root {
   --background: #08131f;
   --foreground: #f6f1e8;
   --gold: #e4bd76;
   --muted: #afb7c1;
   --line: #ffffff1c;
+  --surface: #101e2b;
+  --surface-raised: #152736;
+  --border-control: #ffffff55;
+  --space-1: .5rem;
+  --space-2: 1rem;
+  --space-3: 1.5rem;
+  --space-4: 2rem;
+  --space-5: 3rem;
+  --text-small: .875rem;
+  --text-label: .75rem;
+  --radius: .375rem;
 }
 @theme inline {
   --color-background: var(--background);
@@ -39,6 +35,7 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, sans-serif;
+  line-height: 1.6;
 }
 a {
   color: inherit;
@@ -115,9 +112,17 @@ main:focus {
   color: #d2d7dc;
 }
 .header-inner nav a:hover,
+.header-inner nav a[aria-current="page"],
+.header-inner nav a.is-current-section,
 .site-footer a:hover {
   color: var(--gold);
 }
+.header-inner nav a[aria-current="page"],
+.header-inner nav a.is-current-section {
+  text-decoration: underline;
+  text-underline-offset: .4em;
+}
+.navigation-toggle { display: none; }
 .header-cta {
   color: var(--gold);
   display: flex;
@@ -131,7 +136,7 @@ main:focus {
 }
 .eyebrow {
   color: var(--gold);
-  font-size: 10px;
+  font-size: var(--text-label);
   line-height: 1.6;
   font-weight: 600;
   letter-spacing: 0.2em;
@@ -164,11 +169,11 @@ em {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 28px;
-  padding: 15px 24px;
+  gap: var(--space-2);
+  padding: .875rem var(--space-3);
   border: 1px solid transparent;
-  border-radius: 3px;
-  font-size: 13px;
+  border-radius: var(--radius);
+  font-size: var(--text-small);
   font-weight: 600;
   line-height: 1.5;
   transition:
@@ -186,7 +191,7 @@ em {
 .button-secondary {
   background: transparent;
   color: var(--foreground);
-  border-color: #ffffff35;
+  border-color: var(--border-control);
 }
 .button-secondary:hover:not(:disabled) {
   border-color: var(--gold);
@@ -344,7 +349,7 @@ em {
 }
 .stage-band {
   border-block: 1px solid var(--line);
-  background: #101e2b;
+  background: var(--surface);
 }
 .stage-band .container {
   display: flex;
@@ -420,7 +425,7 @@ em {
   position: relative;
   aspect-ratio: 4/5;
   overflow: hidden;
-  background: #152736;
+  background: var(--surface-raised);
 }
 .portrait img {
   display: block;
@@ -500,7 +505,7 @@ em {
   border-bottom: 1px solid var(--line);
 }
 .card-content .eyebrow {
-  font-size: 8px;
+  font-size: var(--text-label);
 }
 .card-content h3 {
   font-family: Georgia, serif;
@@ -509,6 +514,12 @@ em {
   margin-top: 7px;
   overflow-wrap: anywhere;
 }
+.card-content h3 a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+.card-content h3 a:hover { color: var(--gold); }
 .vote-total {
   display: flex;
   flex-direction: column;
@@ -525,7 +536,7 @@ em {
   font-variant-numeric: tabular-nums;
 }
 .vote-total span {
-  font-size: 10px;
+  font-size: var(--text-label);
   color: var(--muted);
 }
 .closing-section {
@@ -557,14 +568,15 @@ em {
 }
 .footer-inner p {
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--text-label);
   line-height: 1.8;
   margin-top: 10px;
 }
 .footer-inner nav {
   display: flex;
   gap: 24px;
-  font-size: 11px;
+  flex-wrap: wrap;
+  font-size: var(--text-small);
 }
 .footer-inner .footer-note {
   max-width: 145px;
@@ -606,6 +618,8 @@ em {
   margin-top: 40px;
   font-size: 12px;
   color: var(--muted);
+  flex-wrap: wrap;
+  text-align: center;
 }
 .empty-state {
   padding: 60px 24px;
@@ -665,6 +679,9 @@ em {
 .skeleton-card {
   aspect-ratio: 4/5;
 }
+.skeleton-profile { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: var(--space-4); }
+.skeleton-table { grid-column: 1 / -1; min-height: 300px; }
+.state-action { margin-top: var(--space-3); }
 @keyframes shimmer {
   to {
     background-position: -200% 0;
@@ -742,6 +759,24 @@ em {
     gap: 18px;
     font-size: 12px;
   }
+  .public-navigation { margin-left: auto; }
+  .navigation-toggle { display: inline-flex; min-height: 44px; padding: .5rem .75rem; }
+  .header-inner { position: relative; }
+  .public-navigation .nav-links {
+    display: none;
+    position: absolute;
+    top: 100%;
+    inset-inline: 0;
+    z-index: 20;
+    padding: var(--space-2);
+    background: var(--surface);
+    border: 1px solid var(--border-control);
+    border-radius: var(--radius);
+    box-shadow: 0 12px 24px #0006;
+    font-size: 1rem;
+  }
+  .public-navigation.is-open .nav-links { display: grid; gap: var(--space-1); }
+  .public-navigation .nav-links a { padding: .5rem var(--space-2); }
   .header-inner nav a {
     padding-block: 13px;
   }
@@ -754,7 +789,7 @@ em {
     gap: 14px;
   }
   .hero .eyebrow {
-    font-size: 8px;
+    font-size: var(--text-label);
   }
   .hero h1 {
     font-size: clamp(52px, 12.5vw, 76px);
@@ -824,7 +859,7 @@ em {
     margin-top: 8px;
   }
   .section-heading .button {
-    font-size: 11px;
+    font-size: var(--text-small);
     min-height: 44px;
     padding: 12px 16px;
   }
@@ -904,6 +939,7 @@ em {
   .page-skeleton {
     padding-block: 48px;
   }
+  .skeleton-profile { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 370px) {
   .container {
@@ -954,11 +990,30 @@ em {
 .performance-videos { margin-block: 3rem; }
 .performance-videos h2 { margin-bottom: 1.5rem; }
 .performance-video-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); gap: 1.5rem; }
-.performance-video { aspect-ratio: 16 / 9; overflow: hidden; border-radius: 12px; background: #172c26; }
+.performance-video { aspect-ratio: 16 / 9; overflow: hidden; border-radius: var(--radius); background: var(--surface-raised); }
 .performance-video iframe { display: block; width: 100%; height: 100%; border: 0; }
 @media (max-width: 700px) { .profile-grid { grid-template-columns: minmax(0, 1fr); gap: 2rem; } }
 .hero-competition > p,
 .featured-caption,
 .listing-header > .eyebrow {
   overflow-wrap: anywhere;
+}
+
+.leaderboard h1 { font-size: clamp(2.5rem, 6vw, 4rem); margin-block: var(--space-2); }
+.leaderboard-message { margin-block: var(--space-4); line-height: 1.8; max-width: 65ch; }
+.leaderboard-scroll { overflow-x: auto; margin-block: var(--space-3); padding: .5rem; border: 1px solid var(--line); border-radius: var(--radius); }
+.leaderboard-table { width: 100%; border-collapse: collapse; text-align: left; }
+.leaderboard-table td, .leaderboard-table th { padding: var(--space-2); border-bottom: 1px solid var(--line); }
+.leaderboard-table td { font-variant-numeric: tabular-nums; }
+.leaderboard-person { display: flex; align-items: center; gap: var(--space-2); min-width: 150px; }
+.leaderboard-person .portrait { width: 48px; height: 60px; flex-shrink: 0; }
+.leaderboard-person .portrait-initials { font-size: 20px; }
+.leaderboard-person .portrait-note, .leaderboard-person .contestant-number { display: none; }
+.leaderboard-person a { display: grid; align-content: center; min-height: 44px; gap: .3rem; overflow-wrap: anywhere; }
+.leaderboard-person a:hover { color: var(--gold); }
+.leaderboard-person a span { font-size: var(--text-label); font-weight: 400; }
+.leaderboard-note { font-size: var(--text-small); line-height: 1.8; color: var(--muted); }
+@media (max-width: 700px) {
+  .leaderboard-table td, .leaderboard-table th { padding: .65rem .4rem; }
+  .leaderboard-person { gap: var(--space-1); }
 }

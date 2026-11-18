@@ -24,21 +24,22 @@ export function NoCompetition() {
     </div>
   );
 }
-export function PageSkeleton() {
+export function PageSkeleton({ kind = "lineup" }: { kind?: "lineup" | "profile" | "leaderboard" | "selection" }) {
+  const label = { lineup: "competition and contestants", profile: "contestant profile", leaderboard: "leaderboard", selection: "vote packages" }[kind];
   return (
     <div
       className="container page-skeleton"
       role="status"
-      aria-label="Loading competition"
+      aria-label={`Loading ${label}`}
     >
       <span className="sr-only">
-        Loading competition information and contestants…
+        Loading {label}…
       </span>
       <div className="skeleton skeleton-eyebrow" />
       <div className="skeleton skeleton-heading" />
-      <div className="skeleton-grid">
-        {[0, 1, 2].map((item) => (
-          <div key={item} className="skeleton skeleton-card" />
+      <div aria-hidden="true" className={kind === "profile" ? "skeleton-profile" : "skeleton-grid"}>
+        {(kind === "leaderboard" ? [0] : kind === "profile" ? [0, 1] : [0, 1, 2]).map((item) => (
+          <div key={item} className={`skeleton ${kind === "leaderboard" ? "skeleton-table" : "skeleton-card"}`} />
         ))}
       </div>
     </div>
