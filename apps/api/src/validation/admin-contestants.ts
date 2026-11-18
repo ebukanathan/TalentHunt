@@ -21,18 +21,24 @@ const fields = {
   }, "Use an HTTPS image URL without embedded credentials or a fragment.")
     .nullable().transform(value => value || null),
   isActive: z.boolean(),
+  categoryId: adminContestantId,
+  subcategoryId: adminContestantId,
   videoUrls: contestantVideoUrls.optional(),
 };
 export const createAdminContestant = z.strictObject({ ...fields,
   bio: fields.bio.optional(), imageUrl: fields.imageUrl.optional(), isActive: fields.isActive.default(true),
 });
-export const patchAdminContestant = z.strictObject(fields).partial()
-  .refine(value => Object.keys(value).length > 0, "Provide at least one editable field.");
+export const patchAdminContestant = z.strictObject({ ...fields, expectedAssignmentRevision: z.number().int().positive().max(2147483647) }).partial()
+  .refine(value => Object.keys(value).some(key => key !== "expectedAssignmentRevision"), "Provide at least one editable field.")
+  .refine(value => value.categoryId === undefined && value.subcategoryId === undefined ||
+    value.categoryId !== undefined && value.subcategoryId !== undefined && value.expectedAssignmentRevision !== undefined,
+  "Assignment edits require both category and subcategory and the current assignment revision.");
 const positiveQuery = (maximum: number) => z.string().regex(/^[1-9][0-9]*$/, "Use a positive integer.")
   .transform(Number).pipe(z.number().int().min(1).max(maximum));
 export const adminContestantQuery = z.strictObject({
   q: z.string().trim().max(100).refine(value => !/[\u0000-\u001f\u007f]/.test(value), "Invalid search text.").default(""),
   status: z.enum(["all", "active", "inactive"]).default("all"),
+  assignment: z.enum(["all", "pending", "assigned"]).default("all"),
   page: positiveQuery(100000).default(1),
   pageSize: positiveQuery(100).default(25),
 });

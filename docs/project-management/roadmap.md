@@ -2,7 +2,7 @@
 
 ## Current priority: dynamic category hierarchy
 
-18 November 2026: the user approved the [category design and starting CAT-01](category-scope-plan.md), then approved its review gate and continuation. CAT-01 #62 is accepted/Done after PR #66 merged into its dependency branch (`29596e2`), without merging the earlier stack into main. CAT-02 #63 is In Progress on a separate branch; CAT-03 #64, CAT-04 #65 and CAT-05 #32 remain Backlog. All are P0 in `0. Categories and subcategories`. See the [CAT-01 migration runbook](../database/category-hierarchy.md) and [CAT-02 admin contract](../admin/category-management.md).
+18 November 2026: the user approved the [category design and starting CAT-01](category-scope-plan.md), then approved its review gate and continuation. CAT-01 #62 is accepted/Done after PR #66 merged into its dependency branch (`29596e2`), without merging the earlier stack into main. CAT-02 #63 is accepted/Done after its approved dependency merge #67 (`a6c78e1`). CAT-03 #64 is In Progress on a separate branch awaiting review; CAT-04 #65 and CAT-05 #32 remain Backlog. All are P0 in `0. Categories and subcategories`. See the [CAT-01 migration runbook](../database/category-hierarchy.md) and [CAT-02 admin contract](../admin/category-management.md).
 
 Implement one issue/feature branch/linked PR at a time and stop at the review gate. CAT-01 expands the schema without inventing assignments or modifying historical payments/votes/media. Exact-one enforcement follows explicit classification in a separately gated CAT-03 migration. All business taxonomy is dynamically administrator-created.
 

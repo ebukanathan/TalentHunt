@@ -5,7 +5,7 @@ import { createAdminContestant, patchAdminContestant } from "../src/validation/a
 
 const id = "aB0_-123456";
 const other = "ZyX98765432";
-const input = { name: "Performer", number: "001", slug: "performer" };
+const input = { categoryId: "category", subcategoryId: "subcategory", name: "Performer", number: "001", slug: "performer" };
 
 test("YouTube links normalize supported hosts and watch, short, Shorts and embed forms without requests", () => {
   const previous = globalThis.fetch;

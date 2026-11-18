@@ -16,8 +16,10 @@ import type { LeaderboardService } from "../services/leaderboard.service";
 import { leaderboardQuery } from "../validation/leaderboard";
 import { createAdminTaxonomyRouter } from "./admin-taxonomy.routes";
 import type { AdminTaxonomyService } from "../services/admin-taxonomy.service";
+import type { AdminAssignmentsService } from "../services/admin-assignments.service";
+import { createAdminAssignmentsRouter } from "./admin-assignments.routes";
 
-export function createAdminRouter(service?: AdminAuthService, contestants?: AdminContestantService, images?: AdminContestantImageService, settings?: AdminSettingsService, overview?: AdminOverviewService, leaderboard?: LeaderboardService, taxonomy?: AdminTaxonomyService) {
+export function createAdminRouter(service?: AdminAuthService, contestants?: AdminContestantService, images?: AdminContestantImageService, settings?: AdminSettingsService, overview?: AdminOverviewService, leaderboard?: LeaderboardService, taxonomy?: AdminTaxonomyService, assignments?: AdminAssignmentsService) {
   const router = Router();
   router.use((_req, res, next) => {
     res.set({ "Cache-Control": "private, no-store, max-age=0", Pragma: "no-cache", Vary: "Cookie" });
@@ -48,6 +50,7 @@ export function createAdminRouter(service?: AdminAuthService, contestants?: Admi
   router.use("/contestants/:id/image", createAdminImagesRouter(service, images));
   router.use(requireAdminCsrf(service));
   if (taxonomy) router.use(createAdminTaxonomyRouter(taxonomy));
+  if (assignments) router.use(createAdminAssignmentsRouter(assignments));
   if (leaderboard) router.get("/leaderboard", async (req, res) => res.json({ status: "success", data: await leaderboard.admin(leaderboardQuery.parse(req.query)) }));
   if (overview) router.get("/overview", async (req, res) => {
     z.strictObject({}).parse(req.query);

@@ -12,6 +12,8 @@ import { PaystackClient } from "../src/clients/paystack.client";
 import { readPaystackConfiguration } from "../src/config/paystack";
 import { PaymentInitializationService } from "../src/services/payment-initialization.service";
 import { PublicReadService } from "../src/services/public.service";
+import { taxonomyFixture } from "./taxonomy-fixture";
+import { reserveInitialization } from "../src/repositories/payment-initialization.repository";
 
 test("PAY-01 over real HTTP, isolated PostgreSQL and a local Paystack HTTP fake", { timeout: 90000 }, async t => {
   assert.notEqual(process.env.NODE_ENV, "production", "Payment tests refuse production mode.");
@@ -110,7 +112,9 @@ test("PAY-01 over real HTTP, isolated PostgreSQL and a local Paystack HTTP fake"
     };
     await db.competition.create({ data: { id: "pay-show", name: "Payment fixture", slug: "pay-show", status: "OPEN",
       votingOpens: now, votingCloses: new Date(now.getTime() + 3600000) } });
-    await db.contestant.create({ data: { id: input.contestantId, competitionId: "pay-show", number: "001", name: "Test contestant", slug: "test" } });
+    const assignment = await taxonomyFixture(db, "pay-show");
+    await db.contestant.create({ data: { id: input.contestantId, competitionId: "pay-show", number: "001", name: "Test contestant", slug: "test", ...assignment } });
+    await db.competition.update({ where: { id: "pay-show" }, data: { categorySetupCompletedAt: now } });
     await db.votePackage.create({ data: { id: input.packageId, competitionId: "pay-show", name: "Starter", voteCount: 10, priceKobo: 100000 } });
 
     await t.test("invalid input, price manipulation, invalid/missing key and disabled configuration never create payments", async () => {
@@ -232,9 +236,7 @@ test("PAY-01 over real HTTP, isolated PostgreSQL and a local Paystack HTTP fake"
       const key = randomUUID();
       const hash = createHash("sha256").update(key).digest("hex");
       const requestHash = createHash("sha256").update(JSON.stringify([input.contestantId, input.packageId, input.email])).digest("hex");
-      await db.payment.create({ data: { reference: "crash-before-provider", competitionId: "pay-show", contestantId: input.contestantId,
-        packageId: input.packageId, contactEmail: input.email, amountKobo: 100000, voteCount: 10,
-        initialization: { create: { idempotencyKeyHash: hash, requestHash } } } });
+      await reserveInitialization(db, input, hash, requestHash, undefined, () => now);
       const calls = providerCalls;
       assert.equal((await post(input, key)).status, 202);
       assert.equal(providerCalls, calls);

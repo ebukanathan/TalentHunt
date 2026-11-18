@@ -1,6 +1,7 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { HttpError } from "../http/errors";
 import type { CreateTaxonomy, PatchTaxonomy, TaxonomyQuery } from "../validation/admin-taxonomy";
+import { invalidateCategorySetup } from "./contestant-assignment";
 
 const fields = { id: true, competitionId: true, name: true, slug: true, isActive: true, sortOrder: true,
   revision: true, createdAt: true, updatedAt: true } satisfies Prisma.CategorySelect;
@@ -87,6 +88,7 @@ export class AdminTaxonomyService {
       await tx.auditLog.create({ data: { adminId, action: categoryId ? "SUBCATEGORY_CREATED" : "CATEGORY_CREATED",
         entityType: categoryId ? "Subcategory" : "Category", entityId: item.id,
         details: { competitionId: competition.id, ...(categoryId ? { categoryId } : {}), values: input, revision: item.revision } } });
+      await invalidateCategorySetup(tx, competition.id, adminId);
       return item;
     }));
   }
@@ -110,6 +112,7 @@ export class AdminTaxonomyService {
         if (Object.keys(values).length) await tx.auditLog.create({ data: { adminId, action, entityType, entityId: item.id,
           details: { competitionId: competition.id, ...(subcategoryId ? { categoryId } : {}), changes: values, revision: item.revision } } });
       }
+      await invalidateCategorySetup(tx, competition.id, adminId);
       return item;
     }));
   }

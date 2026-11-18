@@ -47,7 +47,7 @@ test("create and edit expose two optional URL slots, canonical existing links an
   assert.match(empty, /id="videoUrls.0"/); assert.match(empty, /id="videoUrls.1"/);
   assert.doesNotMatch(empty, /id="videoUrls.2"/);
   const html = renderToStaticMarkup(<ContestantForm competitionName="TalentHunt" contestant={{
-    ...contestant, totalVotes: "0", videos, isActive: true, createdAt: "2026-11-16T00:00:00.000Z", updatedAt: "2026-11-16T00:00:00.000Z",
+    ...contestant, categoryId: null, subcategoryId: null, assignmentRevision: 1, subcategory: null, totalVotes: "0", videos, isActive: true, createdAt: "2026-11-16T00:00:00.000Z", updatedAt: "2026-11-16T00:00:00.000Z",
   }} />);
   for (const video of videos) assert.ok(html.includes("https://www.youtube.com/watch?v=" + video.youtubeVideoId));
   assert.match(html, /Remove video 1/); assert.match(html, /Remove video 2/);

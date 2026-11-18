@@ -9,6 +9,7 @@ import { provisionInitialAdmin } from "../src/auth/provision";
 import { readAdminConfiguration } from "../src/config/admin";
 import { AdminAuthService } from "../src/services/admin-auth.service";
 import { PublicReadService } from "../src/services/public.service";
+import { taxonomyFixture } from "./taxonomy-fixture";
 
 test("ADMIN-02 protected CRUD on real HTTP and isolated PostgreSQL", { timeout: 90000 }, async t => {
   assert.notEqual(process.env.NODE_ENV, "production");
@@ -27,12 +28,14 @@ test("ADMIN-02 protected CRUD on real HTTP and isolated PostgreSQL", { timeout: 
   const server = createServer(createApp(new PublicReadService(db, "admin02-show"), undefined, auth));
   const jar = new Map<string, string>();
   let csrf = "";
+  let assignment: { categoryId: string; subcategoryId: string } | undefined;
   try {
     const counts = await Promise.all([db.adminUser.count(), db.adminSession.count(), db.adminAuthRateLimit.count(), db.auditLog.count(), db.competition.count(), db.contestant.count(), db.payment.count(), db.voteAllocation.count(), db.votePackage.count(), db.contactVerification.count()]);
     assert.ok(counts.every(value => value === 0), "Refusing populated database; tests never reset existing data.");
     server.listen(0, "127.0.0.1"); await once(server, "listening");
     const base = "http://127.0.0.1:" + (server.address() as AddressInfo).port;
     const request = async (path: string, method = "GET", body?: unknown, custom: Record<string, string> = {}) => {
+      if (path === "/api/v1/admin/contestants" && method === "POST" && body && typeof body === "object" && "name" in body) body = { ...assignment, ...body };
       const headers: Record<string, string> = { Cookie: [...jar].map(([k, v]) => k + "=" + v).join("; "), ...custom };
       if (method !== "GET") { headers.Origin ??= config.ADMIN_APP_ORIGIN; headers["Content-Type"] = "application/json"; headers["X-CSRF-Token"] ??= csrf; }
       const response = await fetch(base + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
@@ -56,6 +59,7 @@ test("ADMIN-02 protected CRUD on real HTTP and isolated PostgreSQL", { timeout: 
       assert.equal((await request(root)).body.code, "COMPETITION_NOT_FOUND");
     });
     await db.competition.create({ data: { id: "admin02-show", name: "Management fixture", slug: "admin02-show", status: "OPEN" } });
+    assignment = await taxonomyFixture(db, "admin02-show");
     await db.competition.create({ data: { id: "other-show", name: "Other show", slug: "other-show", createdAt: new Date(now.getTime() + 60000) } });
     await db.contestant.create({ data: { id: "other-person", competitionId: "other-show", number: "001", name: "Other person", slug: "ada-example" } });
     const input = { name: " Ada Example ", number: "001", slug: "Ada-Example", bio: " A performer. ", imageUrl: null, isActive: false };

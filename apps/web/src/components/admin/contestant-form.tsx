@@ -4,10 +4,12 @@ import Link from "next/link";
 import type { ManagedContestant } from "@/lib/admin/contestant-schemas";
 import { ContestantMutationError, saveContestant, suggestSlug } from "@/lib/admin/contestant-mutations";
 import { ContestantImage } from "./contestant-image";
+import { AssignmentFields } from "./assignment-fields";
 
-export function ContestantForm({ contestant, competitionName }: { contestant?: ManagedContestant; competitionName: string }) {
+export function ContestantForm({ contestant, competitionName, assignmentLocked = false }: { contestant?: ManagedContestant; competitionName: string; assignmentLocked?: boolean }) {
   const [values, setValues] = useState({ name: contestant?.name || "", number: contestant?.number || "", slug: contestant?.slug || "", bio: contestant?.bio || "", isActive: contestant?.isActive ?? true,
     videoUrls: [0, 1].map(index => contestant?.videos[index] ? `https://www.youtube.com/watch?v=${contestant.videos[index].youtubeVideoId}` : ""),
+    categoryId: contestant?.categoryId || "", subcategoryId: contestant?.subcategoryId || "",
   });
   const [slugEdited, setSlugEdited] = useState(Boolean(contestant));
   const [busy, setBusy] = useState(false);
@@ -20,7 +22,9 @@ export function ContestantForm({ contestant, competitionName }: { contestant?: M
     if (busy) return;
     setBusy(true); setError(""); setFields({});
     try {
-      const saved = await saveContestant({ ...values, bio: values.bio || null }, contestant?.id);
+      const { categoryId, subcategoryId, ...profile } = values;
+      const saved = await saveContestant({ ...profile, bio: values.bio || null,
+        ...(!contestant || contestant.subcategoryId ? { categoryId, subcategoryId, ...(contestant ? { expectedAssignmentRevision: contestant.assignmentRevision } : {}) } : {}) }, contestant?.id);
       // A full navigation discards private router/form state after a committed write.
       window.location.assign(contestant ? "/admin/contestants?saved=updated" : `/admin/contestants/${encodeURIComponent(saved.id)}/edit`);
     } catch (caught) {
@@ -36,6 +40,12 @@ export function ContestantForm({ contestant, competitionName }: { contestant?: M
     </div>}
     <fieldset disabled={busy}>
       <legend className="admin-sr-only">Contestant details</legend>
+      {contestant && !contestant.subcategoryId ? <p role="status">Pending initial classification. <Link href={`/admin/contestants/${contestant.id}/assignment`}>Review and assign this contestant</Link></p> : <>
+        <AssignmentFields categoryId={values.categoryId} subcategoryId={values.subcategoryId} current={contestant?.subcategory} disabled={assignmentLocked}
+          onChange={(categoryId, subcategoryId) => setValues(previous => ({ ...previous, categoryId, subcategoryId }))}/>
+        {assignmentLocked && <p>Payment or voting history locks this assignment. Profile and video details remain editable.</p>}
+        {fieldError("categoryId")}{fieldError("subcategoryId")}
+      </>}
       <div className="admin-field"><label htmlFor="name">Name <span>(required)</span></label>
         <input id="name" value={values.name} required maxLength={120} aria-invalid={Boolean(fields.name)} aria-describedby={fields.name ? "name-error" : undefined} onChange={event => {
           const name = event.target.value; setValues(previous => ({ ...previous, name, ...(!slugEdited ? { slug: suggestSlug(name) } : {}) }));
@@ -68,7 +78,7 @@ export function ContestantForm({ contestant, competitionName }: { contestant?: M
       </fieldset>
       <div className="admin-field"><label className="admin-checkbox" htmlFor="isActive"><input id="isActive" type="checkbox" checked={values.isActive} onChange={event => setValues({ ...values, isActive: event.target.checked })} /> Active contestant</label>
         <p className="admin-field-help">Inactive contestants are hidden from public contestant views. Their records, votes and payment history are preserved.</p>{fieldError("isActive")}</div>
-      <div className="admin-actions"><button type="submit" className="admin-button" disabled={busy}>{busy ? "Saving…" : contestant ? "Save changes" : "Register contestant"}</button><Link href="/admin/contestants">Cancel</Link></div>
+      <div className="admin-actions"><button type="submit" className="admin-button" disabled={busy || !contestant && (!values.categoryId || !values.subcategoryId)}>{busy ? "Saving…" : contestant ? "Save changes" : "Register contestant"}</button><Link href="/admin/contestants">Cancel</Link></div>
     </fieldset>
   </form><ContestantImage id={contestant?.id} imageUrl={contestant?.imageUrl || null} name={values.name} /></>;
 }

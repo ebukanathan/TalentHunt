@@ -53,9 +53,9 @@ export class AdminOverviewService {
       const recentActivity = await tx.$queryRaw<ActivityRow[]>`
         SELECT a.id, a.action, a."entityType", a."entityId", u.email AS actor, a."createdAt"
         FROM "AuditLog" a LEFT JOIN "AdminUser" u ON u.id = a."adminId"
-        WHERE (a."entityType" = 'Competition' AND a."entityId" = ${competition.id} AND a.action IN ('COMPETITION_UPDATED', 'LEADERBOARD_VISIBILITY_CHANGED', 'RESULTS_PUBLISHED'))
+        WHERE (a."entityType" = 'Competition' AND a."entityId" = ${competition.id} AND a.action IN ('COMPETITION_UPDATED', 'LEADERBOARD_VISIBILITY_CHANGED', 'RESULTS_PUBLISHED', 'CATEGORY_SETUP_CONFIRMED', 'CATEGORY_SETUP_INVALIDATED'))
           OR (a."entityType" = 'Contestant' AND a.action IN ('CONTESTANT_CREATED', 'CONTESTANT_UPDATED',
-              'CONTESTANT_STATUS_CHANGED', 'CONTESTANT_IMAGE_CHANGED', 'CONTESTANT_IMAGE_REMOVED')
+              'CONTESTANT_STATUS_CHANGED', 'CONTESTANT_IMAGE_CHANGED', 'CONTESTANT_IMAGE_REMOVED', 'CONTESTANT_INITIAL_ASSIGNED', 'CONTESTANT_ASSIGNMENT_CHANGED')
             AND EXISTS (SELECT 1 FROM "Contestant" c WHERE c.id = a."entityId" AND c."competitionId" = ${competition.id}))
           OR (a."entityType" = 'VotePackage' AND a.action IN ('VOTE_PACKAGE_CREATED', 'VOTE_PACKAGE_UPDATED')
             AND EXISTS (SELECT 1 FROM "VotePackage" p WHERE p.id = a."entityId" AND p."competitionId" = ${competition.id}))

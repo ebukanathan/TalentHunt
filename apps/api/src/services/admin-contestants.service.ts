@@ -3,11 +3,14 @@ import { HttpError } from "../http/errors";
 import type { PublicApi } from "./public.service";
 import type { AdminContestantQuery, CreateAdminContestant, PatchAdminContestant } from "../validation/admin-contestants";
 import { contestantVideoSelection } from "./contestant-videos";
+import { activeAssignment, assignmentHistory, invalidateCategorySetup, lockCompetition } from "./contestant-assignment";
 
-const selection = {
+export const adminContestantSelection = {
   id: true, competitionId: true, name: true, number: true, slug: true, bio: true,
   imageUrl: true, isActive: true, totalVotes: true, createdAt: true, updatedAt: true,
   videos: contestantVideoSelection,
+  categoryId: true, subcategoryId: true, assignmentRevision: true,
+  subcategory: { select: { id: true, name: true, isActive: true, category: { select: { id: true, name: true, isActive: true } } } },
 } satisfies Prisma.ContestantSelect;
 const editable = ["name", "number", "slug", "bio", "imageUrl", "isActive"] as const;
 const missing = () => new HttpError(404, "CONTESTANT_NOT_FOUND", "Contestant not found in the selected competition.");
@@ -28,6 +31,7 @@ export class AdminContestantService {
     const competition = await this.publicApi.getCompetition();
     const where: Prisma.ContestantWhereInput = { competitionId: competition.id };
     if (query.status !== "all") where.isActive = query.status === "active";
+    if (query.assignment !== "all") where.subcategoryId = query.assignment === "pending" ? null : { not: null };
     if (query.q) {
       // Prisma contains uses PostgreSQL LIKE: user search text is literal.
       const search = query.q.replace(/[\\%_]/g, character => "\\" + character);
@@ -35,33 +39,43 @@ export class AdminContestantService {
     }
     const [total, items] = await this.database.$transaction([
       this.database.contestant.count({ where }),
-      this.database.contestant.findMany({ where, select: selection,
+      this.database.contestant.findMany({ where, select: adminContestantSelection,
         orderBy: [{ number: "asc" }, { id: "asc" }], skip: (query.page - 1) * query.pageSize, take: query.pageSize }),
     ], { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
     return { competition, items, pagination: { page: query.page, pageSize: query.pageSize, total, pages: Math.ceil(total / query.pageSize) } };
   }
   async get(id: string) {
     const competition = await this.publicApi.getCompetition();
-    const contestant = await this.database.contestant.findFirst({ where: { id, competitionId: competition.id }, select: selection });
-    if (!contestant) throw missing();
-    return { competition, contestant };
+    return this.database.$transaction(async tx => {
+      const contestant = await tx.contestant.findFirst({ where: { id, competitionId: competition.id }, select: adminContestantSelection });
+      if (!contestant) throw missing();
+      const history = await assignmentHistory(tx, contestant);
+      const current = await tx.competition.findUniqueOrThrow({ where: { id: competition.id } });
+      return { competition, contestant, assignment: { ...history, locked: history.locked || current.resultsPublishedAt !== null } };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
   }
   async create(input: CreateAdminContestant, adminId: string) {
     if (input.imageUrl) throw new HttpError(400, "MANAGED_IMAGE_REQUIRED", "Upload photographs through the image endpoint.");
     const competition = await this.publicApi.getCompetition();
     try {
       return await this.database.$transaction(async tx => {
+        const current = await lockCompetition(tx, competition.id);
+        if (current.resultsPublishedAt) throw new HttpError(409, "RESULTS_ALREADY_PUBLISHED", "Published results lock contestant membership.");
+        await activeAssignment(tx, competition.id, input.categoryId, input.subcategoryId);
         const contestant = await tx.contestant.create({ data: {
           competitionId: competition.id, name: input.name, number: input.number, slug: input.slug,
+          categoryId: input.categoryId, subcategoryId: input.subcategoryId,
           bio: input.bio ?? null, imageUrl: input.imageUrl ?? null, isActive: input.isActive,
           videos: { create: (input.videoUrls ?? []).map((youtubeVideoId, index) => ({ youtubeVideoId, position: index + 1 })) },
-        }, select: selection });
+        }, select: adminContestantSelection });
         const details = {
+          categoryId: contestant.categoryId, subcategoryId: contestant.subcategoryId,
           ...Object.fromEntries(editable.map(field => [field, contestant[field]])),
           videos: contestant.videos.map(({ youtubeVideoId, position }) => ({ youtubeVideoId, position })),
         };
         await tx.auditLog.create({ data: { adminId, action: "CONTESTANT_CREATED", entityType: "Contestant", entityId: contestant.id,
           details: { competitionId: competition.id, values: details } } });
+        await invalidateCategorySetup(tx, competition.id, adminId);
         return contestant;
       });
     } catch (error) { return conflict(error); }
@@ -70,28 +84,49 @@ export class AdminContestantService {
     const competition = await this.publicApi.getCompetition();
     try {
       return await this.database.$transaction(async tx => {
+        const current = await lockCompetition(tx, competition.id);
         // Serialize edits so audit before/after values match the committed change.
         const locked = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM "Contestant" WHERE id = ${id} AND "competitionId" = ${competition.id} FOR UPDATE`;
         if (!locked.length) throw missing();
-        const previous = await tx.contestant.findUniqueOrThrow({ where: { id }, select: selection });
+        const previous = await tx.contestant.findUniqueOrThrow({ where: { id }, select: adminContestantSelection });
+        const assignmentChanged = input.categoryId !== undefined && (input.categoryId !== previous.categoryId || input.subcategoryId !== previous.subcategoryId);
+        if (input.expectedAssignmentRevision !== undefined && input.expectedAssignmentRevision !== previous.assignmentRevision)
+          throw new HttpError(409, "ASSIGNMENT_CHANGED", "The assignment changed. Reload before saving.");
+        if (assignmentChanged) {
+          if (!previous.subcategoryId) throw new HttpError(409, "INITIAL_ASSIGNMENT_REQUIRED", "Use the reviewed initial-classification workflow for this legacy contestant.");
+          if (current.resultsPublishedAt || (await assignmentHistory(tx, previous)).locked)
+            throw new HttpError(409, "ASSIGNMENT_HISTORY_LOCKED", "Payment or voting history locks this assignment. An ordinary edit cannot move it.");
+          await activeAssignment(tx, competition.id, input.categoryId!, input.subcategoryId!);
+        }
+        if (input.isActive === true && !previous.isActive) {
+          if (!previous.subcategoryId && !assignmentChanged) throw new HttpError(409, "INITIAL_ASSIGNMENT_REQUIRED", "Classify this contestant before activating it.");
+          await activeAssignment(tx, competition.id, input.categoryId ?? previous.categoryId!, input.subcategoryId ?? previous.subcategoryId!);
+        }
+        if (current.resultsPublishedAt && input.isActive !== undefined && input.isActive !== previous.isActive)
+          throw new HttpError(409, "RESULTS_ALREADY_PUBLISHED", "Published results lock contestant membership.");
         if (input.imageUrl !== undefined && input.imageUrl !== previous.imageUrl) throw new HttpError(400, "MANAGED_IMAGE_REQUIRED", "Use the image upload or removal endpoint to change a photograph.");
         const changes: Record<string, Prisma.InputJsonValue> = Object.fromEntries(editable
           .filter(field => input[field] !== undefined && input[field] !== previous[field])
           .map(field => [field, { before: previous[field], after: input[field] }]));
         const nextVideos = input.videoUrls?.map((youtubeVideoId, index) => ({ youtubeVideoId, position: index + 1 }));
+        if (assignmentChanged) changes.assignment = { before: { categoryId: previous.categoryId, subcategoryId: previous.subcategoryId }, after: { categoryId: input.categoryId!, subcategoryId: input.subcategoryId! } };
         const previousVideos = previous.videos.map(({ youtubeVideoId, position }) => ({ youtubeVideoId, position }));
         if (nextVideos && JSON.stringify(nextVideos) !== JSON.stringify(previousVideos)) {
           changes.videos = { before: previousVideos, after: nextVideos };
         }
         if (!Object.keys(changes).length) return previous;
         const data = Object.fromEntries(editable.filter(field => input[field] !== undefined).map(field => [field, input[field]]));
+        if (assignmentChanged) Object.assign(data, { categoryId: input.categoryId, subcategoryId: input.subcategoryId });
         // Delete/recreate the small ordered set under the parent lock. This also
         // permits swapping both positions without intermediate unique conflicts.
         if (changes.videos) {
           await tx.contestantVideo.deleteMany({ where: { contestantId: id } });
           await tx.contestantVideo.createMany({ data: nextVideos!.map(video => ({ ...video, contestantId: id })) });
         }
-        const contestant = await tx.contestant.update({ where: { id }, data, select: selection });
+        const contestant = await tx.contestant.update({ where: { id }, data, select: adminContestantSelection });
+        if (assignmentChanged) await tx.auditLog.create({ data: { adminId, action: "CONTESTANT_ASSIGNMENT_CHANGED", entityType: "Contestant", entityId: id,
+          details: { competitionId: competition.id, change: changes.assignment, revision: contestant.assignmentRevision } } });
+        if (assignmentChanged || changes.isActive) await invalidateCategorySetup(tx, competition.id, adminId);
         if (Object.keys(changes).some(field => field !== "isActive")) await tx.auditLog.create({ data: {
           adminId, action: "CONTESTANT_UPDATED", entityType: "Contestant", entityId: id,
           details: { competitionId: competition.id, changes },
