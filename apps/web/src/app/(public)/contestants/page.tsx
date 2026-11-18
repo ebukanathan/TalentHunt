@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import { Suspense } from "react";
 import { getPublicShow } from "@/lib/api/public-data";
 import { CompetitionStatus } from "@/components/competition-status";
@@ -9,8 +8,14 @@ import {
   UnavailableState,
 } from "@/components/page-states";
 import { EmptyState } from "@/components/ui";
+import { getPublicCompetition } from "@/lib/api/public-competition";
+import { competitionMetadata } from "@/lib/seo";
+import { ApiError } from "@/lib/api/client";
 
-export const metadata: Metadata = { title: "Contestants" };
+export async function generateMetadata() {
+  try { return competitionMetadata(await getPublicCompetition(), true); }
+  catch (error) { if (!(error instanceof ApiError)) throw error; return competitionMetadata(null, true); }
+}
 export default function ContestantsPage() {
   return (
     <Suspense fallback={<PageSkeleton />}>

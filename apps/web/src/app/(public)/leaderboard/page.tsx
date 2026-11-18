@@ -3,7 +3,8 @@ import { getPublicApi } from "@/lib/api/server";
 import { ApiError } from "@/lib/api/client";
 import { Leaderboard } from "@/components/leaderboard";
 import { NoCompetition, PageSkeleton, UnavailableState } from "@/components/page-states";
-export const metadata = { title: "Leaderboard" };
+// Search/social previews must never retain standings after visibility changes.
+export const metadata = { title: "Leaderboard", description: "Public standings are available according to the competition’s result visibility settings.", robots: { index: false, follow: true } };
 type Props = { searchParams: Promise<Record<string,string|string[]|undefined>> };
 export default function Page(props: Props) { return <Suspense fallback={<PageSkeleton kind="leaderboard"/>}><Content {...props}/></Suspense>; }
 async function Content({ searchParams }: Props) {
