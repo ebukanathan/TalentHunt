@@ -41,10 +41,13 @@ export class AdminOverviewService {
       const competition = await tx.competition.findUniqueOrThrow({ where: { id: selected.id }, select: {
         id: true, name: true, status: true, votingOpens: true, votingCloses: true, currency: true,
       } });
-      const [totalContestants, activeContestants, activePackages] = await Promise.all([
+      const [totalContestants, activeContestants, activePackages, categories, subcategories, pendingAssignments] = await Promise.all([
         tx.contestant.count({ where: { competitionId: competition.id } }),
         tx.contestant.count({ where: { competitionId: competition.id, isActive: true } }),
         tx.votePackage.count({ where: { competitionId: competition.id, isActive: true } }),
+        tx.category.count({ where: { competitionId: competition.id } }),
+        tx.subcategory.count({ where: { competitionId: competition.id } }),
+        tx.contestant.count({ where: { competitionId: competition.id, subcategoryId: null } }),
       ]);
       const [totals] = await tx.$queryRaw<FinancialTotals[]>(recordedPaymentsQuery(competition.id));
       const recentActivity = await tx.$queryRaw<ActivityRow[]>`
@@ -56,8 +59,13 @@ export class AdminOverviewService {
             AND EXISTS (SELECT 1 FROM "Contestant" c WHERE c.id = a."entityId" AND c."competitionId" = ${competition.id}))
           OR (a."entityType" = 'VotePackage' AND a.action IN ('VOTE_PACKAGE_CREATED', 'VOTE_PACKAGE_UPDATED')
             AND EXISTS (SELECT 1 FROM "VotePackage" p WHERE p.id = a."entityId" AND p."competitionId" = ${competition.id}))
+          OR (a."entityType" = 'Category' AND a.action IN ('CATEGORY_CREATED', 'CATEGORY_UPDATED', 'CATEGORY_STATUS_CHANGED')
+            AND EXISTS (SELECT 1 FROM "Category" c WHERE c.id = a."entityId" AND c."competitionId" = ${competition.id}))
+          OR (a."entityType" = 'Subcategory' AND a.action IN ('SUBCATEGORY_CREATED', 'SUBCATEGORY_UPDATED', 'SUBCATEGORY_STATUS_CHANGED')
+            AND EXISTS (SELECT 1 FROM "Subcategory" s WHERE s.id = a."entityId" AND s."competitionId" = ${competition.id}))
         ORDER BY a."createdAt" DESC, a.id DESC LIMIT 10`;
       return { competition, counts: { totalContestants, activeContestants, activePackages },
+        taxonomyCounts: { categories, subcategories, pendingAssignments },
         financials: financialSummary(competition.currency, totals), recentActivity };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
   }

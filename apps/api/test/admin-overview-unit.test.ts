@@ -25,9 +25,10 @@ test("overview selection and every read share a repeatable-read transaction, and
   let fail = false, rawReads = 0;
   const tx = {
     competition: { async findUniqueOrThrow(input: {where: {id: string}}) { assert.equal(input.where.id, "selected"); return competition; } },
-    contestant: { async count(input: {where: {competitionId: string; isActive?: boolean}}) {
+    category: { async count() { return 2; } }, subcategory: { async count() { return 2; } },
+    contestant: { async count(input: {where: {competitionId: string; isActive?: boolean; subcategoryId?: null}}) {
       assert.equal(input.where.competitionId, "selected"); if (fail) throw new Error("database unavailable");
-      return input.where.isActive ? 2 : 3;
+      return input.where.subcategoryId === null ? 1 : input.where.isActive ? 2 : 3;
     } },
     votePackage: { async count(input: {where: {competitionId: string; isActive: boolean}}) { assert.deepEqual(input.where, { competitionId: "selected", isActive: true }); return 1; } },
     async $queryRaw() { return ++rawReads % 2 === 1 ? [{ paymentCount: "0", paidCount: "0", amountKobo: "0" }] : []; },
@@ -37,6 +38,7 @@ test("overview selection and every read share a repeatable-read transaction, and
   } } as unknown as PrismaClient;
   const service = new AdminOverviewService(database, async value => { assert.equal(value, tx); return { id: "selected" }; });
   assert.deepEqual(await service.read(), { competition, counts: { totalContestants: 3, activeContestants: 2, activePackages: 1 },
+    taxonomyCounts: { categories: 2, subcategories: 2, pendingAssignments: 1 },
     financials: { state: "unavailable", reason: "NO_PAYMENT_DATA" }, recentActivity: [] });
   fail = true;
   await assert.rejects(service.read(), /database unavailable/);
