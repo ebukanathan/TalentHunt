@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod";
 import { adminContestantId } from "../validation/admin-contestants";
 import { createPackage, packageQuery, patchCompetition, patchPackage } from "../validation/admin-settings";
 import type { AdminSettingsService } from "../services/admin-settings.service";
@@ -7,6 +8,7 @@ import { publishResultsInput } from "../validation/leaderboard";
 export function createAdminSettingsRouter(service: AdminSettingsService) {
   const router = Router();
   router.get("/competition", async (_req,res) => { res.json({ status: "success", data: await service.competition() }); });
+  router.get("/competition/publication-preview", async (req,res) => { z.strictObject({}).parse(req.query); res.json({ status: "success", data: await service.publicationPreview() }); });
   router.patch("/competition", async (req,res) => { res.json({ status: "success", data: await service.updateCompetition(patchCompetition.parse(req.body), res.locals.admin.id) }); });
   router.post("/competition/publish-results", async (req,res) => { res.json({ status: "success", data: await service.publishResults(publishResultsInput.parse(req.body), res.locals.admin.id) }); });
   router.get("/vote-packages", async (req,res) => { const { page } = packageQuery.parse(req.query); res.json({ status: "success", data: await service.packages(page) }); });

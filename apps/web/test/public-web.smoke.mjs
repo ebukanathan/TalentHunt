@@ -26,10 +26,12 @@ const competition = {
   votingCloses: null,
   currency: "NGN",
 };
+const category = { id: "category", competitionId: "integration-show", name: "Fixture category", slug: "fixture-category", sortOrder: 0 };
+const subcategory = { id: "subcategory", competitionId: "integration-show", categoryId: category.id, name: "Fixture subcategory", slug: "fixture-subcategory", sortOrder: 0 };
 const contestants = Array.from({ length: 13 }, (_, index) => ({
   id: `performer-${index}`,
   competitionId: competition.id,
-  number: String(index + 1).padStart(3, "0"),
+  category, subcategory, number: String(index + 1).padStart(3, "0"),
   name: `Integration Performer ${index + 1}`,
   slug: `performer-${index}`,
   bio: null,
@@ -100,6 +102,10 @@ try {
         return;
       }
       const requested = new URL(request.url, "http://fixture.test");
+      if (requested.pathname.startsWith("/api/v1/categories")) {
+        const child = requested.pathname.endsWith("/subcategories");
+        response.end(JSON.stringify({status:"success",data:{competition,...(child?{category}:{}),items:scenario==="missing"?[]:[child?subcategory:category],pagination:{page:1,pageSize:100,total:scenario==="missing"?0:1,pages:scenario==="missing"?0:1}}})); return;
+      }
       if (requested.pathname === "/api/v1/competition") {
         if (scenario === "missing") {
           response.statusCode = 404;
