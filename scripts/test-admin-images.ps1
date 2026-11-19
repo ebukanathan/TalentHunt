@@ -1,4 +1,4 @@
-param([switch]$TaxonomyOnly, [switch]$AssignmentsOnly)
+param([switch]$TaxonomyOnly, [switch]$AssignmentsOnly, [switch]$PublicCategoriesOnly)
 $ErrorActionPreference = 'Stop'
 # Run from repository root. No existing database is used or reset.
 $postgresBin = 'C:/Program Files/PostgreSQL/18/bin'
@@ -19,6 +19,7 @@ try {
   $env:NODE_ENV = 'test'
   $env:SITE_URL = 'https://talenthunt-taxonomy.example.test'
   $targets = @{
+    PUBLIC_CATEGORIES_TEST_DATABASE_URL = 'talenthunt_public_categories_test_images'
     API_TEST_DATABASE_URL = 'talenthunt_api_test_images'
     PAYMENTS_TEST_DATABASE_URL = 'talenthunt_payments_test_images'
     ADMIN_TEST_DATABASE_URL = 'talenthunt_admin_test_images'
@@ -39,6 +40,7 @@ try {
   if ($AssignmentsOnly) {
     $targets = @{ ASSIGNMENTS_TEST_DATABASE_URL = 'talenthunt_assignments_test_images'; ASSIGNMENTS_FINALIZATION_TEST_DATABASE_URL = 'talenthunt_assignments_final_test_images'; ADMIN_WEB_TEST_DATABASE_URL = 'talenthunt_admin_test_web_images' }
   }
+  if ($PublicCategoriesOnly) { $targets = @{ PUBLIC_CATEGORIES_TEST_DATABASE_URL = 'talenthunt_public_categories_test_images'; API_TEST_DATABASE_URL = 'talenthunt_api_test_images' } }
   foreach ($key in $targets.Keys) {
     $database = $targets[$key]
     & "$postgresBin/createdb.exe" -h 127.0.0.1 -p $imageTestPort -U postgres $database
@@ -48,7 +50,7 @@ try {
     node node_modules/prisma/build/index.js migrate deploy
     if ($LASTEXITCODE -ne 0) { throw 'Isolated migrations failed.' }
   }
-  $env:DATABASE_URL = if ($AssignmentsOnly) { $env:ASSIGNMENTS_TEST_DATABASE_URL } elseif ($TaxonomyOnly) { $env:ADMIN_TAXONOMY_TEST_DATABASE_URL } else { $env:ADMIN_IMAGES_TEST_DATABASE_URL }
+  $env:DATABASE_URL = if ($PublicCategoriesOnly) { $env:PUBLIC_CATEGORIES_TEST_DATABASE_URL } elseif ($AssignmentsOnly) { $env:ASSIGNMENTS_TEST_DATABASE_URL } elseif ($TaxonomyOnly) { $env:ADMIN_TAXONOMY_TEST_DATABASE_URL } else { $env:ADMIN_IMAGES_TEST_DATABASE_URL }
   node node_modules/prisma/build/index.js validate
   if ($LASTEXITCODE -ne 0) { throw 'Prisma schema validation failed.' }
   node node_modules/prisma/build/index.js generate
@@ -57,12 +59,15 @@ try {
   if ($LASTEXITCODE -ne 0) { throw 'API build failed.' }
   npm run typecheck:test --workspace=apps/api
   if ($LASTEXITCODE -ne 0) { throw 'API test typecheck failed.' }
-  if ($AssignmentsOnly) { npm run test:admin:assignments --workspace=apps/api }
+  if ($PublicCategoriesOnly) { npm run test:public:categories --workspace=apps/api }
+  elseif ($AssignmentsOnly) { npm run test:admin:assignments --workspace=apps/api }
   elseif ($TaxonomyOnly) { npm run test:admin:taxonomy --workspace=apps/api }
   else { npm test --workspace=apps/api }
   if ($LASTEXITCODE -ne 0) { throw 'API regression and image checks failed.' }
+  if (!$PublicCategoriesOnly) {
   npm run test:admin:integration --workspace=apps/web
   if ($LASTEXITCODE -ne 0) { throw 'Next/Express/PostgreSQL checks failed.' }
+  }
   node node_modules/prisma/build/index.js migrate diff --from-url $env:DATABASE_URL --to-schema-datamodel prisma/schema.prisma --exit-code
   if ($LASTEXITCODE -ne 0) { throw 'Schema drift detected.' }
   Write-Output 'ADMIN_AND_LEADERBOARD_CHECKS_PASSED'
