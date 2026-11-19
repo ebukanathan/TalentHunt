@@ -13,7 +13,10 @@ const sentinel = "9007199254740993";
 let mode = "LIVE", scenario = "ready", status = "OPEN", published = false, zero = false, videoCount = 2;
 let requests = 0, web, webPort, securityNotice = false;
 const competition = () => ({ id: "show", name: "Public Fixture Showcase", slug: "show", description: "Public fixture description", status, votingOpens: null, votingCloses: null, currency: "NGN" });
-const people = () => Array.from({ length: 13 }, (_, i) => ({ id: `performer-${i}`, competitionId: scenario === "mismatch" ? "other-show" : "show", number: String(i + 1).padStart(3, "0"), name: `Fixture Performer ${i + 1}`, slug: `performer-${i}`, bio: `Public biography ${i + 1}`, imageUrl: i === 0 ? "https://portraits.example.test/storage/v1/object/public/contestant-images/contestants/show/performer-0/12345678-1234-1234-1234-123456789abc.webp" : null,
+const category = { id: "category", competitionId: "show", name: "Fixture category", slug: "fixture-category", sortOrder: 0 };
+const subcategory = { id: "subcategory", competitionId: "show", categoryId: category.id, name: "Fixture subcategory", slug: "fixture-subcategory", sortOrder: 0 };
+const boardPath = "/leaderboard?categoryId=category&subcategoryId=subcategory";
+const people = () => Array.from({ length: 13 }, (_, i) => ({ id: `performer-${i}`, competitionId: scenario === "mismatch" ? "other-show" : "show", category, subcategory, number: String(i + 1).padStart(3, "0"), name: `Fixture Performer ${i + 1}`, slug: `performer-${i}`, bio: `Public biography ${i + 1}`, imageUrl: i === 0 ? "https://portraits.example.test/storage/v1/object/public/contestant-images/contestants/show/performer-0/12345678-1234-1234-1234-123456789abc.webp" : null,
   ...(mode === "LIVE" ? { totalVotes: zero ? "0" : i === 0 ? sentinel : "1" } : {}),
   videos: i === 0 ? [{ id: "video-1", youtubeVideoId: "dQw4w9WgXcQ", position: 1 }, { id: "video-2", youtubeVideoId: "aqz-KE-bpKQ", position: 2 }].slice(0, videoCount) : [],
 }));
@@ -25,6 +28,11 @@ const fixture = createServer((request, response) => {
   const send = (data, code = 200) => { response.statusCode = code; response.end(JSON.stringify({ status: code === 200 ? "success" : "error", data })); };
   if (scenario === "failure") return send({ message: "private-database-password" }, 503);
   const missing = scenario === "missing";
+  const taxonomyPage = item => ({ competition: competition(), ...(item === subcategory ? {category} : {}), items: missing ? [] : [item], pagination:{page:1,pageSize:100,total:missing?0:1,pages:missing?0:1} });
+  if(url.pathname === "/api/v1/categories") return send(taxonomyPage(category));
+  if(url.pathname === "/api/v1/categories/category/subcategories") return send(taxonomyPage(subcategory));
+  if(url.pathname === "/api/v1/categories/category") return send({competition:competition(),category});
+  if(url.pathname === "/api/v1/categories/category/subcategories/subcategory") return send({competition:competition(),category,subcategory});
   const roster = missing || scenario === "empty" ? [] : people();
   if (url.pathname === "/api/v1/competition") return send(missing ? null : competition(), missing ? 404 : 200);
   if (url.pathname === "/api/v1/contestants") return send(roster);
@@ -34,14 +42,14 @@ const fixture = createServer((request, response) => {
   }
   if (url.pathname === "/api/v1/contestant-cards") {
     const page = Number(url.searchParams.get("page") || 1), pageSize = Number(url.searchParams.get("pageSize") || 12);
-    return send({ competitionId: missing ? null : scenario === "mismatch" ? "other-show" : "show", items: roster.slice((page - 1) * pageSize, page * pageSize).map(({ id, competitionId, number, name, imageUrl, totalVotes }) => ({ id, competitionId, number, name, imageUrl, ...(totalVotes === undefined ? {} : { totalVotes }) })), pagination: { page, pageSize, total: roster.length, pages: Math.ceil(roster.length / pageSize) } });
+    return send({ competitionId: missing ? null : scenario === "mismatch" ? "other-show" : "show", items: roster.slice((page - 1) * pageSize, page * pageSize).map(({ id, competitionId, number, name, imageUrl, totalVotes }) => ({ id, competitionId, category, subcategory, number, name, imageUrl, ...(totalVotes === undefined ? {} : { totalVotes }) })), pagination: { page, pageSize, total: roster.length, pages: Math.ceil(roster.length / pageSize) } });
   }
   if (url.pathname === "/api/v1/vote-packages") return send(scenario === "no-packages" || status !== "OPEN" ? [] : [{ id: "package", competitionId: scenario === "wrong-packages" ? "other-show" : "show", name: "Support", voteCount: 10, priceKobo: 100001, currency: "NGN" }]);
   if (url.pathname === "/api/v1/leaderboard") {
     if (missing) return send(null, 404);
     const hidden = mode === "HIDDEN";
-    const items = hidden || zero || !roster.length ? [] : roster.slice(0, 2).map(({ id, competitionId, number, name, slug, imageUrl, totalVotes }, index) => ({ id, competitionId, number, name, slug, imageUrl, rank: index + 1, ...(totalVotes === undefined ? {} : { totalVotes }) }));
-    return send({ competition: competition(), visibility: mode, publishedAt: published ? "2026-11-01T13:00:00.000Z" : null, state: hidden ? "HIDDEN" : !roster.length ? "EMPTY" : zero ? "NO_VOTES" : published ? "FINAL" : "PROVISIONAL", items, pagination: items.length ? { page: 1, pageSize: 25, total: 2, pages: 1 } : null });
+    const items = hidden || zero || !roster.length ? [] : roster.slice(0, 2).map(({ id, competitionId, number, name, slug, imageUrl, totalVotes }, index) => ({ id, competitionId, categoryId:category.id, subcategoryId:subcategory.id, number, name, slug, imageUrl, rank: index + 1, ...(totalVotes === undefined ? {} : { totalVotes }) }));
+    return send({ competition: competition(), category, subcategory, setupReady:true, visibility: mode, publishedAt: published ? "2026-11-01T13:00:00.000Z" : null, state: hidden ? "HIDDEN" : !roster.length ? "EMPTY" : zero ? "NO_VOTES" : published ? "FINAL" : "PROVISIONAL", items, pagination: items.length ? { page: 1, pageSize: 25, total: 2, pages: 1 } : null });
   }
   send(null, 404);
 });
@@ -105,7 +113,7 @@ try {
   }
   for (const visibility of ["LIVE", "RANK_ONLY", "HIDDEN"]) {
     mode = visibility;
-    for (const route of ["/", "/contestants", "/contestants/performer-0", "/leaderboard"]) {
+    for (const route of ["/", "/contestants", "/contestants/performer-0", boardPath]) {
       const result = await page(base, route, true);
       assert.equal(result.status, 200, route);
       assert.match(result.headers.get("cache-control"), /no-store/);
@@ -113,7 +121,7 @@ try {
       assert.ok(!/totalVotes|"rank"/.test(result.head), `${visibility}: no metadata statistics`);
       if (visibility !== "LIVE") assert.ok(!result.raw.includes(sentinel), `${visibility} ${route}: HTML/RSC totals redacted`);
       if (visibility === "HIDDEN") assert.ok(!result.raw.includes('"rank"'), `${route}: no hidden rank fields`);
-      if (route === "/leaderboard") assert.ok(result.text.includes(visibility === "HIDDEN" ? "Results have not been published" : "Provisional standings"));
+      if (route === boardPath) assert.ok(result.text.includes(visibility === "HIDDEN" ? "Results have not been published" : "Provisional standings"));
     }
     console.log(`PASS ${visibility}: request-time public HTML/RSC and bot metadata privacy`);
   }
@@ -174,11 +182,11 @@ try {
   scenario = "no-packages"; assert.ok((await page(base, "/contestants/performer-0/vote")).text.includes("No vote packages are available"));
   scenario = "wrong-packages"; assert.ok((await page(base, "/contestants/performer-0/vote")).text.includes("A brief pause in the spotlight"));
   scenario = "ready"; zero = true;
-  assert.ok((await page(base, "/leaderboard")).text.includes("No votes have been recorded"));
+  assert.ok((await page(base, boardPath)).text.includes("No votes have been recorded"));
   zero = false; status = "COMPLETED"; mode = "HIDDEN";
-  assert.ok((await page(base, "/leaderboard")).text.includes("Results have not been published"));
+  assert.ok((await page(base, boardPath)).text.includes("Results have not been published"));
   mode = "LIVE"; published = true;
-  assert.ok((await page(base, "/leaderboard")).text.includes("Published final results"));
+  assert.ok((await page(base, boardPath)).text.includes("Published final results"));
   published = false; status = "OPEN";
   console.log("PASS package states, closed windows, all-zero totals, unpublished and published results");
   for (const state of ["empty", "missing", "failure", "mismatch"]) {

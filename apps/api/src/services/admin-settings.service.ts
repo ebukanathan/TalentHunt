@@ -4,6 +4,7 @@ import type { PublicApi } from "./public.service";
 import { validateCompetitionChange } from "./competition-policy";
 import type { CompetitionPatch, PackageCreate, PackagePatch } from "../validation/admin-settings";
 import type { PublishResultsInput } from "../validation/leaderboard";
+import { publicationReview } from "./publication-review";
 
 const missing = () => new HttpError(404, "PACKAGE_NOT_FOUND", "Vote package not found in the selected competition.");
 const stale = () => new HttpError(409, "SETTINGS_CHANGED", "These settings changed. Reload before saving again.");
@@ -43,6 +44,10 @@ export class AdminSettingsService {
       return current;
     });
   }
+  async publicationPreview() {
+    const selected = await this.selection.getCompetition();
+    return this.db.$transaction(async tx => publicationReview(tx, await tx.competition.findUniqueOrThrow({ where: { id: selected.id } })), { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead, timeout: 15000 });
+  }
   async publishResults(input: PublishResultsInput, adminId: string) {
     const selected = await this.selection.getCompetition();
     if (selected.id !== input.competitionId) throw new HttpError(409, "SETTINGS_CHANGED", "The selected competition changed. Reload before publishing.");
@@ -51,10 +56,18 @@ export class AdminSettingsService {
       const previous = await tx.competition.findUniqueOrThrow({ where: { id: selected.id } });
       if (input.confirmationName !== previous.name) throw new HttpError(400, "PUBLICATION_CONFIRMATION_REQUIRED", "Type the competition name exactly to confirm publication.");
       // Repeating the same confirmed action is safe after a lost HTTP response.
-      if (previous.resultsPublishedAt) return previous;
+      if (previous.resultsPublishedAt) {
+        const repeated = previous.categorySetupCompletedAt && await tx.auditLog.findFirst({ where: { action: "RESULTS_PUBLISHED", entityType: "Competition", entityId: previous.id, details: { path: ["reviewToken"], equals: input.expectedReviewToken } } });
+        if (repeated) return previous;
+        throw new HttpError(409, "LEGACY_RESULTS_REVIEW_REQUIRED", "Existing results require a separately reviewed category publication decision.");
+      }
       if (previous.updatedAt.toISOString() !== input.expectedUpdatedAt) throw stale();
       if (previous.status !== "COMPLETED") throw new HttpError(409, "COMPETITION_NOT_COMPLETED", "Complete the competition before publishing final results.");
-      if (!await tx.contestant.count({ where: { competitionId: previous.id, isActive: true, totalVotes: { gt: 0 } } }))
+      await tx.$queryRaw`SELECT id FROM "Contestant" WHERE "competitionId" = ${previous.id} ORDER BY id FOR SHARE`;
+      const review = await publicationReview(tx, previous);
+      if (!review.ready) throw new HttpError(409, "CATEGORY_SETUP_INCOMPLETE", "Review category setup and every active contestant assignment before publishing.");
+      if (review.reviewToken !== input.expectedReviewToken) throw new HttpError(409, "PUBLICATION_REVIEW_CHANGED", "Groups, assignments or votes changed. Reload the publication review.");
+      if (!review.groups.some(group => group.hasVotes))
         throw new HttpError(409, "NO_RESULTS_TO_PUBLISH", "No votes have been recorded for active contestants. There are no ranked results to publish.");
       const publishedAt = this.now();
       const current = await tx.competition.update({ where: { id: previous.id }, data: {
@@ -66,9 +79,10 @@ export class AdminSettingsService {
         details: { before: previous.leaderboardVisibility, after: "LIVE" },
       } });
       await tx.auditLog.create({ data: { adminId, action: "RESULTS_PUBLISHED", entityType: "Competition", entityId: previous.id,
-        details: { before: null, after: publishedAt.toISOString() } } });
+        details: { before: null, after: publishedAt.toISOString(), mode: "SUBCATEGORY", reviewToken: review.reviewToken,
+          groups: review.groups.map(group => ({ categoryId: group.category.id, subcategoryId: group.subcategory.id, contestants: group.contestants, hasVotes: group.hasVotes })) } } });
       return current;
-    });
+    }, { timeout: 15000 });
   }
   async createPackage(input: PackageCreate, adminId: string) {
     const competition = await this.competition();

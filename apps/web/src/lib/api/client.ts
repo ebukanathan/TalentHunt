@@ -76,7 +76,12 @@ export function createApiClient(
     }
   }
   return {
-    leaderboard: (page = "1") => request("/leaderboard?page=" + encodeURIComponent(page), publicLeaderboardSchema),
+    leaderboard: async (categoryId: string, subcategoryId: string, page = "1") => {
+      const scope = scopeQuery({ categoryId, subcategoryId });
+      if (!categoryId || !subcategoryId || !/^[1-9][0-9]*$/.test(page) || Number(page) > 100000) throw new ApiError("BAD_REQUEST");
+      scope.set("page", page);
+      return request("/leaderboard?" + scope, publicLeaderboardSchema.refine(data => data.category.id === categoryId && data.subcategory.id === subcategoryId));
+    },
     async competition() {
       try {
         return await request("/competition", competitionSchema);

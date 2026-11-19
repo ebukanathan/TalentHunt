@@ -1,3 +1,4 @@
+import { taxonomyFixture } from "./taxonomy-fixture";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createServer } from "node:http";
@@ -58,7 +59,7 @@ test("ADMIN-03 real HTTP, PostgreSQL journal and injectable storage", { timeout:
     csrf=(await request("/api/v1/admin/auth/csrf")).body.data.csrfToken;
     await db.competition.create({data:{id:"images-show",name:"Image fixture",slug:"images-show",status:"OPEN"}});
     await db.competition.create({data:{id:"other-show",name:"Other fixture",slug:"other-show"}});
-    for(const [id,competitionId] of [["person","images-show"],["other-person","other-show"]]) await db.contestant.create({data:{id,competitionId,name:id,number:"001",slug:id}});
+    for(const [id,competitionId] of [["person","images-show"],["other-person","other-show"]]) await db.contestant.create({data:{...await taxonomyFixture(db,competitionId),id,competitionId,name:id,number:"001",slug:id}});
     await t.test("origin, CSRF, selected competition and managed metadata contract are enforced",async()=>{
       assert.equal((await upload(png,"photo.png","image/png",{"X-CSRF-Token":""})).status,403);
       assert.equal((await upload(png,"photo.png","image/png",{Origin:"https://evil.example"})).status,403);

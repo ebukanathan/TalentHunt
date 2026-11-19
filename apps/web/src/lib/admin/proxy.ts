@@ -13,8 +13,9 @@ export async function forwardLeaderboard(request: Request) {
   return forward(request, "leaderboard", "GET", 4096);
 }
 export async function forwardPublication(request: Request) {
-  return forward(request, "competition/publish-results", "POST", 4096);
+  return forward(request, "competition/publish-results", "POST", 4096, 30000);
 }
+export async function forwardPublicationPreview(request: Request) { return forward(request, "competition/publication-preview", "GET", 4096, 25000); }
 export async function forwardInitialAssignment(request: Request, id: string) {
   if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(id)) return Response.json({ status: "error", message: "Invalid contestant." }, { status: 400, headers: { "Cache-Control": "no-store" } });
   if (!["GET", "POST"].includes(request.method)) return new Response(null, { status: 405 });

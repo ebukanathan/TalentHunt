@@ -11,10 +11,10 @@ import { publicLeaderboardSchema, adminLeaderboardSchema, type PublicLeaderboard
 import { saveSettings, SettingsMutationError } from "../src/lib/admin/settings-mutations";
 import type { ManagedCompetition } from "../src/lib/admin/settings-schemas";
 
-const competition:ManagedCompetition={id:"show",name:"Show <script>",slug:"show",description:null,status:"COMPLETED",currency:"NGN",votingOpens:null,votingCloses:null,leaderboardVisibility:"HIDDEN",resultsPublishedAt:null,createdAt:"2026-11-16T00:00:00.000Z",updatedAt:"2026-11-16T00:00:00.000Z"};
-const person={...publicScopeFixture(),id:"person",competitionId:"show",name:"Ada <script>",number:"001",slug:"ada",imageUrl:null,videos:[]};
+const competition:ManagedCompetition={id:"show",name:"Show <script>",slug:"show",description:null,status:"COMPLETED",currency:"NGN",votingOpens:null,votingCloses:null,leaderboardVisibility:"HIDDEN",resultsPublishedAt:null,categorySetupCompletedAt:"2026-11-19T12:00:00.000Z",createdAt:"2026-11-16T00:00:00.000Z",updatedAt:"2026-11-16T00:00:00.000Z"};
+const person={...publicScopeFixture(),categoryId:"category",subcategoryId:"subcategory",id:"person",competitionId:"show",name:"Ada <script>",number:"001",slug:"ada",imageUrl:null,videos:[]};
 const page={page:1,pageSize:25,total:1,pages:1};
-const hidden:PublicLeaderboard={competition,visibility:"HIDDEN",publishedAt:null,state:"HIDDEN",items:[],pagination:null};
+const hidden:PublicLeaderboard={...publicScopeFixture(),setupReady:true,competition,visibility:"HIDDEN",publishedAt:null,state:"HIDDEN",items:[],pagination:null};
 
 test("hidden, rank-only and live public rendering expose exactly the allowed fields",()=>{
   const empty=renderToStaticMarkup(<Leaderboard data={hidden}/>);assert.match(empty,/Results have not been published/);assert.doesNotMatch(empty,/<table|Ada|9007199254740993/);
@@ -29,8 +29,8 @@ test("all-zero results have an honest message and published results have a final
 });
 test("public schemas reject hidden leaks, rank-only totals and inconsistent publication; private schema requires totals",()=>{
   for(const invalid of [{...hidden,items:[{...person,rank:1,totalVotes:"7"}]},{...hidden,state:"PROVISIONAL",visibility:"RANK_ONLY",items:[{...person,rank:1,totalVotes:"7"}],pagination:page},{...hidden,state:"FINAL",visibility:"LIVE",items:[],pagination:page}])assert.equal(publicLeaderboardSchema.safeParse(invalid).success,false);
-  assert.equal(adminLeaderboardSchema.safeParse({...hidden,state:"PROVISIONAL",items:[{...person,rank:1,isActive:true}],pagination:page}).success,false);
-  const data=adminLeaderboardSchema.parse({...hidden,state:"PROVISIONAL",items:[{...person,rank:1,isActive:true,totalVotes:"9007199254740993"}],pagination:page});
+  assert.equal(adminLeaderboardSchema.safeParse({...hidden,state:"PROVISIONAL",items:[{...person,rank:1,isActive:true,eligible:true}],pagination:page}).success,false);
+  const data=adminLeaderboardSchema.parse({...hidden,state:"PROVISIONAL",items:[{...person,rank:1,isActive:true,eligible:true,totalVotes:"9007199254740993"}],pagination:page});
   assert.match(renderToStaticMarkup(<Leaderboard data={data} admin/>),/9,007,199,254,740,993/);
 });
 test("settings expose three modes and publication requires a closed confirmation dialog with typed name",()=>{
@@ -41,5 +41,5 @@ test("settings expose three modes and publication requires a closed confirmation
 test("publication uses a separate CSRF-protected POST and preserves server confirmation failures",async()=>{
   const original=globalThis.fetch;let sent:RequestInit|undefined;let mode="ok";
   globalThis.fetch=(async(url,options)=>{if(String(url).endsWith("/csrf"))return Response.json({data:{csrfToken:"fixture"}});assert.equal(String(url),"/api/admin/competition/publish-results");sent=options;return mode==="ok"?Response.json({status:"success",data:{...competition,leaderboardVisibility:"LIVE",resultsPublishedAt:competition.updatedAt}}):Response.json({code:"PUBLICATION_CONFIRMATION_REQUIRED",message:"private error"},{status:400});}) as typeof fetch;
-  try{await saveSettings("competition",{competitionId:competition.id,confirmationName:competition.name,expectedUpdatedAt:competition.updatedAt},"publish-results");assert.equal(sent?.method,"POST");assert.equal(new Headers(sent?.headers).get("X-CSRF-Token"),"fixture");assert.equal(JSON.parse(String(sent?.body)).confirmationName,competition.name);mode="error";await assert.rejects(saveSettings("competition",{},"publish-results"),e=>e instanceof SettingsMutationError&&e.message.includes("exactly")&&!e.message.includes("private"));}finally{globalThis.fetch=original;}
+  try{await saveSettings("competition",{competitionId:competition.id,confirmationName:competition.name,expectedUpdatedAt:competition.updatedAt,expectedReviewToken:"a".repeat(64)},"publish-results");assert.equal(sent?.method,"POST");assert.equal(new Headers(sent?.headers).get("X-CSRF-Token"),"fixture");assert.equal(JSON.parse(String(sent?.body)).confirmationName,competition.name);mode="error";await assert.rejects(saveSettings("competition",{},"publish-results"),e=>e instanceof SettingsMutationError&&e.message.includes("exactly")&&!e.message.includes("private"));}finally{globalThis.fetch=original;}
 });
