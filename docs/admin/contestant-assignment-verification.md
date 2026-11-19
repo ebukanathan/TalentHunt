@@ -1,6 +1,6 @@
 # CAT-03 verification
 
-18–19 November 2026 (Africa/Lagos), issue [#64](https://github.com/ebukanathan/TalentHunt/issues/64), branch `feat/cat-03-contestant-assignment`, base `a6c78e1` (approved CAT-02 PR #67 merge into `test/public-website-verification`). Main and the earlier review stack are not merged by this change. No hosted database was accessed or migrated.
+18–19 November 2026 (Africa/Lagos), issue [#64](https://github.com/ebukanathan/TalentHunt/issues/64), branch `feat/cat-03-contestant-assignment`, base `a6c78e1` (approved CAT-02 PR #67 merge into `test/public-website-verification`). A separate PR #68 merged that dependency base into main as `4a94dc8` during implementation. Both commits have tree `7c6b24e5fdeb31ace5db50eb165d29d78724a558` (compare reports zero changed files), so PR #69 targets main with the same tested source base. CAT-03 remains unmerged. No hosted database was accessed or migrated.
 
 ## Executed checks
 

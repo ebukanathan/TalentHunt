@@ -1,11 +1,11 @@
 # Dynamic competition categories and subcategories
 
-Prepared 18 November 2026 (Africa/Lagos). **Design and CAT-01 approved by the user, followed by approval of its review gate and continuation on 18 November 2026.** CAT-01 PR #66 merged into its declared dependency branch as `29596e2`; main and the earlier PR stack remain unmerged. CAT-02 PR #67 was subsequently approved and merged into the same dependency branch as `a6c78e1`. CAT-03 is implemented on `feat/cat-03-contestant-assignment` for separate review; CAT-04 and CAT-05 remain Backlog. See the [CAT-01 migration runbook](../database/category-hierarchy.md) and [CAT-02 admin contract](../admin/category-management.md).
+Prepared 18 November 2026 (Africa/Lagos). **Design and CAT-01 approved by the user, followed by approval of its review gate and continuation on 18 November 2026.** CAT-01 PR #66 merged into its declared dependency branch as `29596e2`; a separate PR #68 later integrated that dependency branch and its foundation into main as `4a94dc8` on 18 November. CAT-02 PR #67 was subsequently approved and merged into the same dependency branch as `a6c78e1`. CAT-03 is implemented on `feat/cat-03-contestant-assignment` in PR #69 targeting main for separate review (its tested `a6c78e1` base has the same tree as `4a94dc8`); CAT-04 and CAT-05 remain Backlog. See the [CAT-01 migration runbook](../database/category-hierarchy.md) and [CAT-02 admin contract](../admin/category-management.md).
 
 ## Inspection and baseline
 
 - The open checkout is the older ADMIN-05 branch with unrelated uncommitted login, timeout and date-picker fixes. Preserve it.
-- GitHub main is `fac86b2`: ADMIN-05 #41 / PR #45 and contestant videos #46 / PR #47 are merged. The earlier session recap based only on the open checkout was incomplete.
+- At initial inspection, GitHub main was `fac86b2`: ADMIN-05 #41 / PR #45 and contestant videos #46 / PR #47 are merged. The earlier session recap based only on the open checkout was incomplete.
 - Visibility/publication is implemented in open PR #48 (`a3b4ed0`); public refinements are stacked in open PRs #54-#61, ending at `8082369`. Inspected their schema, public/admin services, routes, validation, pages, test structure and documentation. These are foundations under review, not approved category support or merged delivery.
 - Current models have Competition -> Contestant, competition-wide packages, Payment and VoteAllocation. Videos are separate ordered ContestantVideo records constrained to zero to two. The visibility branch adds competition-wide LIVE/RANK_ONLY/HIDDEN and confirmed result publication, but ranks the entire competition.
 - Read `apps/web/AGENTS.md` in the open and relevant worktree checkouts. Before future Next.js edits, read the installed version's relevant local guides as instructed there.
@@ -110,7 +110,7 @@ Do not merge PR #48's flat ranking as acceptance of this scope. Preserve its pri
 | CAT-04 | #65 | `feat/cat-04-public-categories` | Dynamic discovery/navigation, scoped filtering/cards/profiles and safe metadata |
 | CAT-05 | #32 | `feat/cat-05-scoped-leaderboards` | Scoped public/admin rankings, visibility redaction, publication and isolation |
 
-Project workstream remains `0. Categories and subcategories`, all five P0. CAT-01 is accepted/Done after its approved dependency-branch merge; CAT-02 is accepted/Done after approved dependency merge #67; CAT-03 is In Progress awaiting its separate review, and CAT-04/CAT-05 are Backlog with dependencies. Earlier open review PRs remain open and are not marked complete. Payment-dependent issues stay Backlog in their Paused workstream.
+Project workstream remains `0. Categories and subcategories`, all five P0. CAT-01 is accepted/Done after its approved dependency-branch merge; CAT-02 is accepted/Done after approved dependency merge #67; CAT-03 is In Progress awaiting its separate review, and CAT-04/CAT-05 are Backlog with dependencies. PR #68 separately integrated the foundation source into main; broader unfinished manual/security/release acceptance is not marked complete by CAT-03. Payment-dependent issues stay Backlog in their Paused workstream.
 
 Implement one issue at a time, run its checks, open a linked PR with scope/dependency/verification evidence, then stop at the review gate before proceeding to the next implementation issue. Never merge without approval. User approval authorizes CAT-01 implementation and disposable local migration tests; it does not authorize a hosted migration or resumed payment processing.
 
