@@ -1,3 +1,4 @@
+import { publicScopeFixture } from "./public-scope-fixture";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -12,7 +13,7 @@ const videos: ContestantVideo[] = [
   { id: "video-2", youtubeVideoId: "ZyX98765432", position: 2 },
 ];
 const competition: Competition = { id: "show", name: "TalentHunt", slug: "show", status: "OPEN", description: null, currency: "NGN", votingOpens: null, votingCloses: null };
-const contestant: Contestant = { id: "person", competitionId: "show", name: "Ada <script>", number: "001", slug: "ada", bio: null, imageUrl: null, totalVotes: "0", videos: [] };
+const contestant: Contestant = { ...publicScopeFixture(), id: "person", competitionId: "show", name: "Ada <script>", number: "001", slug: "ada", bio: null, imageUrl: null, totalVotes: "0", videos: [] };
 
 test("zero videos hide the complete public section; one and two render safe descriptive lazy players", () => {
   const empty = renderToStaticMarkup(<ContestantProfile competition={competition} contestant={contestant} />);

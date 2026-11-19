@@ -1,5 +1,7 @@
 import type { Metadata, MetadataRoute } from "next";
 import type { Competition, Contestant } from "./api/schemas";
+import type { PublicCategoryDetail } from "./api/category-schemas";
+import { categoryPath } from "./category-path";
 
 export function siteOrigin(value = process.env.SITE_URL, development = process.env.NODE_ENV === "development") {
   if (!value) return undefined;
@@ -36,8 +38,12 @@ export function competitionMetadata(competition: Competition | null, listing = f
   return publicMetadata(title, description, listing ? `/contestants${page > 1 ? `?page=${page}` : ""}` : "/", !!competition, origin);
 }
 
-export function publicSitemap(origin: string | undefined, competition: Competition | null, contestants: Pick<Contestant, "id" | "competitionId">[]): MetadataRoute.Sitemap {
+export function categoryMetadata(data: PublicCategoryDetail, page = 1, origin = siteOrigin()) {
+  const name = data.subcategory ? `${data.category.name} / ${data.subcategory.name}` : data.category.name;
+  return publicMetadata(`${name} — ${data.competition.name}`, `Explore ${name} contestants and performance videos in ${data.competition.name}.`, categoryPath(data.category.id, data.subcategory?.id) + (page > 1 ? `?page=${page}` : ""), true, origin);
+}
+export function publicSitemap(origin: string | undefined, competition: Competition | null, contestants: (Pick<Contestant, "id" | "competitionId"> & Partial<Pick<Contestant, "category" | "subcategory">>)[]): MetadataRoute.Sitemap {
   if (!origin || !competition || competition.status === "DRAFT") return [];
-  return ["/", "/contestants", ...contestants.filter(item => item.competitionId === competition.id).map(item => `/contestants/${encodeURIComponent(item.id)}`)]
+  return [...new Set(["/", "/contestants", ...contestants.filter(item => item.competitionId === competition.id).flatMap(item => [`/contestants/${encodeURIComponent(item.id)}`, ...(item.category && item.subcategory ? [categoryPath(item.category.id), categoryPath(item.category.id, item.subcategory.id)] : [])])])]
     .map(path => ({ url: new URL(path, origin).href }));
 }

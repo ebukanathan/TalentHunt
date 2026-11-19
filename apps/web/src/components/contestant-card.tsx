@@ -6,6 +6,7 @@ import Image from "next/image";
 import type { Contestant, ContestantCardData } from "@/lib/api/schemas";
 import { formatVotes } from "@/lib/format";
 import { portraitSizes, portraitSource } from "@/lib/portraits";
+import { categoryPath } from "@/lib/category-path";
 
 export function ContestantPortrait({ contestant, variant = "card", eager = false }: {
   contestant: Pick<Contestant, "name" | "number" | "imageUrl">;
@@ -56,7 +57,7 @@ export function ContestantPortrait({ contestant, variant = "card", eager = false
     </div>
   );
 }
-export function ContestantCard({ contestant, heading: Heading = "h3" }: { contestant: ContestantCardData | Contestant; heading?: "h2" | "h3" }) {
+export function ContestantCard({ contestant, heading: Heading = "h3" }: { contestant: ContestantCardData | Contestant; heading?: "h2" | "h3" | "h4" }) {
   return (
     <article
       className="contestant-card"
@@ -68,6 +69,7 @@ export function ContestantCard({ contestant, heading: Heading = "h3" }: { contes
         <div>
           <p className="eyebrow">THE LINEUP</p>
           <Heading id={`name-${contestant.id}`}><Link prefetch={false} href={`/contestants/${encodeURIComponent(contestant.id)}`}>{contestant.name}</Link></Heading>
+          <dl className="contestant-scope"><div><dt>Category</dt><dd><Link prefetch={false} href={categoryPath(contestant.category.id)}>{contestant.category.name}</Link></dd></div><div><dt>Subcategory</dt><dd><Link prefetch={false} href={categoryPath(contestant.category.id, contestant.subcategory.id)}>{contestant.subcategory.name}</Link></dd></div></dl>
         </div>
         {contestant.totalVotes !== undefined && <p className="vote-total">
           <strong>{formatVotes(contestant.totalVotes)}</strong>
