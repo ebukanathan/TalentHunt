@@ -1,6 +1,6 @@
 # CAT-03 contestant assignment and rollout
 
-Issue #64, built on the approved CAT-02 PR #67 merge (`a6c78e1`) into `test/public-website-verification`. During implementation, separate PR #68 merged that dependency base into main as `4a94dc8`, with an identical Git tree. CAT-03 PR #69 therefore targets main for review; CAT-03 is not merged or deployed. Paystack work remains paused. CAT-04 and CAT-05 must complete public category filtering and scoped rankings before a coordinated release.
+Issue #64, built on the approved CAT-02 PR #67 merge (`a6c78e1`) into `test/public-website-verification`. During implementation, separate PR #68 merged that dependency base into main as `4a94dc8`, with an identical Git tree. CAT-03 PR #69 therefore targets main for review; CAT-03 remains unmerged. Its separately approved development rollout is recorded in the [verification notes](contestant-assignment-verification.md). Paystack work remains paused. CAT-04 and CAT-05 must complete public category filtering and scoped rankings before a coordinated release.
 
 ## Administrator workflow
 

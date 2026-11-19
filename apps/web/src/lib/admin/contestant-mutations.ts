@@ -2,9 +2,7 @@ import { managedContestantSchema } from "./contestant-schemas";
 export class ContestantMutationError extends Error {
   constructor(message: string, readonly fields: Record<string, string> = {}, readonly status = 400) { super(message); }
 }
-export function suggestSlug(name: string) {
-  return name.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 120).replace(/-$/, "");
-}
+export { suggestSlug } from "./slug";
 export async function saveContestant(input: object, id?: string) {
   let response: Response;
   try {

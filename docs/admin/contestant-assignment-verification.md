@@ -1,6 +1,6 @@
 # CAT-03 verification
 
-18–19 November 2026 (Africa/Lagos), issue [#64](https://github.com/ebukanathan/TalentHunt/issues/64), branch `feat/cat-03-contestant-assignment`, base `a6c78e1` (approved CAT-02 PR #67 merge into `test/public-website-verification`). A separate PR #68 merged that dependency base into main as `4a94dc8` during implementation. Both commits have tree `7c6b24e5fdeb31ace5db50eb165d29d78724a558` (compare reports zero changed files), so PR #69 targets main with the same tested source base. CAT-03 remains unmerged. No hosted database was accessed or migrated.
+18–19 November 2026 (Africa/Lagos), issue [#64](https://github.com/ebukanathan/TalentHunt/issues/64), branch `feat/cat-03-contestant-assignment`, base `a6c78e1` (approved CAT-02 PR #67 merge into `test/public-website-verification`). A separate PR #68 merged that dependency base into main as `4a94dc8` during implementation. Both commits have tree `7c6b24e5fdeb31ace5db50eb165d29d78724a558` (compare reports zero changed files), so PR #69 targets main with the same tested source base. CAT-03 remains unmerged. No hosted database was accessed or migrated during the initial PR verification.
 
 ## Executed checks
 
@@ -15,6 +15,12 @@
 - Source/diff review found no edits to prior migration files, dependency versions/lockfile, provider transport, webhook/finalization processing, public ranking queries or performance-video implementation. The payment changes are restricted to the approved hierarchy reservation/snapshot/retry boundary and future-write guards. Existing financial rows are not backfilled or rewritten.
 
 Every database was a newly created guarded loopback test target. Temporary servers were stopped after verification; financial rows and provider fakes existed only inside those targets. The original checkout and its unrelated local modifications were preserved.
+
+## Development rollout and slug follow-up (19 November)
+
+Following separate user approval, the two additive category migrations were applied to the configured development database. Before/after fingerprints matched for all 13 existing tables. Four legacy contestants were preserved without inferred assignments. Historical migration checksum differences were verified as line endings only; no historical files or checksum records were rewritten. The separately gated NOT NULL artifact was not applied. The local app now runs this feature branch with Paystack disabled.
+
+The reported category slug validation issue was corrected by automatically suggesting a slug from the name for new categories/subcategories, normalizing manual entries on blur and adding linked format guidance and a useful native validation message. Editing a name keeps an existing or manually chosen slug. All 60 frontend tests, lint and TypeScript passed; the running category route compiled and returned HTTP 200. No authenticated browser interaction is claimed for this follow-up.
 
 ## Limits and release gate
 
