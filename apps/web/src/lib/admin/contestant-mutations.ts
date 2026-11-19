@@ -2,9 +2,7 @@ import { managedContestantSchema } from "./contestant-schemas";
 export class ContestantMutationError extends Error {
   constructor(message: string, readonly fields: Record<string, string> = {}, readonly status = 400) { super(message); }
 }
-export function suggestSlug(name: string) {
-  return name.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 120).replace(/-$/, "");
-}
+export { suggestSlug } from "./slug";
 export async function saveContestant(input: object, id?: string) {
   let response: Response;
   try {
@@ -20,7 +18,7 @@ export async function saveContestant(input: object, id?: string) {
   try { result = await response.json(); } catch { throw new ContestantMutationError("The server could not complete this request. Try again.", {}, 503); }
   if (!response.ok) {
     const fields: Record<string, string> = {};
-    for (const detail of Array.isArray(result.details) ? result.details : []) if (detail && ["name", "number", "slug", "bio", "imageUrl", "isActive"].includes(detail.field) && typeof detail.message === "string") fields[detail.field] = detail.message;
+    for (const detail of Array.isArray(result.details) ? result.details : []) if (detail && ["name", "number", "slug", "bio", "imageUrl", "isActive", "categoryId", "subcategoryId"].includes(detail.field) && typeof detail.message === "string") fields[detail.field] = detail.message;
     for (const detail of Array.isArray(result.details) ? result.details : []) {
       if (detail && ["videoUrls", "videoUrls.0", "videoUrls.1"].includes(detail.field) && typeof detail.message === "string") fields[detail.field] = detail.message;
     }
@@ -28,7 +26,8 @@ export async function saveContestant(input: object, id?: string) {
     if (result.code === "CONTESTANT_SLUG_EXISTS") fields.slug = "This slug is already used in this competition.";
     if (result.code === "CONTESTANT_VIDEO_CONFLICT") fields.videoUrls = "The performance videos changed. Reload and try again.";
     const message = response.status === 403 ? "Your request expired. Try saving again." : response.status === 404 ? "This contestant or competition is no longer available." : response.status >= 500 ? "The server is temporarily unavailable. Your changes have not been confirmed." : "Check the highlighted fields and try again.";
-    throw new ContestantMutationError(message, fields, response.status);
+    const assignments: Record<string, string> = { ASSIGNMENT_HISTORY_LOCKED: "Payment or voting history locks this assignment. It cannot be moved by an ordinary edit.", ASSIGNMENT_CHANGED: "The assignment changed. Reload before saving.", INITIAL_ASSIGNMENT_REQUIRED: "Use the reviewed initial-classification workflow for this contestant.", ASSIGNMENT_UNAVAILABLE: "Choose an active category and its active subcategory.", RESULTS_ALREADY_PUBLISHED: "Published results lock contestant membership." };
+    throw new ContestantMutationError(assignments[result.code] || message, fields, response.status);
   }
   const parsed = managedContestantSchema.safeParse(result.data);
   if (!parsed.success) throw new ContestantMutationError("The server returned an unexpected response. Reload the list before retrying.", {}, 503);

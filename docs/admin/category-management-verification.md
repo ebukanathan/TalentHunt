@@ -1,6 +1,6 @@
 # CAT-02 verification
 
-18 November 2026 (Africa/Lagos), issue [#63](https://github.com/ebukanathan/TalentHunt/issues/63), branch `feat/cat-02-admin-taxonomy`, base `29596e2` (the approved CAT-01 merge into `test/public-website-verification`). This branch changes only CAT-02 relative to that base. Main and the earlier open PR stack remain untouched; no CAT-02 merge is authorized yet.
+18 November 2026 (Africa/Lagos), issue [#63](https://github.com/ebukanathan/TalentHunt/issues/63), branch `feat/cat-02-admin-taxonomy`, base `29596e2` (the approved CAT-01 merge into `test/public-website-verification`). This branch changes only CAT-02 relative to that base. Main and the earlier open PR stack remain untouched; CAT-02 was subsequently approved and PR #67 merged into the declared dependency base as `a6c78e1`; this is not a main merge or deployment.
 
 ## Executed checks
 

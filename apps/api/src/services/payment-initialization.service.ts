@@ -24,8 +24,14 @@ export class PaymentInitializationService implements PaymentInitializationApi {
     );
     if (initialization.requestHash !== requestHash) throw new HttpError(409, "IDEMPOTENCY_CONFLICT", "Idempotency key was already used for a different request.");
     const payment = initialization.payment;
+    if (!payment.scope || payment.scope.competitionId !== payment.competitionId || payment.scope.contestantId !== payment.contestantId || payment.scope.packageId !== payment.packageId)
+      throw new HttpError(409, "LEGACY_PAYMENT_SCOPE_REVIEW_REQUIRED", "This unscoped legacy selection requires reconciliation. It cannot be dispatched or reinterpreted automatically.");
     if (payment.status !== "PENDING") throw new HttpError(409, "PAYMENT_NOT_PENDING", "This payment cannot be initialized again.");
     if (!created) {
+      if (this.competitionSlug) {
+        const competition = await this.database.competition.findUnique({ where: { id: payment.competitionId }, select: { slug: true } });
+        if (competition?.slug !== this.competitionSlug) throw new HttpError(404, "SELECTION_NOT_FOUND", "Contestant or package is unavailable.");
+      }
       if (initialization.state === "READY" && initialization.authorizationUrl) {
         return { httpStatus: 200, data: { reference: payment.reference, authorizationUrl: initialization.authorizationUrl } };
       }

@@ -9,6 +9,7 @@ import { provisionInitialAdmin } from "../src/auth/provision";
 import { readAdminConfiguration } from "../src/config/admin";
 import { AdminAuthService } from "../src/services/admin-auth.service";
 import { PublicReadService } from "../src/services/public.service";
+import { taxonomyFixture } from "./taxonomy-fixture";
 
 test("ADMIN-04 protected settings and immutable financial history on real HTTP/PostgreSQL",{timeout:120000},async t=>{
   assert.notEqual(process.env.NODE_ENV,"production");
@@ -41,6 +42,7 @@ test("ADMIN-04 protected settings and immutable financial history on real HTTP/P
       assert.equal((await request(root+"/competition")).status,404);
     });
     await db.competition.create({data:{id:"settings-show",name:"Draft fixture",slug:"settings-show"}});
+    const assignment = await taxonomyFixture(db, "settings-show");
     await db.competition.create({data:{id:"other-show",name:"Other",slug:"other-show",status:"OPEN",createdAt:new Date(Date.now()+86400000)}});
     await db.votePackage.create({data:{id:"foreign-package",competitionId:"other-show",name:"Other",voteCount:1,priceKobo:5000}});
     const getCompetition=async()=>(await request(root+"/competition")).body.data;
@@ -49,7 +51,7 @@ test("ADMIN-04 protected settings and immutable financial history on real HTTP/P
     await t.test("draft remains manageable privately without leaking through public competition/contestant/package APIs",async()=>{
       assert.equal((await getCompetition()).status,"DRAFT");assert.equal((await request("/api/v1/competition")).status,404);
       assert.deepEqual((await request("/api/v1/contestants")).body.data,[]);assert.deepEqual((await request("/api/v1/vote-packages")).body.data,[]);
-      assert.equal((await request(root+"/contestants","POST",{name:"Performer",number:"001",slug:"performer"})).status,201);
+      assert.equal((await request(root+"/contestants","POST",{name:"Performer",number:"001",slug:"performer",...assignment})).status,201);
     });
     await t.test("invalid prices, votes and attribution are rejected without records",async()=>{
       for(const extra of [{priceNgn:"49.99"},{priceNgn:"50.001"},{priceNgn:"1e4"},{priceNgn:50},{voteCount:0},{voteCount:-1},{voteCount:1.1},{competitionId:"other-show"},{currency:"USD"},{priceKobo:1}])assert.equal((await request(root+"/vote-packages","POST",{...validPackage,...extra})).status,400);

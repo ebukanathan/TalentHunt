@@ -153,11 +153,22 @@ async function main() {
     const newForm = await (await request("/admin/contestants/new")).text();
     assert.match(newForm, /Register contestant/); assert.match(newForm, /id="number"/); assert.doesNotMatch(newForm, /type="file"/);
     assert.match(newForm, /id="videoUrls\.0"/); assert.match(newForm, /id="videoUrls\.1"/);
-    const input = { name: "Web Performer", number: "001", slug: "web-performer", isActive: false };
+    const input = { name: "Web Performer", number: "001", slug: "web-performer", isActive: false, categoryId: category.id, subcategoryId: subcategory.id };
     assert.equal((await request("/api/admin/contestants", "POST", input)).status, 403);
     const created = await request("/api/admin/contestants", "POST", input, await csrf());
     assert.equal(created.status, 201); const person = (await created.json()).data;
     assert.equal(person.totalVotes, "0");
+    assert.match(newForm, /id="categoryId"/); assert.match(newForm, /id="subcategoryId"/);
+    await db.contestant.create({ data: { id: "legacy-web", competitionId: "web-show", number: "legacy-002", name: "Legacy web fixture", slug: "legacy-web", isActive: false } });
+    assert.match(await (await request("/admin/assignments")).text(), /Legacy web fixture/);
+    assert.match(await (await request("/admin/contestants/legacy-web/assignment")).text(), /Confirm initial classification/);
+    const initial = (await (await request("/api/admin/contestants/legacy-web/initial-assignment")).json()).data;
+    assert.equal((await request("/api/admin/contestants/legacy-web/initial-assignment", "POST", { categoryId: category.id, subcategoryId: subcategory.id,
+      expectedAssignmentRevision: initial.contestant.assignmentRevision, expectedReviewToken: initial.history.reviewToken,
+      reason: "Reviewed explicit legacy mapping", confirmationNumber: "legacy-002" }, await csrf())).status, 200);
+    const setup = (await (await request("/api/admin/competition/category-setup")).json()).data;
+    assert.match(await (await request("/admin/category-setup")).text(), /Confirm category setup/);
+    assert.equal((await request("/api/admin/competition/confirm-category-setup", "POST", { competitionId: "web-show", expectedReviewToken: setup.reviewToken, confirmationName: setup.competition.name }, await csrf())).status, 200);
     assert.equal((await request("/api/admin/contestants", "POST", input, await csrf())).status, 409);
     assert.equal((await request(`/api/admin/contestants/${person.id}`, "PATCH", { totalVotes: 999 }, await csrf())).status, 400);
     assert.equal((await request(`/api/admin/contestants/${person.id}`, "PATCH", { bio: "x".repeat(40000) }, await csrf())).status, 413);
@@ -249,16 +260,16 @@ async function main() {
     const listing = await (await request("/contestants")).text(); assert.ok(listing.includes(photoUrl));
     const removed = await request(`/api/admin/contestants/${person.id}/image`, "DELETE", {}, await csrf());
     assert.equal(removed.status, 200); assert.equal((await removed.json()).data.imageUrl, null);
-    assert.equal((await request(`/api/admin/contestants/${person.id}`, "PATCH", { isActive: false }, await csrf())).status, 200);
-    const publicInactive = await fetch(`http://127.0.0.1:${apiPort}/api/v1/contestants`); assert.equal((await publicInactive.json()).data.length, 0);
-    const hidden = await (await request(`/contestants/${person.id}`)).text(); assert.ok(!hidden.includes(photoUrl)); assert.match(hidden, /Contestant unavailable|NEXT_HTTP_ERROR_FALLBACK;404/);
-    assert.equal((await request(`/share/contestants/${person.id}`)).status, 404);
-    assert.ok(!(await (await request("/sitemap.xml")).text()).includes(`/contestants/${person.id}`));
+    assert.equal((await request(`/api/admin/contestants/${person.id}`, "PATCH", { isActive: false }, await csrf())).status, 409);
+    const publicInactive = await fetch(`http://127.0.0.1:${apiPort}/api/v1/contestants`); assert.deepEqual((await publicInactive.json()).data.map((item: { id: string }) => item.id), [person.id]);
+    const hidden = await (await request("/contestants/legacy-web")).text(); assert.ok(!hidden.includes(photoUrl)); assert.match(hidden, /Contestant unavailable|NEXT_HTTP_ERROR_FALLBACK;404/);
+    assert.equal((await request("/share/contestants/legacy-web")).status, 404);
+    assert.ok(!(await (await request("/sitemap.xml")).text()).includes("/contestants/legacy-web"));
     assert.equal(await db.auditLog.count({ where: { action: "CONTESTANT_CREATED" } }), 1);
-    assert.equal(await db.auditLog.count({ where: { action: "CONTESTANT_STATUS_CHANGED" } }), 2);
+    assert.equal(await db.auditLog.count({ where: { action: "CONTESTANT_STATUS_CHANGED" } }), 1);
     const overviewResponse = await request("/api/admin/overview"), overview = (await overviewResponse.json()).data;
     assert.match(overviewResponse.headers.get("cache-control")!, /private.*no-store/);
-    assert.deepEqual(overview.counts, { totalContestants: 1, activeContestants: 0, activePackages: 0 });
+    assert.deepEqual(overview.counts, { totalContestants: 2, activeContestants: 1, activePackages: 0 });
     assert.ok(overview.recentActivity.some((item: {action: string}) => item.action === "CONTESTANT_IMAGE_REMOVED"));
     assert.ok(overview.recentActivity.length <= 10);
     const dashboard = await (await request("/admin")).text();

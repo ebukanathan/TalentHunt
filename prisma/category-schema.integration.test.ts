@@ -40,7 +40,7 @@ async function legacySnapshot(db: PrismaClient) {
   const snapshot: Record<string, unknown> = {};
   for (const name of oldTables) {
     // Identifiers are the fixed allowlist above, never user input.
-    const projection = name === "Competition" ? "to_jsonb(t) - 'categorySetupCompletedAt'"
+    const projection = name === "Competition" ? "to_jsonb(t) - 'categorySetupCompletedAt' - 'categoryIntegrityEnabledAt'"
       : name === "Contestant" ? "to_jsonb(t) - 'categoryId' - 'subcategoryId' - 'assignmentRevision'" : "to_jsonb(t)";
     // Compare JSON text, not parsed JSON numbers: legacy BigInt totals must not
     // silently round through JavaScript's Number during the preservation check.
@@ -119,12 +119,20 @@ test("CAT-01 hierarchy constraints on a fresh isolated PostgreSQL database", { t
       }
       await postgresRejects(db.$executeRaw`UPDATE "Contestant" SET "categoryId" = 'cat-a' WHERE id = 'unassigned'`, "23514");
       await postgresRejects(db.$executeRaw`UPDATE "Contestant" SET "subcategoryId" = 'sub-a' WHERE id = 'unassigned'`, "23514");
-      await postgresRejects(db.$executeRaw`UPDATE "Contestant" SET "assignmentRevision" = 0 WHERE id = 'unassigned'`, "23514");
+      await db.$executeRaw`UPDATE "Contestant" SET "assignmentRevision" = 0 WHERE id = 'unassigned'`;
+      assert.equal((await db.contestant.findUniqueOrThrow({ where: { id: "unassigned" } })).assignmentRevision, 1);
     });
     await t.test("composite FK rejects cross-parent and cross-competition contestant assignments", async () => {
-      await postgresRejects(db.contestant.update({ where: { id: "unassigned" }, data: { categoryId: "cat-a", subcategoryId: "sub-b" } }), "P2003");
-      await postgresRejects(db.contestant.update({ where: { id: "unassigned" }, data: { categoryId: "cat-foreign", subcategoryId: "sub-foreign" } }), "P2003");
-      await db.contestant.update({ where: { id: "unassigned" }, data: { categoryId: "cat-a", subcategoryId: "sub-a" } });
+      await postgresRejects(db.contestant.create({ data: { competitionId: "a", number: "bad-a", name: "Bad", slug: "bad-a", categoryId: "cat-a", subcategoryId: "sub-b" } }), "P2003");
+      await postgresRejects(db.contestant.create({ data: { competitionId: "a", number: "bad-b", name: "Bad", slug: "bad-b", categoryId: "cat-foreign", subcategoryId: "sub-foreign" } }), "P2003");
+      await db.adminUser.create({ data: { id: "schema-fixture-admin", email: "schema@example.com", passwordHash: "fixture-only" } });
+      await db.$transaction(async tx => {
+        await tx.$queryRaw`SELECT set_config('talenthunt.initial_assignment', 'unassigned', true)`;
+        const [transaction] = await tx.$queryRaw<{ id: string }[]>`SELECT txid_current()::text AS id`;
+        await tx.contestant.update({ where: { id: "unassigned" }, data: { categoryId: "cat-a", subcategoryId: "sub-a" } });
+        await tx.auditLog.create({ data: { adminId: "schema-fixture-admin", action: "CONTESTANT_INITIAL_ASSIGNED", entityType: "Contestant", entityId: "unassigned",
+          details: { transactionId: transaction.id, after: { categoryId: "cat-a", subcategoryId: "sub-a" }, reason: "Explicit isolated fixture classification" } } });
+      });
       // PostgreSQL 18 reports RESTRICT as 23001; earlier versions use 23503.
       // Raw execution preserves SQLSTATE rather than Prisma's unknown-error wrapper.
       await postgresRejects(db.$executeRaw`DELETE FROM "Subcategory" WHERE id = 'sub-a'`, ["23001", "23503"]);
@@ -156,8 +164,8 @@ test("CAT-01 hierarchy constraints on a fresh isolated PostgreSQL database", { t
       await postgresRejects(db.$executeRaw`UPDATE "PaymentScope" SET "subcategoryId" = 'sub-b' WHERE "paymentId" = 'pay-a'`, "23514");
       await postgresRejects(db.$executeRaw`DELETE FROM "PaymentScope" WHERE "paymentId" = 'pay-a'`, "23514");
       await postgresRejects(db.$executeRawUnsafe('TRUNCATE "PaymentScope"'), "23514");
-      await postgresRejects(db.$executeRaw`UPDATE "Contestant" SET "categoryId" = 'cat-b', "subcategoryId" = 'sub-b' WHERE id = 'unassigned'`, ["23001", "23503"]);
-      await postgresRejects(db.$executeRaw`UPDATE "Contestant" SET "categoryId" = NULL, "subcategoryId" = NULL WHERE id = 'unassigned'`, ["23001", "23503"]);
+      await postgresRejects(db.$executeRaw`UPDATE "Contestant" SET "categoryId" = 'cat-b', "subcategoryId" = 'sub-b' WHERE id = 'unassigned'`, ["23001", "23503", "23514"]);
+      await postgresRejects(db.$executeRaw`UPDATE "Contestant" SET "categoryId" = NULL, "subcategoryId" = NULL WHERE id = 'unassigned'`, ["23001", "23503", "23514"]);
       await postgresRejects(db.$executeRaw`UPDATE "Payment" SET "contestantId" = 'second' WHERE id = 'pay-a'`, ["23001", "23503"]);
       await postgresRejects(db.$executeRaw`DELETE FROM "Payment" WHERE id = 'pay-a'`, ["23001", "23503"]);
       // Monetary/status changes do not change scope identity.
@@ -171,7 +179,7 @@ test("CAT-01 upgrades real legacy rows without reclassification or financial/med
   const url = target("CATEGORY_UPGRADE_TEST_DATABASE_URL", "upgrade");
   assert.notEqual(url, target("CATEGORY_SCHEMA_TEST_DATABASE_URL", "fresh"));
   const db = new PrismaClient({ datasources: { db: { url } } });
-  const historical = readdirSync(migrationRoot).filter(name => /^\d/.test(name) && name !== migration).sort();
+  const historical = readdirSync(migrationRoot).filter(name => /^\d/.test(name) && name < migration).sort();
   const checksums = Object.fromEntries(historical.map(name => [name, createHash("sha256").update(readFileSync(join(migrationRoot, name, "migration.sql"))).digest("hex")]));
   try {
     const tables = await db.$queryRaw<{ name: string }[]>`SELECT tablename AS name FROM pg_tables WHERE schemaname = 'public'`;
@@ -217,7 +225,7 @@ test("CAT-01 upgrades real legacy rows without reclassification or financial/med
       assert.ok(people.every(person => person.categoryId === null && person.subcategoryId === null && person.assignmentRevision === 1));
       assert.ok((await db.competition.findMany()).every(show => show.categorySetupCompletedAt === null));
       const applied = await db.$queryRaw<{ migration_name: string; checksum: string }[]>`SELECT migration_name, checksum FROM "_prisma_migrations" WHERE finished_at IS NOT NULL`;
-      assert.equal(applied.length, historical.length + 1);
+      assert.equal(applied.length, readdirSync(migrationRoot).filter(name => /^\d/.test(name)).length);
       for (const name of historical) assert.equal(applied.find(row => row.migration_name === name)?.checksum, checksums[name]);
     });
     await t.test("a repeated deploy is a no-op and custom guards survive migration replay", async () => {

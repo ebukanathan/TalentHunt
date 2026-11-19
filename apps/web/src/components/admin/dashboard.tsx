@@ -9,6 +9,8 @@ export async function DashboardShell({ children }: { children: React.ReactNode }
       <Link prefetch={false} href="/admin">Overview</Link>
       <Link prefetch={false} href="/admin/contestants">Contestants</Link>
       <Link prefetch={false} href="/admin/categories">Categories</Link>
+      <Link prefetch={false} href="/admin/assignments">Pending assignments</Link>
+      <Link prefetch={false} href="/admin/category-setup">Category setup</Link>
       <Link prefetch={false} href="/admin/competition">Competition</Link>
       <Link prefetch={false} href="/admin/leaderboard">Leaderboard</Link>
       <Link prefetch={false} href="/admin/vote-packages">Vote Packages</Link>

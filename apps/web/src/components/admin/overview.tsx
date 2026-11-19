@@ -5,6 +5,8 @@ import { formatVotes } from "@/lib/format";
 import { OverviewRetry } from "./overview-retry";
 
 const actions = {
+  CATEGORY_SETUP_CONFIRMED: "Category setup confirmed", CATEGORY_SETUP_INVALIDATED: "Category setup requires review",
+  CONTESTANT_INITIAL_ASSIGNED: "Contestant initially classified", CONTESTANT_ASSIGNMENT_CHANGED: "Contestant assignment changed",
   LEADERBOARD_VISIBILITY_CHANGED: "Leaderboard visibility changed", RESULTS_PUBLISHED: "Final results published",
   COMPETITION_UPDATED: "Competition settings updated", CONTESTANT_CREATED: "Contestant registered",
   CONTESTANT_UPDATED: "Contestant details updated", CONTESTANT_STATUS_CHANGED: "Contestant active status changed",
@@ -52,6 +54,7 @@ export function OverviewContent({ data }: { data: OverviewData }) {
         <Link href="/admin/contestants?status=active">View active contestants</Link><Link href="/admin/vote-packages">Manage vote packages</Link>
         <Link href="/admin/competition">Competition settings</Link>
         <Link href="/admin/categories">Manage categories</Link>
+        <Link href="/admin/assignments">Review pending assignments</Link><Link href="/admin/category-setup">Confirm category setup</Link>
       </div>
     </nav>
     <section className="admin-panel" aria-labelledby="overview-financials"><h2 id="overview-financials">Payment records</h2>

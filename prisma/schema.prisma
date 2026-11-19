@@ -54,6 +54,8 @@ model Competition {
   resultsPublishedAt DateTime?
   // NULL until an administrator reviews the category rollout (CAT-03).
   categorySetupCompletedAt DateTime?
+  // One-way financial integrity cutover; readiness may later be invalidated.
+  categoryIntegrityEnabledAt DateTime?
 
   categories  Category[]
   contestants Contestant[]
@@ -248,6 +250,7 @@ model PaymentScope {
   @@unique([paymentId, competitionId, contestantId, packageId], map: "PaymentScope_payment_identity_key")
   @@index([competitionId, categoryId, subcategoryId, contestantId], map: "PaymentScope_assignment_idx")
   @@index([competitionId, packageId])
+  @@index([contestantId])
 }
 
 // One permanent retry capability and at most one provider dispatch per payment.

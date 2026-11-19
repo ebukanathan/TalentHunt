@@ -1,11 +1,11 @@
 # Dynamic competition categories and subcategories
 
-Prepared 18 November 2026 (Africa/Lagos). **Design and CAT-01 approved by the user, followed by approval of its review gate and continuation on 18 November 2026.** CAT-01 PR #66 merged into its declared dependency branch as `29596e2`; main and the earlier PR stack remain unmerged. CAT-02 is implemented on `feat/cat-02-admin-taxonomy` for its separate review. CAT-03 through CAT-05 remain Backlog. See the [CAT-01 migration runbook](../database/category-hierarchy.md) and [CAT-02 admin contract](../admin/category-management.md).
+Prepared 18 November 2026 (Africa/Lagos). **Design and CAT-01 approved by the user, followed by approval of its review gate and continuation on 18 November 2026.** CAT-01 PR #66 merged into its declared dependency branch as `29596e2`; a separate PR #68 later integrated that dependency branch and its foundation into main as `4a94dc8` on 18 November. CAT-02 PR #67 was subsequently approved and merged into the same dependency branch as `a6c78e1`. CAT-03 is implemented on `feat/cat-03-contestant-assignment` in PR #69 targeting main for separate review (its tested `a6c78e1` base has the same tree as `4a94dc8`); CAT-04 and CAT-05 remain Backlog. See the [CAT-01 migration runbook](../database/category-hierarchy.md) and [CAT-02 admin contract](../admin/category-management.md).
 
 ## Inspection and baseline
 
 - The open checkout is the older ADMIN-05 branch with unrelated uncommitted login, timeout and date-picker fixes. Preserve it.
-- GitHub main is `fac86b2`: ADMIN-05 #41 / PR #45 and contestant videos #46 / PR #47 are merged. The earlier session recap based only on the open checkout was incomplete.
+- At initial inspection, GitHub main was `fac86b2`: ADMIN-05 #41 / PR #45 and contestant videos #46 / PR #47 are merged. The earlier session recap based only on the open checkout was incomplete.
 - Visibility/publication is implemented in open PR #48 (`a3b4ed0`); public refinements are stacked in open PRs #54-#61, ending at `8082369`. Inspected their schema, public/admin services, routes, validation, pages, test structure and documentation. These are foundations under review, not approved category support or merged delivery.
 - Current models have Competition -> Contestant, competition-wide packages, Payment and VoteAllocation. Videos are separate ordered ContestantVideo records constrained to zero to two. The visibility branch adds competition-wide LIVE/RANK_ONLY/HIDDEN and confirmed result publication, but ranks the entire competition.
 - Read `apps/web/AGENTS.md` in the open and relevant worktree checkouts. Before future Next.js edits, read the installed version's relevant local guides as instructed there.
@@ -20,7 +20,7 @@ Competition -> many Categories -> many Subcategories -> many Contestants. A cont
 | Category | `id`, `competitionId`, `name`, database-maintained normalized `nameKey`, `slug`, `isActive`, `sortOrder`, `revision`, `createdAt`, `updatedAt`; Competition FK; child Subcategories |
 | Subcategory | Same identity, name, status, order, revision and timestamp fields; `competitionId`, `categoryId`; composite Category FK |
 | Contestant | Retain existing fields, videos and relationships; add `categoryId`, `subcategoryId`, assignment revision; composite Subcategory FK |
-| Competition | Add nullable `categorySetupCompletedAt` as an audited rollout gate; retain visibility, lifecycle and publication fields and their existing defaults/values |
+| Competition | Add nullable `categorySetupCompletedAt` as an audited readiness gate and one-way `categoryIntegrityEnabledAt` for durable future-write enforcement; retain visibility, lifecycle and publication fields and their existing defaults/values |
 | PaymentScope | Add immutable, optional one-to-one companion to Payment: `paymentId`, `competitionId`, `categoryId`, `subcategoryId`, `contestantId`, `packageId`, `createdAt`; existing payments remain explicitly legacy-unscoped |
 
 Category uniqueness: `(competitionId, nameKey)` and `(competitionId, slug)`. Subcategory uniqueness: `(competitionId, categoryId, nameKey)` and `(competitionId, categoryId, slug)`. Normalize trimming, repeated whitespace and case consistently in the database and API; retain the administrator's display capitalization. Inactive records reserve their names/slugs. Identical child names under different parents are valid. Names can change; stable IDs and explicitly managed slugs preserve links.
@@ -64,7 +64,7 @@ Keep `/api/v1`, the selected-competition policy, existing success/error envelope
 | `GET/PATCH /admin/categories/:categoryId/subcategories/:subcategoryId` | Detail and edit with expected revision; verify the full ancestry. |
 | Existing `POST/PATCH /admin/contestants` and `/:id` | Creation requires categoryId + subcategoryId. PATCH validates a complete resulting pair and revision; may omit unchanged assignment fields for ordinary profile edits. Preserve images and ordered videos. |
 | `POST /admin/contestants/:id/initial-assignment` | Explicit legacy-only classification: target IDs, expected revision, reason and history confirmation; never a general force-move endpoint. |
-| `POST /admin/competition/confirm-category-setup` | Audited explicit setup completion with expected competition revision and reviewed assignment state. |
+| `POST /admin/competition/confirm-category-setup` | Audited explicit setup completion with opaque expectedReviewToken over current competition, taxonomy and assignment state, plus exact competition-name confirmation. |
 | `GET /categories`, `GET /categories/:categoryId` | Active categories for the selected public competition; include IDs, display names, slugs and order, no ranking aggregates. |
 | `GET /categories/:categoryId/subcategories`, `GET /categories/:categoryId/subcategories/:subcategoryId` | Active children only when the parent is active and belongs to the selected competition. |
 | `GET /contestants`, `GET /contestant-cards` | Optional categoryId; optional subcategoryId requires categoryId. Validate ancestry, filter before count/pagination, include safe category/subcategory summaries. Unfiltered roster order remains contestant number/ID, never overall vote order. Preserve the existing full-list versus bounded-card response shapes. |
@@ -110,7 +110,7 @@ Do not merge PR #48's flat ranking as acceptance of this scope. Preserve its pri
 | CAT-04 | #65 | `feat/cat-04-public-categories` | Dynamic discovery/navigation, scoped filtering/cards/profiles and safe metadata |
 | CAT-05 | #32 | `feat/cat-05-scoped-leaderboards` | Scoped public/admin rankings, visibility redaction, publication and isolation |
 
-Project workstream remains `0. Categories and subcategories`, all five P0. CAT-01 is accepted/Done after its approved dependency-branch merge; CAT-02 is In Progress, and CAT-03 through CAT-05 are Backlog with dependencies. Earlier open review PRs remain open and are not marked complete. Payment-dependent issues stay Backlog in their Paused workstream.
+Project workstream remains `0. Categories and subcategories`, all five P0. CAT-01 is accepted/Done after its approved dependency-branch merge; CAT-02 is accepted/Done after approved dependency merge #67; CAT-03 is In Progress awaiting its separate review, and CAT-04/CAT-05 are Backlog with dependencies. PR #68 separately integrated the foundation source into main; broader unfinished manual/security/release acceptance is not marked complete by CAT-03. Payment-dependent issues stay Backlog in their Paused workstream.
 
 Implement one issue at a time, run its checks, open a linked PR with scope/dependency/verification evidence, then stop at the review gate before proceeding to the next implementation issue. Never merge without approval. User approval authorizes CAT-01 implementation and disposable local migration tests; it does not authorize a hosted migration or resumed payment processing.
 

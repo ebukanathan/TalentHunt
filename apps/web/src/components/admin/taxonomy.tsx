@@ -3,9 +3,11 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 import type { TaxonomyImpact, TaxonomyListData, TaxonomyRecord } from "@/lib/admin/taxonomy-schemas";
 import { saveTaxonomy, TaxonomyMutationError } from "@/lib/admin/taxonomy-mutations";
+import { suggestSlug } from "@/lib/admin/slug";
 
 export function TaxonomyForm({ item, categoryId, impact, locked = false }: { item?: TaxonomyRecord; categoryId?: string; impact?: TaxonomyImpact; locked?: boolean }) {
   const [values, setValues] = useState({ name: item?.name || "", slug: item?.slug || "", sortOrder: String(item?.sortOrder ?? 0), isActive: item?.isActive ?? true });
+  const [slugEdited, setSlugEdited] = useState(Boolean(item));
   const [busy, setBusy] = useState(false), [error, setError] = useState(""), [fields, setFields] = useState<Record<string, string>>({});
   const summary = useRef<HTMLDivElement>(null), prefix = item?.id || (categoryId ? "new-subcategory" : "new-category");
   const field = (name: string) => `${prefix}-${name}`, label = categoryId ? "subcategory" : "category";
@@ -29,8 +31,25 @@ export function TaxonomyForm({ item, categoryId, impact, locked = false }: { ite
         <input id={field(key)} value={values[key]} required type={key === "sortOrder" ? "number" : "text"}
           min={key === "sortOrder" ? 0 : undefined} max={key === "sortOrder" ? 2147483647 : undefined} step={key === "sortOrder" ? 1 : undefined}
           maxLength={key === "sortOrder" ? undefined : 120} pattern={key === "slug" ? "[a-z0-9]+(-[a-z0-9]+)*" : undefined}
-          aria-invalid={Boolean(fields[key])} aria-describedby={fields[key] ? `${field(key)}-error` : undefined}
-          onChange={event => setValues({ ...values, [key]: event.target.value })}/>
+          placeholder={key === "slug" ? `${label}-name` : undefined}
+          title={key === "slug" ? "Use lowercase letters, numbers and single hyphens, for example: category-name" : undefined}
+          autoCapitalize={key === "slug" ? "none" : undefined} spellCheck={key === "slug" ? false : undefined}
+          aria-invalid={Boolean(fields[key])} aria-describedby={[key === "slug" ? `${field(key)}-help` : "", fields[key] ? `${field(key)}-error` : ""].filter(Boolean).join(" ") || undefined}
+          onChange={event => {
+            const value = event.target.value;
+            event.currentTarget.setCustomValidity("");
+            if (key === "slug") setSlugEdited(true);
+            setValues(previous => ({ ...previous, [key]: value, ...(key === "name" && !slugEdited ? { slug: suggestSlug(value) } : {}) }));
+          }}
+          onBlur={key === "slug" ? event => {
+            const slug = suggestSlug(event.currentTarget.value);
+            event.currentTarget.setCustomValidity("");
+            setValues(previous => ({ ...previous, slug }));
+          } : undefined}
+          onInvalid={key === "slug" ? event => {
+            event.currentTarget.setCustomValidity(event.currentTarget.validity.patternMismatch ? "Use lowercase letters, numbers and single hyphens, for example: category-name." : "");
+          } : undefined}/>
+        {key === "slug" && <p id={`${field(key)}-help`} className="admin-field-help">{!item && "Generated from the name; you can edit it. "}Use lowercase letters, numbers and single hyphens. Spaces and capitals are converted when you leave this field.</p>}
         {fields[key] && <p id={`${field(key)}-error`} className="admin-field-error">{fields[key]}</p>}
       </div>)}
       <div className="admin-field"><label className="admin-checkbox" htmlFor={field("isActive")}><input id={field("isActive")} type="checkbox" checked={values.isActive} onChange={event => setValues({ ...values, isActive: event.target.checked })}/> Active {label}</label>

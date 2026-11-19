@@ -13,6 +13,6 @@ async function Content({ params }: { params: Promise<{ id: string }> }) {
     if (error.code === "CONTESTANT_NOT_FOUND") return <section className="admin-panel"><h1>Contestant not found</h1><p>This contestant is unavailable in the selected competition.</p><Link href="/admin/contestants">Back to contestants</Link></section>;
     return <ContestantUnavailable missingCompetition={error.code === "COMPETITION_NOT_FOUND"} />;
   }
-  return <><p className="admin-eyebrow">CONTESTANT MANAGEMENT</p><h1>Edit contestant</h1><section className="admin-panel"><ContestantForm competitionName={data.competition.name} contestant={data.contestant} /></section></>;
+  return <><p className="admin-eyebrow">CONTESTANT MANAGEMENT</p><h1>Edit contestant</h1><section className="admin-panel"><ContestantForm competitionName={data.competition.name} contestant={data.contestant} assignmentLocked={data.assignment.locked} /></section></>;
 }
 export default function EditContestant({ params }: { params: Promise<{ id: string }> }) { return <Suspense fallback={<ContestantLoading />}><Content params={params} /></Suspense>; }

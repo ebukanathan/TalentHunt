@@ -10,6 +10,7 @@ import { provisionInitialAdmin } from "../src/auth/provision";
 import { readAdminConfiguration } from "../src/config/admin";
 import { AdminAuthService } from "../src/services/admin-auth.service";
 import { PublicReadService } from "../src/services/public.service";
+import { taxonomyFixture } from "./taxonomy-fixture";
 
 const ids = ["aB0_-123456", "ZyX98765432", "abcdefghijk", "ABCDEFGHIJK", "12345678901", "98765432109"];
 const urls = (values: string[]) => values.map(id => `https://youtu.be/${id}`);
@@ -29,8 +30,10 @@ test("performance videos over protected HTTP and real PostgreSQL, including conc
   const server = createServer(createApp(new PublicReadService(db, "video-show"), undefined, new AdminAuthService(db, config)));
   const jar = new Map<string, string>();
   let csrf = "", base = "";
+  let assignment: { categoryId: string; subcategoryId: string } | undefined;
   const root = "/api/v1/admin/contestants";
   const request = async (path: string, method = "GET", body?: unknown, custom: Record<string, string> = {}) => {
+    if (path === root && method === "POST" && body && typeof body === "object" && "name" in body) body = { ...assignment, ...body };
     const headers: Record<string, string> = { Cookie: [...jar].map(([key, value]) => key + "=" + value).join("; "), ...custom };
     if (method !== "GET") {
       headers.Origin ??= config.ADMIN_APP_ORIGIN;
@@ -59,6 +62,7 @@ test("performance videos over protected HTTP and real PostgreSQL, including conc
     assert.equal((await request("/api/v1/admin/auth/login", "POST", { email: "videos@example.com", password: "A long video fixture-only password" })).status, 200);
     csrf = (await request("/api/v1/admin/auth/csrf")).body.data.csrfToken;
     await db.competition.create({ data: { id: "video-show", slug: "video-show", name: "Video fixture", status: "OPEN" } });
+    assignment = await taxonomyFixture(db, "video-show");
     await db.competition.create({ data: { id: "other-video-show", slug: "other-video-show", name: "Other" } });
     await db.contestant.create({ data: { id: "other-video-person", competitionId: "other-video-show", number: "001", slug: "other", name: "Other" } });
     const people: string[] = [];
