@@ -1,3 +1,4 @@
+import { publicScopeFixture } from "./public-scope-fixture";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -22,7 +23,7 @@ const competition: Competition = {
   votingCloses: null,
   currency: "NGN",
 };
-const contestant: Contestant = {
+const contestant: Contestant = { ...publicScopeFixture(competition.id),
   id: "person-1",
   competitionId: competition.id,
   number: "001",
@@ -337,7 +338,7 @@ test("profiles link to package selection only during an eligible window and pres
   delete hidden.totalVotes;
   const html = renderToStaticMarkup(<ContestantProfile contestant={hidden} competition={open} />);
   assert.ok(html.includes('href="/contestants/person-1/vote"'));
-  assert.ok(html.includes('href="/leaderboard"'));
+  assert.ok(html.includes('href="/leaderboard?categoryId=category&amp;subcategoryId=subcategory"'));
   assert.ok(!html.includes("9,007,199,254,740,993"));
   assert.ok(!html.includes("Performance Videos"));
   for (const state of [competition, { ...competition, status: "COMPLETED" as const }, { ...open, votingCloses: "2000-01-01T00:00:00Z" }]) {

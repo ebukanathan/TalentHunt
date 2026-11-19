@@ -1,3 +1,4 @@
+import { publicScopeFixture } from "./public-scope-fixture";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -11,7 +12,7 @@ import { saveSettings, SettingsMutationError } from "../src/lib/admin/settings-m
 import type { ManagedCompetition } from "../src/lib/admin/settings-schemas";
 
 const competition:ManagedCompetition={id:"show",name:"Show <script>",slug:"show",description:null,status:"COMPLETED",currency:"NGN",votingOpens:null,votingCloses:null,leaderboardVisibility:"HIDDEN",resultsPublishedAt:null,createdAt:"2026-11-16T00:00:00.000Z",updatedAt:"2026-11-16T00:00:00.000Z"};
-const person={id:"person",competitionId:"show",name:"Ada <script>",number:"001",slug:"ada",imageUrl:null,videos:[]};
+const person={...publicScopeFixture(),id:"person",competitionId:"show",name:"Ada <script>",number:"001",slug:"ada",imageUrl:null,videos:[]};
 const page={page:1,pageSize:25,total:1,pages:1};
 const hidden:PublicLeaderboard={competition,visibility:"HIDDEN",publishedAt:null,state:"HIDDEN",items:[],pagination:null};
 

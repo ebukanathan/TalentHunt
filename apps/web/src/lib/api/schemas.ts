@@ -2,6 +2,10 @@ import { z } from "zod";
 
 const id = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/);
 const currency = z.string().regex(/^[A-Z]{3}$/);
+export const categorySchema = z.object({ id, competitionId: id, name: z.string().min(1), slug: z.string().min(1), sortOrder: z.number().int().nonnegative() });
+export const subcategorySchema = categorySchema.extend({ categoryId: id });
+export const validAssignment = (value: { competitionId: string; category: z.infer<typeof categorySchema>; subcategory: z.infer<typeof subcategorySchema> }) =>
+  value.category.competitionId === value.competitionId && value.subcategory.competitionId === value.competitionId && value.subcategory.categoryId === value.category.id;
 export const youtubeVideoIdSchema = z.string().regex(/^[A-Za-z0-9_-]{11}$/);
 export const contestantVideoSchema = z.object({
   id,
@@ -34,7 +38,10 @@ export const contestantSchema = z.object({
   imageUrl: z.string().nullable(),
   totalVotes: z.string().regex(/^(0|[1-9][0-9]*)$/).optional(),
   videos: contestantVideos,
+  category: categorySchema,
+  subcategory: subcategorySchema,
 });
+export const publicContestantSchema = contestantSchema.refine(validAssignment, "Invalid contestant category assignment.");
 export const votePackageSchema = z.object({
   id,
   competitionId: id,
@@ -44,7 +51,7 @@ export const votePackageSchema = z.object({
   currency,
 });
 export const contestantIdSchema = id;
-export const contestantCardSchema = contestantSchema.pick({ id: true, competitionId: true, number: true, name: true, imageUrl: true, totalVotes: true });
+export const contestantCardSchema = contestantSchema.pick({ id: true, competitionId: true, number: true, name: true, imageUrl: true, totalVotes: true, category: true, subcategory: true });
 export const contestantCardsSchema = z.object({
   competitionId: id.nullable(), items: z.array(contestantCardSchema).max(24),
   pagination: z.object({ page: z.number().int().positive().max(100000), pageSize: z.number().int().positive().max(24), total: z.number().int().nonnegative(), pages: z.number().int().nonnegative() }),
@@ -52,7 +59,7 @@ export const contestantCardsSchema = z.object({
   const { page, pageSize, total, pages } = data.pagination;
   if (pages !== Math.ceil(total / pageSize) || data.items.length !== Math.max(0, Math.min(pageSize, total - (page - 1) * pageSize)) ||
       (data.competitionId === null && total !== 0) || new Set(data.items.map(item => item.id)).size !== data.items.length ||
-      data.items.some(item => item.competitionId !== data.competitionId)) {
+      data.items.some(item => item.competitionId !== data.competitionId || !validAssignment(item))) {
     context.addIssue({ code: "custom", message: "Inconsistent contestant page." });
   }
 });

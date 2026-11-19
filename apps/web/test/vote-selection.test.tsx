@@ -1,3 +1,4 @@
+import { publicScopeFixture } from "./public-scope-fixture";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -10,7 +11,7 @@ const packages: VotePackage[] = [
   { id: "small", competitionId: "show", name: "Support", voteCount: 10, priceKobo: 100001, currency: "NGN" },
   { id: "large", competitionId: "show", name: "Encore", voteCount: 100, priceKobo: 999999, currency: "NGN" },
 ];
-const contestant = { name: "Test performer", number: "007", imageUrl: null };
+const contestant = { ...publicScopeFixture(), name: "Test performer", number: "007", imageUrl: null };
 const initialNow = "2026-11-01T12:30:00Z";
 
 test("changing the selected package resolves its real votes and exact NGN amount", () => {

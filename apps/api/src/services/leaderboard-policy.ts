@@ -1,7 +1,7 @@
 import type { Competition } from "@prisma/client";
 
-export function showPublicVotes(competition: Pick<Competition, "leaderboardVisibility" | "resultsPublishedAt">) {
-  return competition.resultsPublishedAt !== null || competition.leaderboardVisibility === "LIVE";
+export function showPublicVotes(competition: Pick<Competition, "leaderboardVisibility" | "resultsPublishedAt" | "categorySetupCompletedAt">) {
+  return Boolean(competition.categorySetupCompletedAt) && (competition.resultsPublishedAt !== null || competition.leaderboardVisibility === "LIVE");
 }
 
 export function publicCompetition(competition: Pick<Competition, "id" | "name" | "slug" | "description" | "status" | "votingOpens" | "votingCloses" | "currency">) {

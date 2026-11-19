@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { competitionSchema, contestantSchema } from "@/lib/api/schemas";
-export const managedContestantSchema = contestantSchema.extend({
+export const managedContestantSchema = contestantSchema.omit({ category: true, subcategory: true }).extend({
   categoryId: z.string().nullable(), subcategoryId: z.string().nullable(), assignmentRevision: z.number().int().positive(),
   subcategory: z.object({ id: z.string(), name: z.string(), isActive: z.boolean(), category: z.object({ id: z.string(), name: z.string(), isActive: z.boolean() }) }).nullable(),
   isActive: z.boolean(), createdAt: z.iso.datetime(), updatedAt: z.iso.datetime(),
