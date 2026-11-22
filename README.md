@@ -2,13 +2,13 @@
 
 A paid talent-show voting platform under development with Next.js, TypeScript, Express, Prisma, PostgreSQL/Supabase and Paystack.
 
-Current implementation: npm workspaces, the public Next.js interface, Express read API, Prisma/PostgreSQL, PAY-01 test checkout initialization, merged ADMIN-01 authentication and ADMIN-02 contestant management submitted for review. Payment finalization, paid votes, transactional confirmations, uploads and competition/package management remain roadmap work.
+The non-payment application includes authenticated administration, competition/package settings, dynamic categories and subcategories, contestant assignments, managed photographs, zero to two YouTube performance videos, grouped public listings and independent subcategory leaderboards with backend visibility controls. QA-01 integrates the completed public feature stack into a branch targeting main; review and merge still require approval. Paystack development and paid launch remain paused.
 
 Product decision (24 October 2026): checkout requires an email address for receipts, voting confirmations, transaction communication and support, with no voter OTP or verification link. Payment verification and vote allocation are independent of email delivery. See [paid voting requirements](docs/product/paid-voting-requirements.md) and the [broader Paystack, API and schema plan](docs/api/checkout-and-confirmations.md). Confirmation delivery and legacy verification removal remain proposals. Marketing requires separate appropriate consent.
 
 PAY-01 adds test-only `POST /api/v1/payments/initialize` with server-owned prices, PENDING purchase snapshots and durable retry protection. See [configuration, request examples and payment tests](docs/api/payment-initialization.md). Checkout initialization does not confirm payment, allocate votes or send email. Paystack credentials are optional as a complete configuration; when absent, public reads work and initialization returns 503.
 
-Current development priority: Admin Dashboard first; further Paystack implementation is paused. ADMIN-01 is merged in PR #36. ADMIN-02 adds `/admin/contestants`, `/admin/contestants/new` and `/admin/contestants/[id]/edit` on its feature branch for review. Sign in at `/admin/login`; see [admin setup](docs/admin/authentication.md), [contestant API/UI/testing](docs/admin/contestant-management.md) and [roadmap](docs/project-management/roadmap.md). Storage uploads and competition/package management remain later issues. No ADMIN-02 merge without approval.
+Current development priority: full non-payment integration and regression testing. Use the [QA runbook](docs/qa/non-payment-regressions.md) for guarded local tests, browser regressions, CI requirements and remaining security/staging gates. The root `npm test` runs non-payment unit checks; `npm run qa:local` runs the complete disposable PostgreSQL workflow on Windows. Existing payment code and historical migrations are preserved.
 
 ## Development setup
 
@@ -87,7 +87,7 @@ Integration tests refuse a non-empty target and never reset it. They run the rea
 - Builds: npm run build --workspace=apps/api and npm run build --workspace=apps/web
 - Schema: npx --no-install prisma validate
 
-Initial review passed API typechecking, frontend lint, schema validation and a live API health request. The configured database had the initial migration applied and no detected drift. The root test script remains a placeholder. API HTTP/database tests run with npm test --workspace=apps/api against an explicit fresh local API_TEST_DATABASE_URL; seed-specific checks are documented above. Broader application testing and CI remain tracked by T01/T02. Both API and web production builds also passed before the initial source publication; clean-checkout reproducibility remains to be verified in F04.
+Initial review passed API typechecking, frontend lint, schema validation and a live API health request. The configured database had the initial migration applied and no detected drift. The root test script now runs non-payment unit checks. Use `npm run qa:nonpayment` against the dedicated disposable localhost control database for all API/frontend/integration/browser/build checks; see the QA runbook. The legacy API `npm test --workspace=apps/api` also contains historical payment-fake suites and is not the paused-payment QA entry point. Both API and web production builds also passed before the initial source publication; clean-checkout reproducibility remains to be verified in F04.
 
 ## Architecture and roadmap
 

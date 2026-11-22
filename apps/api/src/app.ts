@@ -22,7 +22,9 @@ export function createApp(service: PublicApi, payments?: PaymentInitializationAp
   const app = express();
   app.use(helmet());
   app.use(cors({ origin: "http://localhost:3000" }));
-  app.use(express.json({ limit: "100kb" }));
+  // Browser clients send plain JSON. Reject encoded bodies before opening a
+  // decompression stream, including malformed frames sent to unknown routes.
+  app.use(express.json({ limit: "100kb", inflate: false }));
   app.set("json replacer", (_key: string, value: unknown) =>
     typeof value === "bigint" ? value.toString() : value);
 

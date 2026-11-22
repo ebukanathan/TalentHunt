@@ -22,7 +22,6 @@ try {
     SCOPED_LEADERBOARD_TEST_DATABASE_URL = 'talenthunt_scoped_leaderboard_test_images'
     PUBLIC_CATEGORIES_TEST_DATABASE_URL = 'talenthunt_public_categories_test_images'
     API_TEST_DATABASE_URL = 'talenthunt_api_test_images'
-    PAYMENTS_TEST_DATABASE_URL = 'talenthunt_payments_test_images'
     ADMIN_TEST_DATABASE_URL = 'talenthunt_admin_test_images'
     ADMIN_WEB_TEST_DATABASE_URL = 'talenthunt_admin_test_web_images'
     ADMIN_CONTESTANTS_TEST_DATABASE_URL = 'talenthunt_admin_contestants_test_images'
@@ -65,7 +64,7 @@ try {
   elseif ($PublicCategoriesOnly) { npm run test:public:categories --workspace=apps/api }
   elseif ($AssignmentsOnly) { npm run test:admin:assignments --workspace=apps/api }
   elseif ($TaxonomyOnly) { npm run test:admin:taxonomy --workspace=apps/api }
-  else { npm test --workspace=apps/api }
+  else { npm run test:nonpayment --workspace=apps/api }
   if ($LASTEXITCODE -ne 0) { throw 'API regression and image checks failed.' }
   if (!$PublicCategoriesOnly -and !$ScopedLeaderboardsOnly -and !$ApiOnly) {
   npm run test:admin:integration --workspace=apps/web

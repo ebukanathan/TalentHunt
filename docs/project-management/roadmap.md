@@ -1,6 +1,10 @@
 # TalentHunt — Non-payment development roadmap
 
-## Current priority: dynamic category hierarchy
+## Current priority: QA-01 non-payment integration
+
+QA-01 #72 integrates the completed CAT-04/CAT-05 source and regression tests onto `feat/qa-01-integration-regressions`, targeting main. PR #69 reached main before the later category/public PRs merged into their parent feature branches, so those dependent merges did not deliver public grouping or scoped rankings to main. Videos remain present. The approved QA scope adds compatible runtime security patches, a disposable non-payment test runner, desktop/mobile browser regressions and PR CI. See the [QA runbook](../qa/non-payment-regressions.md). No merge is authorized; Paystack and hosted data changes remain paused. Earlier delivery notes below retain their historical context.
+
+## Category implementation history
 
 18 November 2026: the user approved the [category design and starting CAT-01](category-scope-plan.md), then approved its review gate and continuation. CAT-01 #62 is accepted/Done after PR #66 merged into its dependency branch (`29596e2`), without merging the earlier stack into main. CAT-02 #63 is accepted/Done after its approved dependency merge #67 (`a6c78e1`). A separate PR #68 subsequently merged that dependency base into main as `4a94dc8`. CAT-03 #64 awaits review in PR #69 targeting main (the tested dependency base and main have identical trees). The 19 November expanded public requirements authorize sequential CAT-04/CAT-05 work: CAT-04 #65 is delivered in dependent PR #70 and CAT-05 #32 is delivered on a separate dependent branch for review. Combined automated checks pass: 172 API tests, 67 frontend tests, real web integration, production build/HTTP suites, lint and migration drift. All are P0 in `0. Categories and subcategories`. See the [CAT-01 migration runbook](../database/category-hierarchy.md) and [CAT-02 admin contract](../admin/category-management.md).
 
