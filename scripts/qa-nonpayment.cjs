@@ -1,5 +1,6 @@
 // Creates new disposable databases only. Never reads dotenv or drops a database.
-const { spawn } = require("node:child_process");
+const { spawn, spawnSync } = require("node:child_process");
+const { assertFinalizedFixtureDiff } = require("./qa-schema-drift.cjs");
 const { existsSync, mkdirSync } = require("node:fs");
 const { resolve, dirname, join } = require("node:path");
 const { randomBytes } = require("node:crypto");
@@ -79,7 +80,7 @@ async function main() {
   if (phase === "all") { await task("test:seed:integration"); await task("test:categories:integration"); }
   if (["all", "integration"].includes(phase)) await task("test:admin:integration", "apps/web");
   if (["all", "checks"].includes(phase)) {
-    await run(["--test", resolve(root, "test/qa-guards.test.cjs")]);
+    await run(["--test", resolve(root, "test/qa-guards.test.cjs"), resolve(root, "test/qa-schema-drift.test.cjs")]);
     await task("test", "apps/web"); await task("typecheck:seed"); await task("test:seed");
     await task("lint", "apps/web");
     await run([resolve(root, "node_modules/next/dist/bin/next"), "typegen"], resolve(root, "apps/web"));
@@ -98,7 +99,19 @@ async function main() {
   }
   for (const key of Object.keys(targets)) {
     env.DATABASE_URL = env[key];
-    await prisma("migrate", "diff", "--from-url", env.DATABASE_URL, "--to-schema-datamodel", "prisma/schema.prisma", "--exit-code");
+    const args = ["migrate", "diff", "--from-url", env.DATABASE_URL, "--to-schema-datamodel", "prisma/schema.prisma", "--exit-code"];
+    if (key === "ASSIGNMENTS_FINALIZATION_TEST_DATABASE_URL") {
+      // The existing CAT-03 test explicitly applies the gated NOT NULL contract
+      // only in this fresh fixture. Check its exact expected read-only diff;
+      // never relax those columns or skip other schema differences.
+      const result = spawnSync(process.execPath, [resolve(root, "node_modules/prisma/build/index.js"), ...args, "--script"], {
+        cwd: root, env, encoding: "utf8", windowsHide: true, timeout: 60000,
+      });
+      if (result.error) throw result.error;
+      try { assertFinalizedFixtureDiff(result.status, result.stdout); }
+      catch (error) { console.error(result.stdout); throw error; }
+      console.log("Gated finalization fixture has exactly its two expected required assignment columns.");
+    } else await prisma(...args);
   }
   console.log(`QA_NONPAYMENT_PASSED (${phase}); no provider or production credentials used.`);
 }
