@@ -1,7 +1,9 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { useHydrated } from "@/lib/admin/use-hydrated";
 
 export function ContestantImage({ id, imageUrl, name }: { id?: string; imageUrl: string | null; name: string }) {
+  const hydrated = useHydrated();
   const [current, setCurrent] = useState(imageUrl);
   const [file, setFile] = useState<File>();
   const [preview, setPreview] = useState<string>();
@@ -57,14 +59,14 @@ export function ContestantImage({ id, imageUrl, name }: { id?: string; imageUrl:
       <img src={preview || current!} alt={`${preview ? "Selected" : "Current"} photograph of ${name || "contestant"}`} width={180} height={225} /></div> : <p className="admin-muted">No photograph yet.</p>}
     {!id ? <p>Register the contestant first, then add their photograph on the editing page.</p> : <>
       <label htmlFor="image">Choose a photograph</label>
-      <input ref={input} id="image" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" disabled={busy} aria-describedby="photo-help" onChange={event => {
+      <input ref={input} id="image" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" disabled={busy || !hydrated} aria-describedby="photo-help" onChange={event => {
         const selected = event.target.files?.[0]; setError(""); setStatus("");
         if (selected && (selected.size > 5_000_000 || !/\.(jpe?g|png|webp)$/i.test(selected.name) || !["image/jpeg", "image/png", "image/webp"].includes(selected.type))) { setError("Choose a JPG, PNG or WebP photograph, 5 MB or smaller."); selectFile(undefined); event.target.value = ""; return; }
         selectFile(selected);
       }} />
       <p id="photo-help" className="admin-field-help">JPG, PNG or WebP, up to 5 MB. Photographs are checked and optimized before publication.</p>
-      <div className="admin-actions"><button className="admin-button" type="button" disabled={busy || !file} onClick={() => void change()}>{current ? "Replace photograph" : "Upload photograph"}</button>
-        {current && <button type="button" className="admin-button admin-button-secondary" disabled={busy} onClick={() => void change(true)}>Remove photograph</button>}</div>
+      <div className="admin-actions"><button className="admin-button" type="button" disabled={busy || !hydrated || !file} onClick={() => void change()}>{current ? "Replace photograph" : "Upload photograph"}</button>
+        {current && <button type="button" className="admin-button admin-button-secondary" disabled={busy || !hydrated} onClick={() => void change(true)}>Remove photograph</button>}</div>
       {busy && <progress value={progress} max={100} aria-label="Photograph upload progress" />}
     </>}
     <p role="status" aria-live="polite">{status}</p>{error && <p role="alert" className="admin-error">{error}</p>}

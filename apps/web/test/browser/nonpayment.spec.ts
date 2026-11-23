@@ -82,7 +82,10 @@ test("editing category assignment, biography and photograph preserves both perfo
   await page.getByLabel("Biography", { exact: false }).fill("Biography edited after category assignment and both performance videos.");
   await saved(page, formWith(page, "Save changes"), "Save changes");
   await page.goto(`/admin/contestants/${person.id}/edit`);
-  await page.getByLabel("Choose a photograph").setInputFiles({ name: "portrait.png", mimeType: "image/png", buffer: portrait });
+  const picker = page.getByLabel("Choose a photograph");
+  await expect(picker).toBeEnabled();
+  await picker.setInputFiles({ name: "portrait.png", mimeType: "image/png", buffer: portrait });
+  await expect(page.getByRole("button", { name: "Upload photograph", exact: true })).toBeEnabled();
   await page.getByRole("button", { name: "Upload photograph", exact: true }).click();
   await expect(page.getByText("Photograph saved.", { exact: true })).toBeVisible();
   await page.goto(`/contestants/${person.id}`);

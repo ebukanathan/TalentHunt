@@ -6,7 +6,7 @@ export default defineConfig({
   expect: { timeout: 20000 },
   reporter: [["list"], ["html", { outputFolder: "../../artifacts/qa/playwright-report", open: "never" }]],
   outputDir: "../../artifacts/qa/browser-results",
-  use: { baseURL: `https://127.0.0.1:${port}`, ignoreHTTPSErrors: true, trace: "retain-on-failure", screenshot: "only-on-failure" },
+  use: { baseURL: `https://127.0.0.1:${port}`, ignoreHTTPSErrors: true, actionTimeout: 20000, navigationTimeout: 30000, trace: "retain-on-failure", screenshot: "only-on-failure" },
   projects: [
     { name: "desktop", use: { browserName: "chromium", viewport: { width: 1280, height: 900 } } },
     { name: "mobile", use: { browserName: "chromium", viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true } },

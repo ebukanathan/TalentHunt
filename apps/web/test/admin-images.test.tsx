@@ -11,6 +11,7 @@ test("image controls show saved preview, accepted types, status regions and crea
   assert.match(edit,/src="https:\/\/images.example\/photo.webp"/); assert.match(edit,/type="file"/);
   assert.match(edit,/image\/jpeg,image\/png,image\/webp/); assert.match(edit,/Replace photograph/); assert.match(edit,/Remove photograph/);
   assert.match(edit,/role="status"/); assert.match(edit,/aria-describedby="photo-help"/);
+  assert.match(edit, /<input(?=[^>]*id="image")(?=[^>]*disabled="")[^>]*>/, "early file selection waits for hydration");
   const create = renderToStaticMarkup(<ContestantImage imageUrl={null} name="Ada" />);
   assert.match(create,/Register the contestant first/); assert.doesNotMatch(create,/type="file"/);
 });
