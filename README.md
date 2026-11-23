@@ -12,6 +12,8 @@ The [internal voting engine](docs/api/internal-voting-engine.md) allocates from 
 
 Use the [QA runbook](docs/qa/non-payment-regressions.md) for guarded local tests, browser regressions, CI requirements and remaining security/staging gates. The root `npm test` runs non-payment unit checks; `npm run qa:local` runs the complete disposable PostgreSQL workflow on Windows, including internal voting tests with simulated events. Existing payment code and historical migrations are preserved.
 
+The [Vitest voting verification report](docs/qa/voting-vitest.md) covers 10/50/100-vote packages, database-per-test isolation, concurrency, ledger totals, rollback, purchase retries, privacy and security findings. Run its focused disposable suite with `npm run qa:local -- -Phase voting-vitest`; the complete QA gate includes it too.
+
 ## Development setup
 
 Validated tooling at initial review: Node.js 24.15.0 and npm 11.12.1. Use the repository lockfile.

@@ -9,6 +9,8 @@
     "start": "node dist/server.js",
     "test": "tsx --test --test-concurrency=1 test/public-api.test.ts test/payment-unit.test.ts test/payment-integration.test.ts test/admin-unit.test.ts test/admin-integration.test.ts test/admin-contestants-unit.test.ts test/admin-contestants-integration.test.ts test/admin-images-unit.test.ts test/admin-images-integration.test.ts test/admin-settings-unit.test.ts test/admin-settings-integration.test.ts test/admin-overview-unit.test.ts test/admin-overview-integration.test.ts test/contestant-videos-unit.test.ts test/contestant-videos-integration.test.ts test/leaderboard-integration.test.ts test/admin-taxonomy.test.ts test/admin-assignments.test.ts test/public-categories.test.ts test/scoped-leaderboards.test.ts test/http-security-unit.test.ts test/voting-engine-unit.test.ts test/voting-engine.test.ts test/voting-migration.test.ts",
     "test:voting": "tsx --test --test-concurrency=1 test/voting-engine-unit.test.ts test/voting-engine.test.ts test/voting-migration.test.ts",
+    "test:voting:vitest": "vitest run --config vitest.config.mts",
+    "typecheck:vitest": "tsc -p tsconfig.vitest.json",
     "test:contestant:videos": "tsx --test test/contestant-videos-unit.test.ts test/contestant-videos-integration.test.ts",
     "test:leaderboard": "tsx --test --test-concurrency=1 test/leaderboard-integration.test.ts test/scoped-leaderboards.test.ts",
     "test:admin:taxonomy": "tsx --test test/admin-taxonomy.test.ts",
@@ -35,9 +37,10 @@
     "@types/busboy": "^1.5.5",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
-    "@types/node": "^20.19.43",
+    "@types/node": "24.19.2",
     "tsx": "^4.23.15",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "5.1.1"
   },
   "dependencies": {
     "@prisma/client": "^6.19.0",

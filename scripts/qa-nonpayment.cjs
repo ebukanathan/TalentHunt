@@ -1,4 +1,5 @@
-// Creates new disposable databases only. Never reads dotenv or drops a database.
+// Creates disposable targets only; never reads dotenv. Vitest removes only its
+// own freshly generated fixture databases after closing their connections.
 const { spawn, spawnSync } = require("node:child_process");
 const { assertFinalizedFixtureDiff } = require("./qa-schema-drift.cjs");
 const { existsSync, mkdirSync } = require("node:fs");
@@ -6,7 +7,7 @@ const { resolve, dirname, join } = require("node:path");
 const { randomBytes } = require("node:crypto");
 const root = resolve(__dirname, "..");
 const phase = process.argv[2] || "all";
-if (!["all", "api", "integration", "browser", "checks", "voting"].includes(phase)) throw new Error("Unknown QA phase.");
+if (!["all", "api", "integration", "browser", "checks", "voting", "voting-vitest"].includes(phase)) throw new Error("Unknown QA phase.");
 const raw = process.env.QA_TEST_DATABASE_URL;
 if (process.env.NODE_ENV === "production" || process.env.QA_DISPOSABLE_DATABASES !== "1" || !raw)
   throw new Error("QA requires explicit QA_TEST_DATABASE_URL and QA_DISPOSABLE_DATABASES=1.");
@@ -21,6 +22,7 @@ for (const key of Object.keys(env)) {
   if (/PAYSTACK|SUPABASE|SECRET|TOKEN|CREDENTIAL|DIRECT_URL|^SEED_|_TEST_DATABASE_URL$/.test(key) && key !== "QA_TEST_DATABASE_URL") delete env[key];
 }
 Object.assign(env, { PAYSTACK_MODE: "", PAYSTACK_SECRET_KEY: "", SUPABASE_URL: "", SUPABASE_SECRET_KEY: "", ADMIN_CSRF_SECRET: "" });
+env.VOTING_VITEST_CONTROL_URL = raw;
 const npm = process.env.npm_execpath || [join(dirname(process.execPath), "node_modules/npm/bin/npm-cli.js"),
   resolve(dirname(process.execPath), "../lib/node_modules/npm/bin/npm-cli.js")].find(existsSync);
 if (!npm) throw new Error("Run QA through npm run qa:nonpayment.");
@@ -82,6 +84,10 @@ async function main() {
   } finally { await admin.$disconnect(); }
   await task("build", "apps/api");
   await task("typecheck:test", "apps/api");
+  if (["all", "api", "voting", "voting-vitest"].includes(phase)) {
+    await task("typecheck:vitest", "apps/api");
+    await task("test:voting:vitest", "apps/api");
+  }
   if (["all", "api"].includes(phase)) await task("test:nonpayment", "apps/api");
   if (phase === "voting") await task("test:voting", "apps/api");
   if (phase === "all") { await task("test:seed:integration"); await task("test:categories:integration"); }
