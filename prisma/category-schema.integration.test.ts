@@ -41,7 +41,8 @@ async function legacySnapshot(db: PrismaClient) {
   for (const name of oldTables) {
     // Identifiers are the fixed allowlist above, never user input.
     const projection = name === "Competition" ? "to_jsonb(t) - 'categorySetupCompletedAt' - 'categoryIntegrityEnabledAt'"
-      : name === "Contestant" ? "to_jsonb(t) - 'categoryId' - 'subcategoryId' - 'assignmentRevision'" : "to_jsonb(t)";
+      : name === "Contestant" ? "to_jsonb(t) - 'categoryId' - 'subcategoryId' - 'assignmentRevision'"
+      : name === "VoteAllocation" ? "to_jsonb(t) - 'verificationId'" : "to_jsonb(t)";
     // Compare JSON text, not parsed JSON numbers: legacy BigInt totals must not
     // silently round through JavaScript's Number during the preservation check.
     snapshot[name] = await db.$queryRawUnsafe(`SELECT (${projection})::text AS row FROM "${name}" t ORDER BY (${projection})::text`);

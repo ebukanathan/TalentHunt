@@ -6,7 +6,7 @@ const { resolve, dirname, join } = require("node:path");
 const { randomBytes } = require("node:crypto");
 const root = resolve(__dirname, "..");
 const phase = process.argv[2] || "all";
-if (!["all", "api", "integration", "browser", "checks"].includes(phase)) throw new Error("Unknown QA phase.");
+if (!["all", "api", "integration", "browser", "checks", "voting"].includes(phase)) throw new Error("Unknown QA phase.");
 const raw = process.env.QA_TEST_DATABASE_URL;
 if (process.env.NODE_ENV === "production" || process.env.QA_DISPOSABLE_DATABASES !== "1" || !raw)
   throw new Error("QA requires explicit QA_TEST_DATABASE_URL and QA_DISPOSABLE_DATABASES=1.");
@@ -33,6 +33,10 @@ function run(args, cwd = root) {
 }
 const task = (name, workspace) => run([npm, "run", name, ...(workspace ? ["--workspace", workspace] : [])]);
 const prisma = (...args) => run([resolve(root, "node_modules/prisma/build/index.js"), ...args]);
+const votingDatabases = {
+  VOTING_TEST_DATABASE_URL: "talenthunt_voting_test",
+  VOTING_UPGRADE_TEST_DATABASE_URL: "talenthunt_voting_test_upgrade",
+};
 const apiDatabases = {
   API_TEST_DATABASE_URL: "talenthunt_api_test",
   ADMIN_TEST_DATABASE_URL: "talenthunt_admin_test",
@@ -47,6 +51,7 @@ const apiDatabases = {
   ASSIGNMENTS_FINALIZATION_TEST_DATABASE_URL: "talenthunt_assignments_final_test",
   PUBLIC_CATEGORIES_TEST_DATABASE_URL: "talenthunt_public_categories_test",
   SCOPED_LEADERBOARD_TEST_DATABASE_URL: "talenthunt_scoped_leaderboard_test",
+  ...votingDatabases,
 };
 async function main() {
   mkdirSync(resolve(root, "artifacts/qa"), { recursive: true });
@@ -55,6 +60,7 @@ async function main() {
   const { PrismaClient } = require("@prisma/client");
   const admin = new PrismaClient({ datasources: { db: { url: raw } }, errorFormat: "minimal" });
   const targets = { ...(["all", "api"].includes(phase) ? apiDatabases : {}),
+    ...(phase === "voting" ? votingDatabases : {}),
     ...(["all", "integration"].includes(phase) ? { ADMIN_WEB_TEST_DATABASE_URL: "talenthunt_admin_test_web" } : {}),
     ...(["all", "browser"].includes(phase) ? { BROWSER_TEST_DATABASE_URL: "talenthunt_browser_test" } : {}),
     ...(phase === "all" ? { SEED_TEST_DATABASE_URL: "talenthunt_seed_test", CATEGORY_SCHEMA_TEST_DATABASE_URL: "talenthunt_category_test_fresh",
@@ -71,12 +77,13 @@ async function main() {
       env[key] = target.href; env.DATABASE_URL = target.href;
       // The upgrade test itself applies the unchanged historical migrations
       // before expansion; it refuses a target containing any tables.
-      if (key !== "CATEGORY_UPGRADE_TEST_DATABASE_URL") await prisma("migrate", "deploy");
+      if (!["CATEGORY_UPGRADE_TEST_DATABASE_URL", "VOTING_UPGRADE_TEST_DATABASE_URL"].includes(key)) await prisma("migrate", "deploy");
     }
   } finally { await admin.$disconnect(); }
   await task("build", "apps/api");
   await task("typecheck:test", "apps/api");
   if (["all", "api"].includes(phase)) await task("test:nonpayment", "apps/api");
+  if (phase === "voting") await task("test:voting", "apps/api");
   if (phase === "all") { await task("test:seed:integration"); await task("test:categories:integration"); }
   if (["all", "integration"].includes(phase)) await task("test:admin:integration", "apps/web");
   if (["all", "checks"].includes(phase)) {
