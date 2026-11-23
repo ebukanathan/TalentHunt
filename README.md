@@ -8,7 +8,9 @@ Product decision (24 October 2026): checkout requires an email address for recei
 
 PAY-01 adds test-only `POST /api/v1/payments/initialize` with server-owned prices, PENDING purchase snapshots and durable retry protection. See [configuration, request examples and payment tests](docs/api/payment-initialization.md). Checkout initialization does not confirm payment, allocate votes or send email. Paystack credentials are optional as a complete configuration; when absent, public reads work and initialization returns 503.
 
-Current development priority: full non-payment integration and regression testing. Use the [QA runbook](docs/qa/non-payment-regressions.md) for guarded local tests, browser regressions, CI requirements and remaining security/staging gates. The root `npm test` runs non-payment unit checks; `npm run qa:local` runs the complete disposable PostgreSQL workflow on Windows. Existing payment code and historical migrations are preserved.
+The [internal voting engine](docs/api/internal-voting-engine.md) allocates from persisted server verification evidence with transactional, idempotent vote updates and read-only reconciliation. It has no production verification writer, HTTP ingress or provider wiring. Paystack and paid launch remain paused; the conservative allocation policy requires voting to be open at processing time and verified payment time inside an explicit voting window.
+
+Use the [QA runbook](docs/qa/non-payment-regressions.md) for guarded local tests, browser regressions, CI requirements and remaining security/staging gates. The root `npm test` runs non-payment unit checks; `npm run qa:local` runs the complete disposable PostgreSQL workflow on Windows, including internal voting tests with simulated events. Existing payment code and historical migrations are preserved.
 
 ## Development setup
 

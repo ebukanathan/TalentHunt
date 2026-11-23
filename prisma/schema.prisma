@@ -34,6 +34,11 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum VerificationEnvironment {
+  TEST
+  LIVE
+}
+
 enum PaymentInitializationState {
   STARTED
   READY
@@ -222,6 +227,7 @@ model Payment {
   allocation     VoteAllocation?
   initialization PaymentInitialization?
   scope          PaymentScope?
+  verifiedPayment VerifiedPayment?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -276,9 +282,36 @@ model VoteAllocation {
 
   voteCount Int
 
+  // NULL only for historical/legacy writers; the internal engine requires evidence.
+  verificationId String? @unique
+  verification VerifiedPayment? @relation(fields: [verificationId, paymentId], references: [id, paymentId], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([verificationId, paymentId])
+
   createdAt DateTime @default(now())
 
   @@index([contestantId, createdAt])
+}
+
+// Server-owned verification evidence. There is deliberately no runtime writer,
+// HTTP ingestion route or provider adapter in the internal voting-engine phase.
+model VerifiedPayment {
+  id            String @id @default(cuid())
+  paymentId     String @unique
+  payment       Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  provider      String @db.VarChar(32)
+  environment   VerificationEnvironment
+  reference     String
+  providerTxnId String
+  amountKobo    Int
+  currency      String @db.VarChar(3)
+  paidAt        DateTime
+  verifiedAt    DateTime @default(now())
+
+  allocation VoteAllocation?
+
+  @@unique([id, paymentId])
+  @@unique([provider, environment, providerTxnId])
 }
 
 model AdminUser {
