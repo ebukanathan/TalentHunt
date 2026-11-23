@@ -4,6 +4,7 @@
     "rootDir": ".",
     "noEmit": true
   },
+  "exclude": ["test/vitest"],
   "include": [
     "src",
     "test",
