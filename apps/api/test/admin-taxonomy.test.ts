@@ -148,9 +148,26 @@ test("CAT-02 authenticated dynamic taxonomy on real HTTP/PostgreSQL", { timeout:
     });
     await t.test("publication serializes with taxonomy edits and freezes later structural changes", async () => {
       await db.competition.update({ where: { id: "show" }, data: { status: "COMPLETED" } });
-      const current = await db.competition.findUniqueOrThrow({ where: { id: "show" } });
-      const [edit, publication] = await Promise.all([patch(`${path}/${category}`, { name: "Before publication" }), request("/api/v1/admin/competition/publish-results", "POST", { competitionId: "show", confirmationName: current.name, expectedUpdatedAt: current.updatedAt.toISOString() })]);
-      assert.ok([200, 409].includes(edit.status)); assert.equal(publication.status, 200);
+      const confirmSetup = async () => {
+        const setup = (await request("/api/v1/admin/competition/category-setup")).body.data;
+        assert.equal((await request("/api/v1/admin/competition/confirm-category-setup", "POST", {competitionId:"show",confirmationName:setup.competition.name,expectedReviewToken:setup.reviewToken})).status,200);
+      };
+      const confirmation = async () => {
+        const review = (await request("/api/v1/admin/competition/publication-preview")).body.data;
+        return {competitionId:"show",confirmationName:review.competition.name,expectedUpdatedAt:review.competition.updatedAt,expectedReviewToken:review.reviewToken};
+      };
+      await confirmSetup();
+      const input = await confirmation();
+      const [edit, publication] = await Promise.all([patch(`${path}/${category}`, { name: "Before publication" }), request("/api/v1/admin/competition/publish-results", "POST", input)]);
+      assert.ok([200, 409].includes(edit.status)); assert.ok([200,409].includes(publication.status));
+      if(publication.status===409) {
+        assert.equal(edit.status,200);
+        assert.ok(["CATEGORY_SETUP_INCOMPLETE","PUBLICATION_REVIEW_CHANGED","SETTINGS_CHANGED"].includes(publication.body.code));
+        assert.equal(await db.auditLog.count({where:{action:"RESULTS_PUBLISHED"}}),0);
+        await confirmSetup();
+        assert.equal((await request("/api/v1/admin/competition/publish-results","POST",await confirmation())).status,200);
+      }
+      assert.equal(await db.auditLog.count({where:{action:"RESULTS_PUBLISHED"}}),1);
       assert.equal((await request(path, "POST", { name: "Late", slug: "late" })).status, 409);
       assert.equal((await patch(`${path}/${category}`, { isActive: false })).status, 409);
       assert.equal((await patch(`${path}/${category}/subcategories/${child}`, { name: "Late rename" })).status, 409);

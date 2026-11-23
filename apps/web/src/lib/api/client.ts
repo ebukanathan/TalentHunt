@@ -2,11 +2,12 @@ import { z } from "zod";
 import { publicLeaderboardSchema } from "./leaderboard-schemas";
 import {
   competitionSchema,
-  contestantSchema,
   contestantIdSchema,
   votePackageSchema,
   contestantCardsSchema,
+  publicContestantSchema,
 } from "./schemas";
+import { categoryDetailSchema, categoryListSchema } from "./category-schemas";
 
 export class ApiError extends Error {
   constructor(
@@ -43,6 +44,14 @@ export function createApiClient(
   }
   const prefix = base.toString().replace(/\/$/, "");
   const fetcher = options.fetcher ?? fetch;
+  function scopeQuery(scope: { categoryId?: string; subcategoryId?: string } = {}) {
+    if (scope.subcategoryId && !scope.categoryId || Object.values(scope).some(value => value !== undefined && !contestantIdSchema.safeParse(value).success)) throw new ApiError("BAD_REQUEST");
+    return new URLSearchParams(Object.entries(scope).filter((entry): entry is [string, string] => entry[1] !== undefined));
+  }
+  function pageQuery(page: number, pageSize: number, maximum: number) {
+    if (!Number.isInteger(page) || page < 1 || page > 100000 || !Number.isInteger(pageSize) || pageSize < 1 || pageSize > maximum) throw new ApiError("BAD_REQUEST");
+    return new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  }
   async function request<T>(path: string, schema: z.ZodType<T>): Promise<T> {
     let response: Response;
     try {
@@ -67,7 +76,12 @@ export function createApiClient(
     }
   }
   return {
-    leaderboard: (page = "1") => request("/leaderboard?page=" + encodeURIComponent(page), publicLeaderboardSchema),
+    leaderboard: async (categoryId: string, subcategoryId: string, page = "1") => {
+      const scope = scopeQuery({ categoryId, subcategoryId });
+      if (!categoryId || !subcategoryId || !/^[1-9][0-9]*$/.test(page) || Number(page) > 100000) throw new ApiError("BAD_REQUEST");
+      scope.set("page", page);
+      return request("/leaderboard?" + scope, publicLeaderboardSchema.refine(data => data.category.id === categoryId && data.subcategory.id === subcategoryId));
+    },
     async competition() {
       try {
         return await request("/competition", competitionSchema);
@@ -77,17 +91,27 @@ export function createApiClient(
         throw error;
       }
     },
-    contestants: () => request("/contestants", z.array(contestantSchema)),
-    contestantCards: (page = 1, pageSize = 12) => {
+    contestants: async (scope: { categoryId?: string; subcategoryId?: string } = {}) => request("/contestants" + (Object.keys(scope).length ? "?" + scopeQuery(scope) : ""), z.array(publicContestantSchema).refine(rows => rows.every(item => (!scope.categoryId || item.category.id === scope.categoryId) && (!scope.subcategoryId || item.subcategory.id === scope.subcategoryId)))),
+    categories: async (page = 1, pageSize = 25) => request("/categories?" + pageQuery(page, pageSize, 100), categoryListSchema),
+    subcategories: async (categoryId: string, page = 1, pageSize = 25) => {
+      scopeQuery({ categoryId });
+      return request(`/categories/${encodeURIComponent(categoryId)}/subcategories?${pageQuery(page, pageSize, 100)}`, categoryListSchema.refine(data => data.category?.id === categoryId));
+    },
+    category: async (categoryId: string, subcategoryId?: string) => {
+      scopeQuery({ categoryId, subcategoryId });
+      return request(`/categories/${encodeURIComponent(categoryId)}${subcategoryId ? `/subcategories/${encodeURIComponent(subcategoryId)}` : ""}`, categoryDetailSchema.refine(data => data.category.id === categoryId && data.subcategory?.id === subcategoryId));
+    },
+    contestantCards: async (page = 1, pageSize = 12, scope: { categoryId?: string; subcategoryId?: string } = {}) => {
       if (!Number.isInteger(page) || page < 1 || page > 100000 || !Number.isInteger(pageSize) || pageSize < 1 || pageSize > 24) return Promise.reject(new ApiError("BAD_REQUEST"));
-      return request(`/contestant-cards?page=${page}&pageSize=${pageSize}`, contestantCardsSchema);
+      const search = scopeQuery(scope); search.set("page", String(page)); search.set("pageSize", String(pageSize));
+      return request(`/contestant-cards?${search}`, contestantCardsSchema.refine(data => data.items.every(item => (!scope.categoryId || item.category.id === scope.categoryId) && (!scope.subcategoryId || item.subcategory.id === scope.subcategoryId))));
     },
     contestant: (id: string) => {
       if (!contestantIdSchema.safeParse(id).success)
         return Promise.reject(new ApiError("BAD_REQUEST"));
       return request(
         "/contestants/" + encodeURIComponent(id),
-        contestantSchema,
+        publicContestantSchema,
       );
     },
     votePackages: () => request("/vote-packages", z.array(votePackageSchema)),

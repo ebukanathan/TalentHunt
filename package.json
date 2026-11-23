@@ -6,12 +6,14 @@
   "scripts": {
     "dev:web": "npm run dev --workspace=apps/web",
     "dev:api": "npm run dev --workspace=apps/api",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --test test/*.test.cjs && npm run test:unit --workspace apps/api && npm test --workspace apps/web && npm run test:seed",
     "db:seed": "prisma db seed",
     "typecheck:seed": "tsc -p prisma/tsconfig.json",
     "test:seed": "tsx --test prisma/seed.test.ts",
     "test:seed:integration": "tsx --test prisma/seed.integration.test.ts",
-    "test:categories:integration": "tsx --test --test-concurrency=1 prisma/category-schema.integration.test.ts"
+    "test:categories:integration": "tsx --test --test-concurrency=1 prisma/category-schema.integration.test.ts",
+    "qa:nonpayment": "node scripts/qa-nonpayment.cjs",
+    "qa:local": "powershell -NoProfile -File scripts/qa-local.ps1"
   },
   "keywords": [],
   "author": "",

@@ -1,3 +1,4 @@
+import { taxonomyFixture } from "./taxonomy-fixture";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import type { Server } from "node:http";
@@ -70,16 +71,17 @@ test("public REST API over real HTTP and isolated PostgreSQL", { timeout: 60000 
     });
 
     await database.$transaction([
-      database.competition.create({ data: { id: "api-current", name: "Current", slug: "api-current", status: "OPEN", leaderboardVisibility: "LIVE", createdAt: new Date("2026-01-03T00:00:00Z"), votingOpens: new Date("2026-01-04T00:00:00Z") } }),
+      database.competition.create({ data: { id: "api-current", name: "Current", slug: "api-current", status: "OPEN", leaderboardVisibility: "LIVE", categorySetupCompletedAt: new Date(), createdAt: new Date("2026-01-03T00:00:00Z"), votingOpens: new Date("2026-01-04T00:00:00Z") } }),
       database.competition.create({ data: { id: "api-previous", name: "Previous", slug: "api-previous", createdAt: new Date("2026-01-01T00:00:00Z"), status: "OPEN" } }),
       database.competition.create({ data: { id: "api-inactive-show", name: "Inactive only", slug: "api-inactive-show", status: "SCHEDULED", createdAt: new Date("2026-01-02T00:00:00Z") } }),
     ]);
+    const currentScope = await taxonomyFixture(database, "api-current"), previousScope = await taxonomyFixture(database, "api-previous"), inactiveScope = await taxonomyFixture(database, "api-inactive-show");
     await database.$transaction([
-      database.contestant.create({ data: { id: "api-active", competitionId: "api-current", number: "001", slug: "active", name: "Visible", totalVotes: 9007199254740993n } }),
-      database.contestant.create({ data: { id: "api-active-2", competitionId: "api-current", number: "003", slug: "active-2", name: "Also visible" } }),
-      database.contestant.create({ data: { id: "api-inactive", competitionId: "api-current", number: "002", slug: "inactive", name: "Hidden", isActive: false } }),
-      database.contestant.create({ data: { id: "api-other", competitionId: "api-previous", number: "001", slug: "other", name: "Other competition" } }),
-      database.contestant.create({ data: { id: "api-only-inactive", competitionId: "api-inactive-show", number: "001", slug: "inactive", name: "Hidden", isActive: false } }),
+      database.contestant.create({ data: { id: "api-active", ...currentScope, competitionId: "api-current", number: "001", slug: "active", name: "Visible", totalVotes: 9007199254740993n } }),
+      database.contestant.create({ data: { id: "api-active-2", ...currentScope, competitionId: "api-current", number: "003", slug: "active-2", name: "Also visible" } }),
+      database.contestant.create({ data: { id: "api-inactive", ...currentScope, competitionId: "api-current", number: "002", slug: "inactive", name: "Hidden", isActive: false } }),
+      database.contestant.create({ data: { id: "api-other", ...previousScope, competitionId: "api-previous", number: "001", slug: "other", name: "Other competition" } }),
+      database.contestant.create({ data: { id: "api-only-inactive", ...inactiveScope, competitionId: "api-inactive-show", number: "001", slug: "inactive", name: "Hidden", isActive: false } }),
       database.votePackage.create({ data: { id: "api-package", competitionId: "api-current", name: "Starter", voteCount: 10, priceKobo: 100000 } }),
       database.votePackage.create({ data: { id: "api-package-inactive", competitionId: "api-current", name: "Hidden", voteCount: 1, priceKobo: 1, isActive: false } }),
       database.votePackage.create({ data: { id: "api-package-other", competitionId: "api-previous", name: "Other", voteCount: 1, priceKobo: 5000 } }),
@@ -100,7 +102,7 @@ test("public REST API over real HTTP and isolated PostgreSQL", { timeout: 60000 
       assert.deepEqual(result.body.data.map((row: { id: string }) => row.id), ["api-active", "api-active-2"]);
       assert.equal(result.body.data[0].totalVotes, "9007199254740993");
       assert.equal(result.body.data[1].totalVotes, "0");
-      assert.deepEqual(Object.keys(result.body.data[0]).sort(), ["id", "competitionId", "number", "name", "slug", "bio", "imageUrl", "totalVotes", "videos"].sort());
+      assert.deepEqual(Object.keys(result.body.data[0]).sort(), ["id", "competitionId", "number", "name", "slug", "bio", "imageUrl", "totalVotes", "videos", "category", "subcategory"].sort());
       assert.deepEqual(result.body.data[0].videos, []);
       assert.deepEqual(await get(base, "/contestants/"), result);
     });
@@ -116,7 +118,7 @@ test("public REST API over real HTTP and isolated PostgreSQL", { timeout: 60000 
       assert.deepEqual(first.body.data.pagination, { page: 1, pageSize: 1, total: 2, pages: 2 });
       assert.equal(first.body.data.items[0].id, "api-active");
       assert.equal(first.body.data.items[0].totalVotes, "9007199254740993");
-      assert.deepEqual(Object.keys(first.body.data.items[0]).sort(), ["id", "competitionId", "number", "name", "imageUrl", "totalVotes"].sort());
+      assert.deepEqual(Object.keys(first.body.data.items[0]).sort(), ["id", "competitionId", "number", "name", "imageUrl", "totalVotes", "category", "subcategory"].sort());
       assert.equal((await get(base, "/contestant-cards?pageSize=1&page=2")).body.data.items[0].id, "api-active-2");
       assert.deepEqual((await get(base, "/contestant-cards?page=999")).body.data.items, []);
       for (const query of ["?page=0", "?page=1&page=2", "?pageSize=25", "?page=100001", "?visibility=LIVE", "?includeVotes=true"]) assert.equal((await get(base, "/contestant-cards" + query)).status, 400);

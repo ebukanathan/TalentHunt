@@ -1,3 +1,4 @@
+import { taxonomyFixture } from "./taxonomy-fixture";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { createServer } from "node:http";
@@ -13,8 +14,9 @@ import { leaderboardQuery, publishResultsInput } from "../src/validation/leaderb
 import { patchCompetition } from "../src/validation/admin-settings";
 
 test("leaderboard inputs reject visibility overrides, mass assignment and missing confirmation", () => {
-  assert.deepEqual(leaderboardQuery.parse({}), { page: 1, pageSize: 25 });
-  for (const query of [{page:"0"},{pageSize:"101"},{visibility:"LIVE"},{includeVotes:"true"},{page:["1","2"]}]) assert.equal(leaderboardQuery.safeParse(query).success, false);
+  assert.equal(leaderboardQuery.safeParse({}).success, false);
+  assert.deepEqual(leaderboardQuery.parse({categoryId:"cat",subcategoryId:"sub"}), { categoryId:"cat",subcategoryId:"sub",page: 1, pageSize: 25 });
+  for (const query of [{page:"0"},{pageSize:"101"},{visibility:"LIVE"},{includeVotes:"true"},{page:["1","2"]}]) assert.equal(leaderboardQuery.safeParse({categoryId:"cat",subcategoryId:"sub",...query}).success, false);
   for(const input of [{},{competitionId:"show",expectedUpdatedAt:new Date().toISOString()}]) assert.equal(publishResultsInput.safeParse(input).success,false);
   assert.equal(patchCompetition.safeParse({resultsPublishedAt:new Date().toISOString(),expectedUpdatedAt:new Date().toISOString()}).success,false);
   assert.equal(patchCompetition.safeParse({leaderboardVisibility:"VISIBLE",expectedUpdatedAt:new Date().toISOString()}).success,false);
@@ -33,23 +35,26 @@ test("leaderboard visibility and confirmed publication on real HTTP/PostgreSQL",
   const db=new PrismaClient({datasources:{db:{url:raw}}});
   const config=readAdminConfiguration({ADMIN_APP_ORIGIN:"http://localhost:3000",ADMIN_CSRF_SECRET:"c".repeat(64)})!;
   const server=createServer(createApp(new PublicReadService(db,"leaderboard-show"),undefined,new AdminAuthService(db,config)));
-  const jar=new Map<string,string>();let csrf="",base="";
+  const jar=new Map<string,string>();let csrf="",base="";let scope: {categoryId:string;subcategoryId:string}|undefined;
   const request=async(path:string,method="GET",body?:unknown,custom:Record<string,string>={})=>{
     const headers:Record<string,string>={Cookie:[...jar].map(([k,v])=>k+"="+v).join("; "),...custom};
     if(method!=="GET"){headers.Origin??=config.ADMIN_APP_ORIGIN;headers["Content-Type"]="application/json";headers["X-CSRF-Token"]??=csrf;}
-    const response=await fetch(base+path,{method,headers,body:body===undefined?undefined:JSON.stringify(body)});
+    const resolved=new URL(path,base);
+    if(scope && ["/api/v1/leaderboard","/api/v1/admin/leaderboard","/api/v1/contestants","/api/v1/contestant-cards"].includes(resolved.pathname) && !resolved.searchParams.has("categoryId") && !resolved.searchParams.has("subcategoryId")){resolved.searchParams.set("categoryId",scope.categoryId);resolved.searchParams.set("subcategoryId",scope.subcategoryId);}
+    const response=await fetch(resolved,{method,headers,body:body===undefined?undefined:JSON.stringify(body)});
     for(const cookie of response.headers.getSetCookie()){const [k,v]=cookie.split(";")[0].split("=");if(v)jar.set(k,v);else jar.delete(k);}
     return {status:response.status,headers:response.headers,body:await response.json()};
   };
   const settings="/api/v1/admin/competition",publish=settings+"/publish-results",publicPath="/api/v1/leaderboard",adminPath="/api/v1/admin/leaderboard";
   const update=async(data:object)=>{const previous=(await request(settings)).body.data;return request(settings,"PATCH",{...data,expectedUpdatedAt:previous.updatedAt});};
-  const publication=async(extra:object={})=>{const previous=(await request(settings)).body.data;return request(publish,"POST",{competitionId:previous.id,confirmationName:previous.name,expectedUpdatedAt:previous.updatedAt,...extra});};
+  const publication=async(extra:object={})=>{const review=(await request(settings+"/publication-preview")).body.data,previous=review.competition;return request(publish,"POST",{competitionId:previous.id,confirmationName:previous.name,expectedUpdatedAt:previous.updatedAt,expectedReviewToken:review.reviewToken,...extra});};
   try{
     assert.ok((await Promise.all([db.competition.count(),db.contestant.count(),db.adminUser.count(),db.auditLog.count(),db.payment.count()])).every(n=>n===0),"Refusing populated database.");
     server.listen(0,"127.0.0.1");await once(server,"listening");base="http://127.0.0.1:"+(server.address() as AddressInfo).port;
-    await db.competition.create({data:{id:"leaderboard-show",slug:"leaderboard-show",name:"Leaderboard Show",status:"OPEN"}});
+    await db.competition.create({data:{id:"leaderboard-show",slug:"leaderboard-show",name:"Leaderboard Show",status:"OPEN",categorySetupCompletedAt:new Date()}});
     await db.competition.create({data:{id:"other",slug:"other",name:"Other",status:"DRAFT"}});
-    for(const [id,number,totalVotes,isActive] of [["tie-b","002",9007199254740993n,true],["tie-a","001",9007199254740993n,true],["low","003",1n,true],["zero","004",0n,true],["inactive","005",999999999999999999n,false]] as const) await db.contestant.create({data:{id,number,totalVotes,isActive,competitionId:"leaderboard-show",name:id,slug:id}});
+    scope=await taxonomyFixture(db,"leaderboard-show");
+    for(const [id,number,totalVotes,isActive] of [["tie-b","002",9007199254740993n,true],["tie-a","001",9007199254740993n,true],["low","003",1n,true],["zero","004",0n,true],["inactive","005",999999999999999999n,false]] as const) await db.contestant.create({data:{...scope,id,number,totalVotes,isActive,competitionId:"leaderboard-show",name:id,slug:id}});
     await db.contestant.create({data:{id:"foreign",number:"001",competitionId:"other",name:"Foreign",slug:"foreign",totalVotes:12345n}});
     await t.test("defaults are hidden/unpublished and anonymous admin reads/writes fail",async()=>{
       const competition=await db.competition.findUniqueOrThrow({where:{id:"leaderboard-show"}});
@@ -75,7 +80,7 @@ test("leaderboard visibility and confirmed publication on real HTTP/PostgreSQL",
       assert.ok(cards.body.data.items.every((p:object) => !("totalVotes" in p) && !("rank" in p) && !("bio" in p) && !("videos" in p)));
       for(const query of ["?visibility=LIVE","?includeVotes=true","?admin=true"])assert.equal((await request(publicPath+query)).status,400);
     });
-    await t.test("private leaderboard includes exact totals and inactive exclusions with global tied ranks",async()=>{
+    await t.test("private leaderboard includes exact totals and inactive exclusions with subcategory tied ranks",async()=>{
       const response=await request(adminPath);assert.equal(response.status,200);assert.match(response.headers.get("cache-control")!,/private.*no-store/);
       const items=response.body.data.items;
       assert.deepEqual(items.map((p:{id:string})=>p.id),["tie-a","tie-b","low","zero","inactive"]);
@@ -103,12 +108,12 @@ test("leaderboard visibility and confirmed publication on real HTTP/PostgreSQL",
       assert.ok(cards.items.every((item:object) => !("totalVotes" in item) && !("rank" in item)));
     });
     await t.test("empty/all-zero data and drafts never acquire meaningful public rankings or final labels",async()=>{
-      await db.competition.create({data:{id:"empty",name:"Empty",slug:"empty",status:"COMPLETED",leaderboardVisibility:"LIVE"}});
-      const service=new PublicReadService(db,"empty");assert.equal((await service.getLeaderboard({page:1,pageSize:25})).state,"EMPTY");
-      await db.contestant.create({data:{id:"all-zero",competitionId:"empty",name:"Zero",number:"001",slug:"all-zero"}});
-      const zero=await service.getLeaderboard({page:1,pageSize:25});assert.equal(zero.state,"NO_VOTES");assert.deepEqual(zero.items,[]);assert.equal(zero.publishedAt,null);
-      await db.competition.update({where:{id:"empty"},data:{leaderboardVisibility:"RANK_ONLY"}});assert.deepEqual((await service.getLeaderboard({page:1,pageSize:25})).items,[]);
-      await assert.rejects(new PublicReadService(db,"other").getLeaderboard({page:1,pageSize:25}));
+      await db.competition.create({data:{id:"empty",name:"Empty",slug:"empty",status:"COMPLETED",leaderboardVisibility:"LIVE",categorySetupCompletedAt:new Date()}});
+      const emptyScope=await taxonomyFixture(db,"empty"),service=new PublicReadService(db,"empty");assert.equal((await service.getLeaderboard({...emptyScope,page:1,pageSize:25})).state,"EMPTY");
+      await db.contestant.create({data:{...emptyScope,id:"all-zero",competitionId:"empty",name:"Zero",number:"001",slug:"all-zero"}});
+      const zero=await service.getLeaderboard({...emptyScope,page:1,pageSize:25});assert.equal(zero.state,"NO_VOTES");assert.deepEqual(zero.items,[]);assert.equal(zero.publishedAt,null);
+      await db.competition.update({where:{id:"empty"},data:{leaderboardVisibility:"RANK_ONLY"}});assert.deepEqual((await service.getLeaderboard({...emptyScope,page:1,pageSize:25})).items,[]);
+      await assert.rejects(new PublicReadService(db,"other").getLeaderboard({...emptyScope,page:1,pageSize:25}));
       assert.deepEqual((await new PublicReadService(db,"other").getContestantCards({page:1,pageSize:12})).items, []);
     });
     await t.test("publication requires separate explicit confirmation, completion, scope, CSRF and actual votes",async()=>{
@@ -123,7 +128,7 @@ test("leaderboard visibility and confirmed publication on real HTTP/PostgreSQL",
       const {AdminSettingsService}=await import("../src/services/admin-settings.service");
       const emptySettings=new AdminSettingsService(db,{getCompetition:()=>new PublicReadService(db,"empty").getCompetition()});
       const empty=await db.competition.findUniqueOrThrow({where:{id:"empty"}});
-      await assert.rejects(emptySettings.publishResults({competitionId:empty.id,confirmationName:empty.name,expectedUpdatedAt:empty.updatedAt.toISOString()},(await db.adminUser.findFirstOrThrow()).id),error=>error instanceof Error&&error.message.includes("No votes"));
+      await assert.rejects(emptySettings.publishResults({expectedReviewToken:(await emptySettings.publicationPreview()).reviewToken,competitionId:empty.id,confirmationName:empty.name,expectedUpdatedAt:empty.updatedAt.toISOString()},(await db.adminUser.findFirstOrThrow()).id),error=>error instanceof Error&&error.message.includes("No votes"));
     });
     await t.test("audit failure rolls back both visibility changes and publication",async()=>{
       const before=await db.competition.findUniqueOrThrow({where:{id:"leaderboard-show"}});
@@ -134,7 +139,7 @@ test("leaderboard visibility and confirmed publication on real HTTP/PostgreSQL",
     });
     await t.test("concurrent publication is idempotent and releases final full results exactly once",async()=>{
       const before=(await request(settings)).body.data;
-      const body={competitionId:before.id,confirmationName:before.name,expectedUpdatedAt:before.updatedAt};
+      const body={competitionId:before.id,confirmationName:before.name,expectedUpdatedAt:before.updatedAt,expectedReviewToken:(await request(settings+"/publication-preview")).body.data.reviewToken};
       const results=await Promise.all([request(publish,"POST",body),request(publish,"POST",body)]);assert.deepEqual(results.map(r=>r.status),[200,200]);
       assert.equal(results[0].body.data.resultsPublishedAt,results[1].body.data.resultsPublishedAt);
       assert.equal(await db.auditLog.count({where:{action:"RESULTS_PUBLISHED"}}),1);
@@ -145,12 +150,13 @@ test("leaderboard visibility and confirmed publication on real HTTP/PostgreSQL",
     });
     await t.test("concurrent visibility/publication cannot silently overwrite a stale save",async()=>{
       const current=(await request(settings)).body.data;
-      await db.competition.create({data:{id:"race",name:"Race",slug:"race",status:"COMPLETED"}});
-      await db.contestant.create({data:{competitionId:"race",name:"Race",number:"001",slug:"race",totalVotes:1n}});
+      await db.competition.create({data:{id:"race",name:"Race",slug:"race",status:"COMPLETED",categorySetupCompletedAt:new Date()}});
+      const raceScope=await taxonomyFixture(db,"race");
+      await db.contestant.create({data:{...raceScope,competitionId:"race",name:"Race",number:"001",slug:"race",totalVotes:1n}});
       const {AdminSettingsService}=await import("../src/services/admin-settings.service");
       const service=new AdminSettingsService(db,{getCompetition:()=>new PublicReadService(db,"race").getCompetition()});
       const competition=await service.competition(),admin=(await db.adminUser.findFirstOrThrow()).id;
-      const results=await Promise.allSettled([service.publishResults({competitionId:competition.id,confirmationName:competition.name,expectedUpdatedAt:competition.updatedAt.toISOString()},admin),service.updateCompetition({leaderboardVisibility:"RANK_ONLY",expectedUpdatedAt:competition.updatedAt.toISOString()},admin)]);
+      const results=await Promise.allSettled([service.publishResults({expectedReviewToken:(await service.publicationPreview()).reviewToken,competitionId:competition.id,confirmationName:competition.name,expectedUpdatedAt:competition.updatedAt.toISOString()},admin),service.updateCompetition({leaderboardVisibility:"RANK_ONLY",expectedUpdatedAt:competition.updatedAt.toISOString()},admin)]);
       assert.equal(results.filter(r=>r.status==="fulfilled").length,1);
       const stored=await service.competition();assert.ok(stored.resultsPublishedAt ? stored.leaderboardVisibility==="LIVE" : stored.leaderboardVisibility==="RANK_ONLY");
       assert.ok(current.resultsPublishedAt);

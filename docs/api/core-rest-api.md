@@ -59,6 +59,8 @@ Malformed IDs return 400/VALIDATION_ERROR with field/message details. IDs may co
 
 The existing /api/v1/health response remains compatible: status "ok" and its existing message. It is a process health check, not a database readiness check.
 
+JSON requests must be uncompressed. `Content-Encoding` values such as gzip, deflate and br return a sanitized 415 `UNSUPPORTED_CONTENT_ENCODING` before decompression; ordinary JSON and multipart photograph uploads retain their existing contracts. Category-aware discovery/filtering and active-ancestor eligibility are documented in [public categories](../public-categories.md), and complete mandatory leaderboard scope is documented in [subcategory leaderboards](../subcategory-leaderboards.md).
+
 Test checkout initialization is documented separately in [PAY-01](payment-initialization.md). Public reads continue to work without Paystack configuration. Initialization uses `email` (stored as Payment.contactEmail), not email ownership verification, and grants no votes.
 
 ## Implementation
@@ -71,15 +73,10 @@ Routes match URLs, controllers validate request parameters with Zod and build re
 
 ## Automated verification
 
-Use a FRESH isolated local PostgreSQL database named talenthunt_api_test or talenthunt_api_test_suffix. The tests refuse remote targets, connection routing overrides, production mode and non-empty databases. They create synthetic fixtures and leave them in that disposable database; they never reset it or write to Supabase.
+Use the non-payment QA runner to provision fresh isolated localhost databases for every API suite. It refuses hosted targets, routing overrides, production mode and a populated control database. Synthetic fixtures remain in disposable databases; the runner never resets an application database or writes to Supabase. On Windows with PostgreSQL 18 installed:
 
 ~~~powershell
-$env:API_TEST_DATABASE_URL = 'postgresql://YOUR_LOCAL_ROLE:YOUR_LOCAL_PASSWORD@127.0.0.1:5432/talenthunt_api_test'
-$env:DATABASE_URL = $env:API_TEST_DATABASE_URL
-npx --no-install prisma migrate deploy
-npm run build --workspace=apps/api
-npm run typecheck:test --workspace=apps/api
-npm test --workspace=apps/api
+powershell -NoProfile -File scripts/qa-local.ps1 -Phase api
 ~~~
 
-Public-read tests cover successful requests, empty results, inactive/cross-show filtering, explicit competition selection, malformed/unknown IDs, exact BigInt JSON strings above Number.MAX_SAFE_INTEGER, unknown routes, health compatibility and sanitized asynchronous/database errors. The API test command now also requires PAYMENTS_TEST_DATABASE_URL for the separate [PAY-01 initialization tests](payment-initialization.md). Payment finalization, transactional email and administrator endpoints remain unimplemented. Voter email verification is not required; checkout requires email without OTP/link verification.
+Public-read tests cover successful requests, empty results, inactive/cross-show filtering, explicit competition selection, malformed/unknown IDs, exact BigInt JSON strings above Number.MAX_SAFE_INTEGER, unknown routes, health compatibility and sanitized asynchronous/database errors. The legacy API test command also requires PAYMENTS_TEST_DATABASE_URL for the separate [PAY-01 initialization tests](payment-initialization.md). For paused-payment development, use the [non-payment QA runner](../qa/non-payment-regressions.md), which selects all non-payment API suites and provisions only disposable local targets. Administrator features are implemented and included in that gate. Payment finalization and transactional email remain deferred; voter email verification is not required.

@@ -1,6 +1,8 @@
 # Framework security assessment
 
-Assessed 18 November 2026 (Africa/Lagos), issue #53. The installed Next.js version is 16.4.2. Production commands emit a known-vulnerability notice; an identical retry completes without suppressing the notice. Passing builds and application tests do not establish that the framework is patched.
+QA-01 updates Next.js and its matching ESLint configuration to 16.4.6 and resolves body-parser to 2.4.0. The API also rejects encoded JSON before decompression, with an isolated crash regression. Current npm audits no longer flag these two runtime packages. Remaining Prisma/effect/deepmerge and lint-tooling advisories still require compatibility/reachability review; no forced major override is applied. See the [QA runbook](qa/non-payment-regressions.md) for the test gate and remaining staging/security acceptance.
+
+The following assessment records the earlier 18 November 2026 baseline under issue #53. At that time Next.js 16.4.2 emitted a known-vulnerability notice; an identical retry completed without suppressing it. Passing builds and application tests did not establish that the framework was patched.
 
 The official [16.4.5 release](https://github.com/vercel/next.js/releases/tag/v16.4.5) contains November security fixes. Review and upgrade Next.js and its matching ESLint configuration in a separate feature branch before production release, then rerun public HTTP/privacy, image, authentication and production-build regressions. Verify the appropriate current patched version when doing that upgrade. This refinement does not change framework versions or payment processing.
 

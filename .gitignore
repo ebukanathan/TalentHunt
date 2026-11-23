@@ -27,3 +27,5 @@ Thumbs.db
 /docs/project-management/execution-commands.txt
 # Isolated Next integration artifacts
 apps/web/.next-admin-test/
+apps/web/.next-browser-test/
+/artifacts/qa/

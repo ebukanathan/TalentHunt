@@ -6,6 +6,7 @@ import { formatKobo, formatVotes } from "@/lib/format";
 import { getVotingState } from "@/lib/voting";
 import { selectedVotePackage } from "@/lib/vote-selection";
 import { ContestantPortrait } from "./contestant-card";
+import { CategoryPath } from "./category-path";
 
 export function PackageSummary({ item }: { item?: VotePackage }) {
   return <section className="selection-summary" aria-labelledby="summary-heading">
@@ -22,7 +23,7 @@ export function PackageSummary({ item }: { item?: VotePackage }) {
 }
 
 export function VoteSelection({ contestant, competition, packages, initialNow }: {
-  contestant: Pick<Contestant, "name" | "number" | "imageUrl">;
+  contestant: Pick<Contestant, "name" | "number" | "imageUrl" | "category" | "subcategory">;
   competition: Competition;
   packages: VotePackage[];
   initialNow: string;
@@ -50,6 +51,8 @@ export function VoteSelection({ contestant, competition, packages, initialNow }:
       <div className="selection-contestant"><ContestantPortrait contestant={contestant} variant="thumbnail" />
         <div><p className="eyebrow">NO. {contestant.number}</p><p>{contestant.name}</p></div>
       </div>
+      <CategoryPath category={contestant.category} subcategory={contestant.subcategory}/>
+      <p className="selection-scope">Category: <strong>{contestant.category.name}</strong> · Subcategory: <strong>{contestant.subcategory.name}</strong></p>
       <p className="selection-status" role="status">{state.label}. {state.description}</p>
       {!packages.length ? <p className="selection-empty">{state.open ? "No vote packages are available right now. Please check back later." : "Packages are available only while the voting window is open."}</p> :
         <fieldset className="package-options" disabled={!state.open} aria-describedby="selection-help">

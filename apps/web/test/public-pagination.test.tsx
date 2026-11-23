@@ -1,3 +1,4 @@
+import { publicScopeFixture } from "./public-scope-fixture";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -6,7 +7,7 @@ import { createApiClient, ApiError } from "../src/lib/api/client";
 import { contestantCardsSchema } from "../src/lib/api/schemas";
 import { publicPage } from "../src/lib/public-page";
 
-const items = [{ id: "person", competitionId: "show", name: "Visible performer", number: "001", imageUrl: null }];
+const items = [{ ...publicScopeFixture(), id: "person", competitionId: "show", name: "Visible performer", number: "001", imageUrl: null }];
 const data = { competitionId: "show", items, pagination: { page: 2, pageSize: 1, total: 3, pages: 3 } };
 
 test("bounded card transport validates pagination and never requests invalid pages", async () => {

@@ -36,6 +36,10 @@ export const errorHandler: ErrorRequestHandler = (error: unknown, _request, resp
     fail(413, "PAYLOAD_TOO_LARGE", "Request body is too large.");
     return;
   }
+  if (parserError?.type === "encoding.unsupported") {
+    fail(415, "UNSUPPORTED_CONTENT_ENCODING", "Send uncompressed JSON.");
+    return;
+  }
   if (error instanceof Prisma.PrismaClientInitializationError ||
       (error instanceof Prisma.PrismaClientKnownRequestError &&
        ["P1001", "P1002", "P1008", "P1017", "P2024"].includes(error.code))) {

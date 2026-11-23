@@ -34,6 +34,6 @@ async function Content({ params }: Props) {
     <Link className="back-link" prefetch={false} href={`/contestants/${encodeURIComponent(id)}`}>← Back to contestant</Link>
     <header className="listing-header"><p className="eyebrow">{competition.name}</p><h1>Explore vote packages</h1>
       <p className="listing-intro">Choose a package for {contestant.name} to preview its votes and total. Online payments are not available yet.</p></header>
-    <VoteSelection contestant={{ name: contestant.name, number: contestant.number, imageUrl: contestant.imageUrl }} competition={competition} packages={packages} initialNow={initialNow} />
+    <VoteSelection contestant={{ name: contestant.name, number: contestant.number, imageUrl: contestant.imageUrl, category: contestant.category, subcategory: contestant.subcategory }} competition={competition} packages={packages} initialNow={initialNow} />
   </article>;
 }

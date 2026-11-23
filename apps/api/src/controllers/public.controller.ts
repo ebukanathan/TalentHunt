@@ -1,6 +1,7 @@
 import type { RequestHandler } from "express";
 import { z } from "zod";
 import type { PublicApi } from "../services/public.service";
+import { publicScopeQuery } from "../validation/public-contestants";
 
 const contestantParams = z.object({
   // Prisma uses string IDs; demo IDs contain hyphens, so CUID-only validation is incorrect.
@@ -12,8 +13,8 @@ export function createPublicControllers(service: PublicApi): Record<string, Requ
     competition: async (_request, response) => {
       response.json({ status: "success", data: await service.getCompetition() });
     },
-    contestants: async (_request, response) => {
-      response.json({ status: "success", data: await service.getContestants() });
+    contestants: async (request, response) => {
+      response.json({ status: "success", data: await service.getContestants(publicScopeQuery.parse(request.query)) });
     },
     contestant: async (request, response) => {
       const { id } = contestantParams.parse(request.params);

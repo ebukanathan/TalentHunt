@@ -123,6 +123,7 @@ async function main() {
     assert.match(await (await request(`/admin/categories/${category.id}`)).text(), /Create subcategory/);
     const childPage = await request(`/admin/categories/${category.id}/subcategories/${subcategory.id}`);
     assert.equal(childPage.status, 200); assert.match(await childPage.text(), /Deactivation impact/);
+    const boardPath = `/leaderboard?${new URLSearchParams({categoryId:category.id,subcategoryId:subcategory.id})}`, privateBoardPath = `/admin${boardPath}`;
     const childPath = `/api/admin/categories/${category.id}/subcategories/${subcategory.id}`;
     assert.equal((await request(childPath, "PATCH", { name: "Denied", expectedRevision: subcategory.revision })).status, 403);
     const childSaved = await request(childPath, "PATCH", { name: "Renamed subcategory", expectedRevision: subcategory.revision }, await csrf());
@@ -189,10 +190,23 @@ async function main() {
     const longBio = await request(`/api/admin/contestants/${person.id}`, "PATCH", { isActive: true, bio: "é".repeat(5000) }, await csrf());
     assert.equal(longBio.status, 200); assert.equal((await longBio.json()).data.bio.length, 5000);
     const active = await (await request("/api/admin/contestants?status=active")).json(); assert.equal(active.data.items[0].id, person.id);
+    console.log("PASS authenticated admin taxonomy, classification, setup, CRUD and images");
+    const otherCategory = (await (await request("/api/admin/categories", "POST", {name:"Other web category",slug:"other-web"},await csrf())).json()).data;
+    const otherChild = (await (await request(`/api/admin/categories/${otherCategory.id}/subcategories`,"POST",{name:"Renamed subcategory",slug:"same-name"},await csrf())).json()).data;
+    const otherPerson = (await (await request("/api/admin/contestants","POST",{name:"Other web performer",number:"002",slug:"other-web-performer",categoryId:otherCategory.id,subcategoryId:otherChild.id},await csrf())).json()).data;
+    await db.contestant.update({where:{id:otherPerson.id},data:{totalVotes:BigInt("9007199254740995")}});
+    const refreshedSetup = (await (await request("/api/admin/competition/category-setup")).json()).data;
+    assert.equal((await request("/api/admin/competition/confirm-category-setup","POST",{competitionId:refreshedSetup.competition.id,expectedReviewToken:refreshedSetup.reviewToken,confirmationName:refreshedSetup.competition.name},await csrf())).status,200);
+    const grouped = await (await request("/contestants")).text(); assert.match(grouped,/Other web category/); assert.match(grouped,/Web category/); assert.equal((grouped.match(/class="category-group"/g)||[]).length,2);
+    const scopedListing = await (await request(`/categories/${category.id}/subcategories/${subcategory.id}`)).text(); assert.match(scopedListing,/Web Performer/); assert.doesNotMatch(scopedListing,/Other web performer/);
+    const chooser = await (await request("/leaderboard")).text(); assert.match(chooser,/Choose a leaderboard/); assert.doesNotMatch(chooser,/<table|9007199254740995/);
     const publicActive = await fetch(`http://127.0.0.1:${apiPort}/api/v1/contestants`); assert.equal((await publicActive.json()).data[0].id, person.id);
     const profile = await (await request(`/contestants/${person.id}`)).text();
+    const profileText = profile.replace(/<!--[\s\S]*?-->/g, "");
+    assert.match(profileText, /Category: Web category/); assert.match(profileText, /Subcategory: Renamed subcategory/);
     assert.match(profile, /Web Performer/); assert.ok(profile.includes(photoUrl));
     assert.doesNotMatch(profile, /<iframe|performance-videos-heading/);
+    console.log("PASS independent public groups, scoped navigation and profile identity");
     const videoIds = ["aB0_-123456", "ZyX98765432"];
     const videoUrls = videoIds.map(id => `https://youtu.be/${id}`);
     const videoPath = `/api/admin/contestants/${person.id}`;
@@ -218,6 +232,7 @@ async function main() {
     assert.match(profile, /Explore vote packages/);
     await db.votePackage.update({where:{id:managedPackage.id},data:{isActive:true}});
     const selection = await (await request(`/contestants/${person.id}/vote`)).text();
+    assert.match(selection, /Category:/); assert.match(selection, /Subcategory:/); assert.match(selection, /Renamed subcategory/);
     assert.match(selection, /type="radio"/); assert.match(selection, /75.25/);
     assert.match(selection, /does not purchase or add any votes/);
     assert.doesNotMatch(selection, /type="submit"|type="email"/);
@@ -226,22 +241,24 @@ async function main() {
     const robots = await request("/robots.txt"); assert.match(robots.headers.get("cache-control")!, /no-store/);
     const sitemap = await request("/sitemap.xml"); assert.match(sitemap.headers.get("cache-control")!, /no-store/);
     assert.match(await sitemap.text(), new RegExp(`/contestants/${person.id}`));
-    assert.match(await (await request("/leaderboard")).text(),/Results have not been published/);
+    assert.match(await (await request(boardPath)).text(),/Results have not been published/);
     const visibilitySave = async (leaderboardVisibility: string) => {
       const current=(await (await request("/api/admin/competition")).json()).data;
       const response=await request("/api/admin/competition","PATCH",{leaderboardVisibility,expectedUpdatedAt:current.updatedAt},await csrf());assert.equal(response.status,200);
     };
     await visibilitySave("LIVE");
-    assert.match(await (await request("/leaderboard")).text(),/No votes have been recorded yet/);
+    assert.match(await (await request(boardPath)).text(),/No votes have been recorded yet/);
     await db.contestant.update({where:{id:person.id},data:{totalVotes:BigInt("9007199254740993")}});
-    assert.match(await (await request("/leaderboard")).text(),/9,007,199,254,740,993/);
+    assert.match(await (await request(boardPath)).text(),/9,007,199,254,740,993/);
     await visibilitySave("RANK_ONLY");
-    for(const route of ["/","/contestants",`/contestants/${person.id}`,"/leaderboard"]){
-      const html=await (await request(route)).text();assert.doesNotMatch(html,/9007199254740993|9,007,199,254,740,993/);
+    for(const route of ["/","/contestants",`/contestants/${person.id}`,boardPath]){
+      const html=await (await request(route)).text();assert.doesNotMatch(html,/9007199254740993|9,007,199,254,740,993|9007199254740995|9,007,199,254,740,995/);
+      const rsc=await (await request(route,"GET",undefined,undefined,{RSC:"1"})).text();assert.doesNotMatch(rsc,/9007199254740993|9007199254740995/);
     }
-    assert.match(await (await request("/admin/leaderboard")).text(),/9,007,199,254,740,993/);
+    assert.match(await (await request(privateBoardPath)).text(),/9,007,199,254,740,993/);
     await visibilitySave("HIDDEN");
-    assert.match(await (await request("/leaderboard")).text(),/Results have not been published/);
+    assert.match(await (await request(boardPath)).text(),/Results have not been published/);
+    console.log("PASS zero/one/two videos, scoped vote selection and leaderboard privacy across HTML/RSC");
     const updateStatus = async(status:string)=>{
       const current=(await (await request("/api/admin/competition")).json()).data;
       const response=await request("/api/admin/competition","PATCH",{status,expectedUpdatedAt:current.updatedAt},await csrf());assert.equal(response.status,200);
@@ -250,26 +267,28 @@ async function main() {
     assert.doesNotMatch(await (await request(`/contestants/${person.id}/vote`)).text(), /type="radio"/);
     const beforePublication=(await (await request("/api/admin/competition")).json()).data;
     const publicationPath="/api/admin/competition/publish-results";
-    const confirmation={competitionId:beforePublication.id,expectedUpdatedAt:beforePublication.updatedAt,confirmationName:beforePublication.name};
+    const publicationReview=(await (await request("/api/admin/competition/publication-preview")).json()).data;
+    assert.equal(publicationReview.groups.length,2);
+    const confirmation={competitionId:beforePublication.id,expectedUpdatedAt:beforePublication.updatedAt,confirmationName:beforePublication.name,expectedReviewToken:publicationReview.reviewToken};
     assert.equal((await request(publicationPath,"POST",confirmation)).status,403);
     assert.equal((await request(publicationPath,"POST",{...confirmation,confirmationName:"wrong"},await csrf())).status,400);
     const settingsHtml=await (await request("/admin/competition")).text();assert.match(settingsHtml,/publication-confirmation/);assert.match(settingsHtml,/Confirm final result publication/);
     assert.equal((await request(publicationPath,"POST",confirmation,await csrf())).status,200);
-    assert.match(await (await request("/leaderboard")).text(),/Published final results/);
-    assert.equal((await (await request("/api/admin/leaderboard")).json()).data.items[0].totalVotes,"9007199254740993");
+    assert.match(await (await request(boardPath)).text(),/Published final results/);
+    assert.equal((await (await request(`/api${privateBoardPath}`)).json()).data.items[0].totalVotes,"9007199254740993");
     const listing = await (await request("/contestants")).text(); assert.ok(listing.includes(photoUrl));
     const removed = await request(`/api/admin/contestants/${person.id}/image`, "DELETE", {}, await csrf());
     assert.equal(removed.status, 200); assert.equal((await removed.json()).data.imageUrl, null);
     assert.equal((await request(`/api/admin/contestants/${person.id}`, "PATCH", { isActive: false }, await csrf())).status, 409);
-    const publicInactive = await fetch(`http://127.0.0.1:${apiPort}/api/v1/contestants`); assert.deepEqual((await publicInactive.json()).data.map((item: { id: string }) => item.id), [person.id]);
+    const publicInactive = await fetch(`http://127.0.0.1:${apiPort}/api/v1/contestants`); assert.deepEqual((await publicInactive.json()).data.map((item: { id: string }) => item.id), [person.id,otherPerson.id]);
     const hidden = await (await request("/contestants/legacy-web")).text(); assert.ok(!hidden.includes(photoUrl)); assert.match(hidden, /Contestant unavailable|NEXT_HTTP_ERROR_FALLBACK;404/);
     assert.equal((await request("/share/contestants/legacy-web")).status, 404);
     assert.ok(!(await (await request("/sitemap.xml")).text()).includes("/contestants/legacy-web"));
-    assert.equal(await db.auditLog.count({ where: { action: "CONTESTANT_CREATED" } }), 1);
+    assert.equal(await db.auditLog.count({ where: { action: "CONTESTANT_CREATED" } }), 2);
     assert.equal(await db.auditLog.count({ where: { action: "CONTESTANT_STATUS_CHANGED" } }), 1);
     const overviewResponse = await request("/api/admin/overview"), overview = (await overviewResponse.json()).data;
     assert.match(overviewResponse.headers.get("cache-control")!, /private.*no-store/);
-    assert.deepEqual(overview.counts, { totalContestants: 2, activeContestants: 1, activePackages: 0 });
+    assert.deepEqual(overview.counts, { totalContestants: 3, activeContestants: 2, activePackages: 0 });
     assert.ok(overview.recentActivity.some((item: {action: string}) => item.action === "CONTESTANT_IMAGE_REMOVED"));
     assert.ok(overview.recentActivity.length <= 10);
     const dashboard = await (await request("/admin")).text();
