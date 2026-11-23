@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
-import { createServer } from "node:http";
+import { createServer, request as proxyRequest } from "node:http";
+import { createServer as createSecureServer } from "node:https";
+import { mkdtempSync, readFileSync, existsSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { createServer as createPortProbe } from "node:net";
 import { spawn, spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import { PrismaClient } from "@prisma/client";
@@ -19,7 +23,16 @@ async function main() {
   assert.match(url.pathname, /^\/talenthunt_browser_test(?:_[a-z0-9]+)*$/); assert.ok(!url.search && !url.hash);
   const webPort = Number(process.env.QA_BROWSER_WEB_PORT || 4173), apiPort = Number(process.env.QA_BROWSER_API_PORT || 4174);
   assert.ok([webPort, apiPort].every(port => Number.isInteger(port) && port > 1024 && port < 65536));
-  const origin = `http://127.0.0.1:${webPort}`;
+  const origin = `https://127.0.0.1:${webPort}`;
+  const certificateDirectory = mkdtempSync(resolve(tmpdir(), "talenthunt-qa-tls-"));
+  const keyPath = resolve(certificateDirectory, "localhost.key"), certPath = resolve(certificateDirectory, "localhost.crt");
+  const openssl = process.env.QA_OPENSSL_BIN || (process.platform === "win32" && existsSync("C:/Program Files/Git/usr/bin/openssl.exe") ? "C:/Program Files/Git/usr/bin/openssl.exe" : "openssl");
+  const certificate = spawnSync(openssl, ["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1", "-subj", "/CN=localhost", "-addext", "subjectAltName=IP:127.0.0.1", "-keyout", keyPath, "-out", certPath], { windowsHide: true, stdio: "ignore" });
+  assert.equal(certificate.status, 0, "QA needs OpenSSL for its temporary localhost certificate.");
+  const nextPort = await new Promise<number>((done, reject) => {
+    const probe = createPortProbe(); probe.once("error", reject);
+    probe.listen(0, "127.0.0.1", () => { const value = (probe.address() as { port: number }).port; probe.close(() => done(value)); });
+  });
   const db = new PrismaClient({ datasources: { db: { url: url.href } }, errorFormat: "minimal" });
   assert.ok((await Promise.all([db.competition.count(), db.adminUser.count(), db.payment.count(), db.contestant.count()])).every(count => count === 0), "Refusing a populated browser fixture database.");
   await provisionInitialAdmin(db, { email: "qa-browser@example.test", password: "A browser-fixture-only passphrase" });
@@ -36,7 +49,7 @@ async function main() {
   await db.votePackage.create({ data: { competitionId: "browser-show", name: "Fixture support", voteCount: 10, priceKobo: 5000 } });
   const objects = new Map<string, Buffer>(), publicPrefix = "https://portraits.example.test/storage/v1/object/public/contestant-images/";
   const storage: ImageStorage = { publicUrl: key => publicPrefix + key, async upload(key, bytes) { objects.set(key, bytes); }, async remove(key) { objects.delete(key); } };
-  const config = readAdminConfiguration({ NODE_ENV: "test", ADMIN_APP_ORIGIN: origin, ADMIN_CSRF_SECRET: "e".repeat(64) })!;
+  const config = readAdminConfiguration({ NODE_ENV: "production", ADMIN_APP_ORIGIN: origin, ADMIN_CSRF_SECRET: "e".repeat(64) })!;
   const app = createApp(new PublicReadService(db, "browser-show"), undefined, new AdminAuthService(db, config), storage);
   let failure = false, delay = 0;
   const api = createServer((req, res) => {
@@ -58,24 +71,38 @@ async function main() {
     if (isPublic && delay) setTimeout(() => app(req, res), delay); else app(req, res);
   });
   await new Promise<void>(done => api.listen(apiPort, "127.0.0.1", done));
+  // A test-only TLS terminator exercises production secure cookies and origin
+  // checks without installing a trusted certificate or exposing a public port.
+  const tls = createSecureServer({ key: readFileSync(keyPath), cert: readFileSync(certPath) }, (req, res) => {
+    const upstream = proxyRequest({ hostname: "127.0.0.1", port: nextPort, path: req.url, method: req.method,
+      headers: { ...req.headers, "x-forwarded-proto": "https", "x-forwarded-host": new URL(origin).host } }, response => {
+      res.writeHead(response.statusCode || 502, response.headers); response.pipe(res);
+    });
+    upstream.on("error", () => { if (!res.headersSent) res.writeHead(502); res.end("QA web server is starting."); });
+    req.on("error", () => upstream.destroy()); req.pipe(upstream);
+  });
+  await new Promise<void>(done => tls.listen(webPort, "127.0.0.1", done));
   let stopping = false;
   const close = async () => {
     if (stopping) return; stopping = true;
-    // Next dev forks a server. Stop only this fixture's owned process tree on
+    // Stop only this fixture's owned process tree on
     // Windows so repeated runs cannot retain a directory lock or watcher.
     if (child && child.exitCode === null) {
       if (process.platform === "win32" && child.pid) spawnSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { windowsHide: true, stdio: "ignore" });
       else child.kill();
     }
-    api.closeAllConnections(); api.close(); await db.$disconnect();
+    tls.closeAllConnections(); tls.close(); api.closeAllConnections(); api.close(); await db.$disconnect();
   };
   process.once("SIGINT", () => { void close(); }); process.once("SIGTERM", () => { void close(); });
-  const child = spawn(process.execPath, [resolve("../../node_modules/next/dist/bin/next"), "dev", "--hostname", "127.0.0.1", "--port", String(webPort)], {
-    cwd: process.cwd(), windowsHide: true, stdio: "inherit", env: { ...process.env, NODE_ENV: "development", API_BASE_URL: `http://127.0.0.1:${apiPort}/api/v1`,
-      ADMIN_APP_ORIGIN: origin, SITE_URL: origin, NEXT_DIST_DIR: ".next-browser-test", NEXT_PUBLIC_CONTESTANT_IMAGE_ORIGIN: "https://portraits.example.test",
+  const child = spawn(process.execPath, [resolve("../../node_modules/next/dist/bin/next"), "start", "--hostname", "127.0.0.1", "--port", String(nextPort)], {
+    cwd: process.cwd(), windowsHide: true, stdio: "inherit", env: { ...process.env, NODE_ENV: "production", API_BASE_URL: `http://127.0.0.1:${apiPort}/api/v1`,
+      ADMIN_APP_ORIGIN: origin, SITE_URL: origin, NEXT_DIST_DIR: ".next", NEXT_PUBLIC_CONTESTANT_IMAGE_ORIGIN: "https://portraits.example.test",
       PAYSTACK_SECRET_KEY: "", PAYSTACK_MODE: "", SUPABASE_SECRET_KEY: "", SUPABASE_URL: "" },
   });
   child.once("exit", code => { void close().then(() => { process.exitCode = code || 0; }); });
   child.once("error", () => { void close().then(() => { process.exitCode = 1; }); });
 }
-main().catch(() => { console.error("Disposable browser fixture could not start."); process.exit(1); });
+main().catch(error => {
+  const message = error instanceof Error ? error.message.replace(/postgres(?:ql)?:\/\/\S+/g, "[database URL]") : "Unknown fixture startup error.";
+  console.error("Disposable browser fixture could not start: " + message); process.exit(1);
+});

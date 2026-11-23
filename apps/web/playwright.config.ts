@@ -6,13 +6,13 @@ export default defineConfig({
   expect: { timeout: 20000 },
   reporter: [["list"], ["html", { outputFolder: "../../artifacts/qa/playwright-report", open: "never" }]],
   outputDir: "../../artifacts/qa/browser-results",
-  use: { baseURL: `http://127.0.0.1:${port}`, trace: "retain-on-failure", screenshot: "only-on-failure" },
+  use: { baseURL: `https://127.0.0.1:${port}`, ignoreHTTPSErrors: true, trace: "retain-on-failure", screenshot: "only-on-failure" },
   projects: [
     { name: "desktop", use: { browserName: "chromium", viewport: { width: 1280, height: 900 } } },
     { name: "mobile", use: { browserName: "chromium", viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true } },
   ],
   webServer: {
-    command: "node --import tsx test/browser/fixture-server.ts", url: `http://127.0.0.1:${port}/robots.txt`,
-    reuseExistingServer: false, timeout: 120000, stdout: "pipe", stderr: "pipe",
+    command: "node --import tsx test/browser/fixture-server.ts", url: `https://127.0.0.1:${port}/admin/login`,
+    ignoreHTTPSErrors: true, reuseExistingServer: false, timeout: 120000, stdout: "pipe", stderr: "pipe",
   },
 });

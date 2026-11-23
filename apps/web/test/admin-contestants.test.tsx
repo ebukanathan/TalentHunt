@@ -15,6 +15,7 @@ test("forms expose labeled editable fields, preserve leading zeros and escape st
   assert.match(form, /value="001"/); assert.match(form, /&lt;script&gt;/); assert.doesNotMatch(form, /<script>|<b>text<\/b>/);
   assert.match(form, /type="file"/); assert.doesNotMatch(form, /id="imageUrl"|id="totalVotes"|id="competitionId"/);
   assert.match(form, /Save changes/); assert.match(renderToStaticMarkup(<ContestantForm competitionName="Fixture" />), /Register contestant/);
+  assert.match(form, /<fieldset disabled="">/, "server-rendered edit fields wait for hydration before accepting input");
   assert.equal(suggestSlug("  Ada Étoile & Friends  "), "ada-etoile-friends");
 });
 test("list renders inactive entries, exact votes, search/status controls and filter-preserving pagination", () => {

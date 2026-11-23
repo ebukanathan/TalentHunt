@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useHydrated } from "@/lib/admin/use-hydrated";
 
 async function mutate(endpoint: "login" | "logout", body: object) {
   const csrfResponse = await fetch("/api/admin/auth/csrf", { cache: "no-store" });
@@ -13,9 +14,11 @@ async function mutate(endpoint: "login" | "logout", body: object) {
   }
 }
 export function LoginForm() {
+  const hydrated = useHydrated();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  return <form className="admin-form" onSubmit={async event => {
+  // A native submission before hydration must never put credentials in a URL.
+  return <form className="admin-form" method="post" onSubmit={async event => {
     event.preventDefault();
     if (busy) return;
     const form = event.currentTarget;
@@ -34,11 +37,12 @@ export function LoginForm() {
     }
   }}>
     <label htmlFor="email">Email address</label>
-    <input id="email" name="email" type="email" autoComplete="username" maxLength={254} required disabled={busy} />
+    <input id="email" name="email" type="email" autoComplete="username" maxLength={254} required disabled={busy || !hydrated} />
     <label htmlFor="password">Password</label>
-    <input id="password" name="password" type="password" autoComplete="current-password" maxLength={128} required disabled={busy} aria-describedby={error ? "login-error" : undefined} />
+    <input id="password" name="password" type="password" autoComplete="current-password" maxLength={128} required disabled={busy || !hydrated} aria-describedby={error ? "login-error" : undefined} />
+    {!hydrated && <p role="status">Preparing sign-in form. JavaScript is required to sign in.</p>}
     {error && <p id="login-error" role="alert" className="admin-error">{error}</p>}
-    <button className="admin-button" disabled={busy} type="submit">{busy ? "Signing in…" : "Sign in"}</button>
+    <button className="admin-button" disabled={busy || !hydrated} type="submit">{busy ? "Signing in…" : "Sign in"}</button>
   </form>;
 }
 export function LogoutButton() {

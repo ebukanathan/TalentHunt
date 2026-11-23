@@ -25,10 +25,7 @@ async function setup(page: Page) {
   await expect(page.getByText("Category setup was reviewed and confirmed.", { exact: false })).toBeVisible();
 }
 
-test("editing category assignment, biography and photograph preserves both performance videos and independent rankings", async ({ page, request }, info) => {
-  const suffix = info.project.name, categoryName = `QA ${suffix} group`, personName = `QA ${suffix} contestant`;
-  const portrait = await sharp({ create: { width: 40, height: 50, channels: 3, background: "#b68c45" } }).png().toBuffer();
-  page.on("dialog", dialog => { void dialog.accept(); });
+test.beforeEach(async ({ page, request }) => {
   await page.route("https://www.youtube-nocookie.com/**", route => route.fulfill({
     contentType: "text/html", body: "<p>Guarded YouTube embed fixture</p>",
   }));
@@ -44,6 +41,12 @@ test("editing category assignment, biography and photograph preserves both perfo
     const result = await image(url);
     await route.fulfill({ status: result.status(), contentType: "image/webp", body: await result.body() });
   });
+});
+
+test("editing category assignment, biography and photograph preserves both performance videos and independent rankings", async ({ page }, info) => {
+  const suffix = info.project.name, categoryName = `QA ${suffix} group`, personName = `QA ${suffix} contestant`;
+  const portrait = await sharp({ create: { width: 40, height: 50, channels: 3, background: "#b68c45" } }).png().toBuffer();
+  page.on("dialog", dialog => { void dialog.accept(); });
   await page.goto("/admin/contestants");
   await expect(page).toHaveURL(/\/admin\/login/);
   await page.getByLabel("Email").fill("qa-browser@example.test");
@@ -179,4 +182,18 @@ test("loading, empty and failure states recover without exposing backend diagnos
   } finally { await request.post(`${api}/__qa/control`, { data: {} }); }
   await page.getByRole("button", { name: /try again/i }).click();
   await expect(page.getByRole("heading", { name: "Meet the remarkable.", exact: true })).toBeVisible();
+});
+
+test("sign-in stays inert without JavaScript and never defaults to credential-bearing GET submission", async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ baseURL, javaScriptEnabled: false, ignoreHTTPSErrors: true });
+  try {
+    const page = await context.newPage();
+    await page.goto("/admin/login");
+    await expect(page.getByLabel("Email")).toBeDisabled();
+    await expect(page.getByLabel("Password", { exact: true })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeDisabled();
+    await expect(page.locator("form")).toHaveAttribute("method", "post");
+    await expect(page.getByRole("status")).toContainText("JavaScript is required to sign in.");
+    expect(new URL(page.url()).search).toBe("");
+  } finally { await context.close(); }
 });

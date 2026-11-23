@@ -5,8 +5,12 @@ import type { ManagedContestant } from "@/lib/admin/contestant-schemas";
 import { ContestantMutationError, saveContestant, suggestSlug } from "@/lib/admin/contestant-mutations";
 import { ContestantImage } from "./contestant-image";
 import { AssignmentFields } from "./assignment-fields";
+import { useHydrated } from "@/lib/admin/use-hydrated";
 
 export function ContestantForm({ contestant, competitionName, assignmentLocked = false }: { contestant?: ManagedContestant; competitionName: string; assignmentLocked?: boolean }) {
+  // Server-rendered controls must not accept edits before their React handlers
+  // hydrate; otherwise early input can be replaced by the initial saved values.
+  const hydrated = useHydrated();
   const [values, setValues] = useState({ name: contestant?.name || "", number: contestant?.number || "", slug: contestant?.slug || "", bio: contestant?.bio || "", isActive: contestant?.isActive ?? true,
     videoUrls: [0, 1].map(index => contestant?.videos[index] ? `https://www.youtube.com/watch?v=${contestant.videos[index].youtubeVideoId}` : ""),
     categoryId: contestant?.categoryId || "", subcategoryId: contestant?.subcategoryId || "",
@@ -35,10 +39,11 @@ export function ContestantForm({ contestant, competitionName, assignmentLocked =
     }
   }}>
     <p className="admin-muted">Competition: <strong>{competitionName}</strong>. Competition membership cannot be changed here.</p>
+    {!hydrated && <p role="status">Preparing contestant form…</p>}
     {error && <div role="alert" tabIndex={-1} ref={summary} className="admin-error-summary"><p>{error}</p>
       {Object.keys(fields).length > 0 && <ul>{Object.entries(fields).map(([key, message]) => <li key={key}><a href={`#${key}`}>{message}</a></li>)}</ul>}
     </div>}
-    <fieldset disabled={busy}>
+    <fieldset disabled={busy || !hydrated}>
       <legend className="admin-sr-only">Contestant details</legend>
       {contestant && !contestant.subcategoryId ? <p role="status">Pending initial classification. <Link href={`/admin/contestants/${contestant.id}/assignment`}>Review and assign this contestant</Link></p> : <>
         <AssignmentFields categoryId={values.categoryId} subcategoryId={values.subcategoryId} current={contestant?.subcategory} disabled={assignmentLocked}

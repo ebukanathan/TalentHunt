@@ -88,6 +88,7 @@ async function main() {
     await task("test:public:refinement", "apps/web"); await task("test:smoke", "apps/web");
   }
   if (["all", "browser"].includes(phase)) {
+    if (phase === "browser") await task("build", "apps/web");
     const port = () => new Promise((done, reject) => {
       const probe = require("node:net").createServer(); probe.once("error", reject);
       probe.listen(0, "127.0.0.1", () => { const value = probe.address().port; probe.close(() => done(String(value))); });
