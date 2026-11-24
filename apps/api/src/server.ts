@@ -6,13 +6,15 @@ import { PaymentInitializationService } from "./services/payment-initialization.
 import { PaystackClient } from "./clients/paystack.client";
 import { AdminAuthService } from "./services/admin-auth.service";
 import { SupabaseImageStorage } from "./storage/contestant-images";
+import { PaystackWebhookIntake } from "./services/paystack-webhook-intake.service";
 
 const payments = environment.paystack
   ? new PaymentInitializationService(prisma, new PaystackClient(environment.paystack), environment.PUBLIC_COMPETITION_SLUG)
   : undefined;
 const admin = environment.admin ? new AdminAuthService(prisma, environment.admin) : undefined;
 const storage = environment.storage ? new SupabaseImageStorage(environment.storage) : undefined;
-const app = createApp(new PublicReadService(prisma, environment.PUBLIC_COMPETITION_SLUG), payments, admin, storage);
+const webhooks = environment.webhooks ? new PaystackWebhookIntake(prisma, environment.webhooks) : undefined;
+const app = createApp(new PublicReadService(prisma, environment.PUBLIC_COMPETITION_SLUG), payments, admin, storage, webhooks);
 const server = app.listen(environment.PORT, () => {
   console.log("TalentHunt API running at http://localhost:" + environment.PORT);
 });

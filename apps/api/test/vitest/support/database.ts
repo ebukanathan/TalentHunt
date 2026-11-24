@@ -80,7 +80,7 @@ export class VotingDatabaseHarness {
   }
   async fresh() {
     const name = `talenthunt_vitest_${this.runId}_${randomBytes(8).toString('hex')}`;
-    // The template has no open Prisma connections. All nine real migrations
+    // The template has no open Prisma connections. All real migrations
     // and their integrity triggers are cloned, with zero application rows.
     await this.control.$executeRawUnsafe(`CREATE DATABASE "${name}" TEMPLATE ${ownedDatabase(this.template, this.runId, this.owned)}`);
     this.owned.add(name); this.cases.add(name); this.createdCases++;

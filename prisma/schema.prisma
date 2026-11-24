@@ -46,6 +46,15 @@ enum PaymentInitializationState {
   UNKNOWN
 }
 
+enum PaystackWebhookStatus {
+  PENDING
+  PROCESSING
+  RETRYING
+  AWAITING_FINALIZATION
+  REVIEW_REQUIRED
+  IGNORED
+}
+
 model Competition {
   id           String            @id @default(cuid())
   name         String
@@ -228,6 +237,7 @@ model Payment {
   initialization PaymentInitialization?
   scope          PaymentScope?
   verifiedPayment VerifiedPayment?
+  webhookJobs PaystackWebhookJob[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -293,8 +303,8 @@ model VoteAllocation {
   @@index([contestantId, createdAt])
 }
 
-// Server-owned verification evidence. There is deliberately no runtime writer,
-// HTTP ingestion route or provider adapter in the internal voting-engine phase.
+// Allocation authority: production writes require the future atomic finalizer.
+// P02's authenticated inbox facts never create these records or mark payments PAID.
 model VerifiedPayment {
   id            String @id @default(cuid())
   paymentId     String @unique
@@ -312,6 +322,35 @@ model VerifiedPayment {
 
   @@unique([id, paymentId])
   @@unique([provider, environment, providerTxnId])
+}
+
+// Minimal authenticated facts only; no raw webhook/customer/card payload retained.
+// Verified inbox facts are NOT the allocator's VerifiedPayment authority.
+model PaystackWebhookJob {
+  id String @id @default(cuid())
+  dedupeKey String @unique @db.VarChar(64)
+  eventType String @db.VarChar(64)
+  reference String? @db.VarChar(128)
+  bodySha256 String @db.VarChar(64)
+  signatureVersion String @db.VarChar(8)
+  signingKeyId String? @db.VarChar(128)
+  receivedAt DateTime @default(now())
+  status PaystackWebhookStatus @default(PENDING)
+  attempts Int @default(0)
+  nextAttemptAt DateTime @default(now())
+  leaseToken String? @unique
+  leaseExpiresAt DateTime?
+  lastErrorCode String? @db.VarChar(64)
+  paymentId String?
+  payment Payment? @relation(fields: [paymentId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  providerTxnId String? @unique
+  verifiedAt DateTime?
+  verifiedFacts Json?
+  updatedAt DateTime @updatedAt
+
+  @@index([status, nextAttemptAt])
+  @@index([status, leaseExpiresAt])
+  @@index([paymentId])
 }
 
 model AdminUser {

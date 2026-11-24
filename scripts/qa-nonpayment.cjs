@@ -7,7 +7,7 @@ const { resolve, dirname, join } = require("node:path");
 const { randomBytes } = require("node:crypto");
 const root = resolve(__dirname, "..");
 const phase = process.argv[2] || "all";
-if (!["all", "api", "integration", "browser", "checks", "voting", "voting-vitest", "checkout"].includes(phase)) throw new Error("Unknown QA phase.");
+if (!["all", "api", "integration", "browser", "checks", "voting", "voting-vitest", "checkout", "paystack"].includes(phase)) throw new Error("Unknown QA phase.");
 const raw = process.env.QA_TEST_DATABASE_URL;
 if (process.env.NODE_ENV === "production" || process.env.QA_DISPOSABLE_DATABASES !== "1" || !raw)
   throw new Error("QA requires explicit QA_TEST_DATABASE_URL and QA_DISPOSABLE_DATABASES=1.");
@@ -89,6 +89,10 @@ async function main() {
   if (["all", "api", "voting", "voting-vitest"].includes(phase)) {
     await task("typecheck:vitest", "apps/api");
     await task("test:voting:vitest", "apps/api");
+  }
+  if (phase === "paystack") {
+    await task("typecheck:vitest", "apps/api");
+    await task("test:paystack:vitest", "apps/api");
   }
   if (["all", "api"].includes(phase)) await task("test:nonpayment", "apps/api");
   if (["all", "checkout"].includes(phase)) {
