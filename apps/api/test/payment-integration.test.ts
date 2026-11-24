@@ -116,6 +116,11 @@ test("PAY-01 over real HTTP, isolated PostgreSQL and a local Paystack HTTP fake"
     await db.contestant.create({ data: { id: input.contestantId, competitionId: "pay-show", number: "001", name: "Test contestant", slug: "test", ...assignment } });
     await db.competition.update({ where: { id: "pay-show" }, data: { categorySetupCompletedAt: now } });
     await db.votePackage.create({ data: { id: input.packageId, competitionId: "pay-show", name: "Starter", voteCount: 10, priceKobo: 100000 } });
+    await t.test("new purchases require the permanent category integrity cutover", async () => {
+      assert.equal((await post()).status, 409);
+      assert.equal(await db.payment.count(), 0); assert.equal(providerCalls, 0);
+      await db.competition.update({ where: { id: "pay-show" }, data: { categoryIntegrityEnabledAt: now } });
+    });
 
     await t.test("invalid input, price manipulation, invalid/missing key and disabled configuration never create payments", async () => {
       for (const body of [{}, { ...input, email: "bad" }, { ...input, amountKobo: 1 }, { ...input, voteCount: 99999 },
@@ -142,10 +147,11 @@ test("PAY-01 over real HTTP, isolated PostgreSQL and a local Paystack HTTP fake"
       const pinned = await start(createServer(createApp(new PublicReadService(db), new PaymentInitializationService(db, provider, "missing-slug", () => now))));
       assert.equal((await post(input, randomUUID(), pinned)).status, 404);
       for (const patch of [{ status: "DRAFT" as const }, { status: "SCHEDULED" as const }, { status: "CLOSED" as const },
+        { votingOpens: null }, { votingCloses: null }, { categorySetupCompletedAt: null },
         { status: "COMPLETED" as const }, { votingCloses: now }, { votingOpens: new Date(now.getTime() + 1) }]) {
         await db.competition.update({ where: { id: "pay-show" }, data: patch });
         assert.equal((await post()).status, 409);
-        await db.competition.update({ where: { id: "pay-show" }, data: { status: "OPEN", votingOpens: now, votingCloses: new Date(now.getTime() + 3600000) } });
+        await db.competition.update({ where: { id: "pay-show" }, data: { status: "OPEN", votingOpens: now, votingCloses: new Date(now.getTime() + 3600000), categorySetupCompletedAt: now, categoryIntegrityEnabledAt: now } });
       }
       await db.votePackage.update({ where: { id: input.packageId }, data: { currency: "USD" } });
       assert.equal((await post()).status, 409);
@@ -160,7 +166,10 @@ test("PAY-01 over real HTTP, isolated PostgreSQL and a local Paystack HTTP fake"
       assert.equal(first.status, 201);
       assert.match(first.body.data.reference, /^th-test-[0-9a-f-]+$/);
       assert.equal(first.body.data.authorizationUrl, "https://checkout.paystack.com/" + first.body.data.reference);
-      assert.deepEqual(Object.keys(first.body.data).sort(), ["authorizationUrl", "reference"]);
+      assert.deepEqual(Object.keys(first.body.data).sort(), ["authorizationUrl", "mode", "purchase", "reference"]);
+      assert.equal(first.body.data.mode, "test");
+      assert.deepEqual(first.body.data.purchase, { ...assignment, competitionId: "pay-show", contestantId: input.contestantId,
+        packageId: input.packageId, amountKobo: 100000, voteCount: 10, currency: "NGN" });
       assert.equal(lastBody.amount, "100000");
       assert.equal(lastBody.email, input.email);
       const payment = await db.payment.findUniqueOrThrow({ where: { reference: first.body.data.reference } });

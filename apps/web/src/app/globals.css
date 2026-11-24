@@ -1080,3 +1080,12 @@ em {
 }
 
 .scope-links li, .scope-links a { min-width: 0; max-width: 100%; }
+.test-checkout { margin-top: var(--space-3); padding: var(--space-3); border: 1px solid var(--gold); border-radius: var(--radius); overflow-wrap: anywhere; }
+.test-checkout h2, .test-checkout h3 { margin-bottom: var(--space-2); }
+.test-checkout-banner { color: var(--gold); font-weight: 600; }
+.test-checkout fieldset { border: 0; padding: 0; margin-top: var(--space-3); min-width: 0; }
+.test-checkout label, .test-checkout input { display: block; width: 100%; }
+.test-checkout input { margin-block: var(--space-1); padding: var(--space-2); background: var(--surface); color: var(--foreground); border: 1px solid var(--line); border-radius: var(--radius); }
+.test-checkout p { margin-block: var(--space-2); }
+.test-checkout button, .test-checkout .button { white-space: normal; max-width: 100%; }
+.checkout-review { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--line); }

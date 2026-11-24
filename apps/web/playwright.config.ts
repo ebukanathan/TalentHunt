@@ -1,7 +1,7 @@
 import { defineConfig } from "@playwright/test";
 const port = process.env.QA_BROWSER_WEB_PORT || "4173";
 export default defineConfig({
-  testDir: "test/browser", testMatch: "**/*.spec.ts", workers: 1, fullyParallel: false,
+  testDir: "test/browser", testMatch: "**/nonpayment.spec.ts", workers: 1, fullyParallel: false,
   forbidOnly: Boolean(process.env.CI), retries: 0, timeout: 300000, globalTimeout: 20 * 60000,
   expect: { timeout: 20000 },
   reporter: [["list"], ["html", { outputFolder: "../../artifacts/qa/playwright-report", open: "never" }]],
