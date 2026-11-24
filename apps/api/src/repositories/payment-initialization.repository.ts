@@ -8,17 +8,17 @@ export type PurchaseSelection = {
   votingOpens: Date | null; votingCloses: Date | null; competitionCurrency: string;
   contestantActive: boolean; packageActive: boolean; packageCompetitionId: string;
   priceKobo: number; voteCount: number; currency: string;
-  categoryId: string; subcategoryId: string; categoryActive: boolean; subcategoryActive: boolean; categorySetupCompletedAt: Date | null;
+  categoryId: string; subcategoryId: string; categoryActive: boolean; subcategoryActive: boolean; categorySetupCompletedAt: Date | null; categoryIntegrityEnabledAt: Date | null;
 };
 export function assertPurchasable(selection: PurchaseSelection, now: Date, competitionSlug?: string) {
   if (!selection.contestantActive || !selection.categoryActive || !selection.subcategoryActive || !selection.categoryId || !selection.subcategoryId || !selection.packageActive || selection.packageCompetitionId !== selection.competitionId ||
       (competitionSlug && selection.slug !== competitionSlug)) {
     throw new HttpError(404, "SELECTION_NOT_FOUND", "Contestant or package is unavailable.");
   }
-  if (!selection.categorySetupCompletedAt) throw new HttpError(409, "CATEGORY_SETUP_INCOMPLETE", "Category assignments must be reviewed before a selection can be reserved.");
+  if (!selection.categorySetupCompletedAt || !selection.categoryIntegrityEnabledAt) throw new HttpError(409, "CATEGORY_SETUP_INCOMPLETE", "Category assignments and integrity must be confirmed before a selection can be reserved.");
   const start = selection.votingOpens?.getTime();
   const end = selection.votingCloses?.getTime();
-  if (selection.status !== "OPEN" || !Number.isFinite(now.getTime()) ||
+  if (selection.status !== "OPEN" || start === undefined || end === undefined || !Number.isFinite(now.getTime()) ||
       (start !== undefined && (!Number.isFinite(start) || now.getTime() < start)) ||
       (end !== undefined && (!Number.isFinite(end) || now.getTime() >= end)) ||
       (start !== undefined && end !== undefined && start >= end)) {
@@ -52,7 +52,7 @@ export async function reserveInitialization(
           co.currency AS "competitionCurrency", c."isActive" AS "contestantActive",
           vp."isActive" AS "packageActive", vp."competitionId" AS "packageCompetitionId",
           vp."priceKobo", vp."voteCount", vp.currency, c."categoryId", c."subcategoryId",
-          cat."isActive" AS "categoryActive", sub."isActive" AS "subcategoryActive", co."categorySetupCompletedAt"
+          cat."isActive" AS "categoryActive", sub."isActive" AS "subcategoryActive", co."categorySetupCompletedAt", co."categoryIntegrityEnabledAt"
         FROM "Contestant" c JOIN "Competition" co ON co.id = c."competitionId"
         JOIN "Category" cat ON cat.id = c."categoryId" AND cat."competitionId" = c."competitionId"
         JOIN "Subcategory" sub ON sub.id = c."subcategoryId" AND sub."categoryId" = cat.id AND sub."competitionId" = co.id

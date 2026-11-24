@@ -9,14 +9,15 @@ const hash = (value: string) => createHash("sha256").update(value).digest("hex")
 export interface PaymentInitializationApi {
   initialize(input: InitializePaymentInput, idempotencyKey: string): Promise<{
     httpStatus: number;
-    data: { reference: string; authorizationUrl?: string; initializationStatus?: "PENDING" | "REVIEW_REQUIRED" };
+    data: { reference: string; authorizationUrl?: string; initializationStatus?: "PENDING" | "REVIEW_REQUIRED";
+      mode?: "test"; purchase?: { competitionId: string; categoryId: string; subcategoryId: string; contestantId: string; packageId: string; amountKobo: number; voteCount: number; currency: string } };
   }>;
 }
 export class PaymentInitializationService implements PaymentInitializationApi {
   constructor(private readonly database: PrismaClient, private readonly paystack: PaystackInitializer,
     private readonly competitionSlug?: string, private readonly clock: () => Date = () => new Date()) {}
 
-  async initialize(input: InitializePaymentInput, idempotencyKey: string) {
+  async initialize(input: InitializePaymentInput, idempotencyKey: string): ReturnType<PaymentInitializationApi["initialize"]> {
     const idempotencyKeyHash = hash(idempotencyKey);
     const requestHash = hash(JSON.stringify([input.contestantId, input.packageId, input.email]));
     const { created, initialization } = await reserveInitialization(
@@ -27,16 +28,23 @@ export class PaymentInitializationService implements PaymentInitializationApi {
     if (!payment.scope || payment.scope.competitionId !== payment.competitionId || payment.scope.contestantId !== payment.contestantId || payment.scope.packageId !== payment.packageId)
       throw new HttpError(409, "LEGACY_PAYMENT_SCOPE_REVIEW_REQUIRED", "This unscoped legacy selection requires reconciliation. It cannot be dispatched or reinterpreted automatically.");
     if (payment.status !== "PENDING") throw new HttpError(409, "PAYMENT_NOT_PENDING", "This payment cannot be initialized again.");
+    // Always describe the persisted snapshot, including retries after price edits.
+    // No email, private retry key, provider credentials or payment evidence leaves here.
+    const summary = { reference: payment.reference, mode: "test" as const, purchase: {
+      competitionId: payment.competitionId, categoryId: payment.scope.categoryId, subcategoryId: payment.scope.subcategoryId,
+      contestantId: payment.contestantId, packageId: payment.packageId, amountKobo: payment.amountKobo,
+      voteCount: payment.voteCount, currency: payment.currency,
+    } };
     if (!created) {
       if (this.competitionSlug) {
         const competition = await this.database.competition.findUnique({ where: { id: payment.competitionId }, select: { slug: true } });
         if (competition?.slug !== this.competitionSlug) throw new HttpError(404, "SELECTION_NOT_FOUND", "Contestant or package is unavailable.");
       }
       if (initialization.state === "READY" && initialization.authorizationUrl) {
-        return { httpStatus: 200, data: { reference: payment.reference, authorizationUrl: initialization.authorizationUrl } };
+        return { httpStatus: 200, data: { ...summary, authorizationUrl: initialization.authorizationUrl } };
       }
       if (initialization.state === "REJECTED") throw new HttpError(502, "PAYSTACK_REJECTED", "Checkout initialization was rejected.");
-      return { httpStatus: 202, data: { reference: payment.reference,
+      return { httpStatus: 202, data: { ...summary,
         initializationStatus: initialization.state === "UNKNOWN" ? "REVIEW_REQUIRED" as const : "PENDING" as const } };
     }
     let checkout: { authorizationUrl: string };
@@ -47,13 +55,13 @@ export class PaymentInitializationService implements PaymentInitializationApi {
       const state = error instanceof PaystackInitializationError && error.outcome === "REJECTED" ? "REJECTED" : "UNKNOWN";
       await this.database.paymentInitialization.update({ where: { idempotencyKeyHash }, data: { state } });
       if (state === "REJECTED") throw new HttpError(502, "PAYSTACK_REJECTED", "Checkout initialization was rejected.");
-      return { httpStatus: 202, data: { reference: payment.reference, initializationStatus: "REVIEW_REQUIRED" as const } };
+      return { httpStatus: 202, data: { ...summary, initializationStatus: "REVIEW_REQUIRED" as const } };
     }
     // If this write fails after acceptance, the row stays STARTED. Replays remain
     // pending and cannot initialize a second transaction after a crash/restart.
     await this.database.paymentInitialization.update({ where: { idempotencyKeyHash }, data: {
       state: "READY", authorizationUrl: checkout.authorizationUrl,
     } });
-    return { httpStatus: 201, data: { reference: payment.reference, authorizationUrl: checkout.authorizationUrl } };
+    return { httpStatus: 201, data: { ...summary, authorizationUrl: checkout.authorizationUrl } };
   }
 }

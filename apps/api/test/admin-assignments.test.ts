@@ -160,7 +160,8 @@ test("CAT-03 assignment, classification, scope integrity and races on real HTTP/
     });
     await t.test("reservations capture exact scope atomically and allocations cannot cross identities or counts", async () => {
       const candidate = await person("reserved"); assert.equal((await ready()).status, 200);
-      await db.competition.update({ where: { id: "show" }, data: { status: "OPEN" } });
+      await db.competition.update({ where: { id: "show" }, data: { status: "OPEN",
+        votingOpens: new Date(Date.now() - 60000), votingCloses: new Date(Date.now() + 3600000) } });
       const key = randomUUID(), input = { contestantId: candidate.id, packageId: "package", email: "fixture@example.com" };
       const result = await reserveInitialization(db, input, hash(key), hash(JSON.stringify([input.contestantId, input.packageId, input.email])));
       assert.equal(result.initialization.payment.scope?.subcategoryId, a.subcategoryId);

@@ -41,7 +41,13 @@ First successful creation returns **201**:
   "status": "success",
   "data": {
     "reference": "th-test-<server-generated-uuid>",
-    "authorizationUrl": "https://checkout.paystack.com/<checkout-code>"
+    "authorizationUrl": "https://checkout.paystack.com/<checkout-code>",
+    "mode": "test",
+    "purchase": {
+      "competitionId": "show", "categoryId": "category", "subcategoryId": "subcategory",
+      "contestantId": "contestant", "packageId": "package",
+      "amountKobo": 100000, "voteCount": 10, "currency": "NGN"
+    }
   }
 }
 ```
@@ -50,7 +56,7 @@ An identical successful replay returns **200** with the same reference/URL, incl
 
 ## Selection and snapshot rules
 
-The server locks the contestant, competition and package rows while validating and inserting the snapshot. The contestant and package must exist, be active and belong to the same competition. `PUBLIC_COMPETITION_SLUG`, when configured, must match. The competition must be OPEN; the optional opening time is inclusive and closing time exclusive. Malformed/reversed dates fail closed. Null dates impose no additional boundary on an OPEN competition.
+The server locks the contestant, competition, category, subcategory and package rows while validating and inserting the snapshot. The contestant and package must exist, be active and belong to the same competition. Category ancestry must be active and consistent. `PUBLIC_COMPETITION_SLUG`, when configured, must match. New purchases require both category setup confirmation and the permanent integrity cutover. The competition must be OPEN with explicit opening and closing dates; opening is inclusive and closing exclusive. Missing, malformed or reversed dates fail closed. Existing persisted attempts keep their retry behavior and are not rewritten or re-priced.
 
 Package and competition currency must both be NGN. Stored price must be an integer of at least 5000 kobo (the documented NGN provider minimum); vote quantity must be a positive integer. The backend reads these values from PostgreSQL. Changing a package later does not rewrite any payment snapshot. Replays identify the existing purchase rather than create/reprice/revalidate a new purchase or renew an expired checkout session.
 
@@ -73,7 +79,7 @@ One transaction creates the PENDING Payment and its PaymentInitialization row. O
 | 503 / PAYMENTS_NOT_CONFIGURED | Test checkout is disabled |
 | 503 / SERVICE_UNAVAILABLE | Database is unavailable; repeat the same key/input after recovery |
 
-202 responses use `{ "status": "pending", "data": { "reference": "...", "initializationStatus": "..." } }` and `Retry-After: 5`; they contain no checkout URL. A random reference is not sufficient to retrieve a purchase. A cached failure and uncertain initialization leave Payment PENDING because this issue does not determine payment success/failure.
+202 responses use `{ "status": "pending", "data": { "reference": "...", "mode": "test", "purchase": { "...": "stored snapshot" }, "initializationStatus": "..." } }` and `Retry-After: 5`; they contain no checkout URL. The safe purchase summary comes from immutable Payment and PaymentScope records on every successful/pending response, including retries after package edits. It contains no email, private retry key or provider credentials. A random reference is not sufficient to retrieve a purchase. A cached failure and uncertain initialization leave Payment PENDING because this issue does not determine payment success/failure.
 
 The permanent unique hashed idempotency key and normalized request fingerprint prevent duplicate local payments and provider calls for the same attempt, including concurrent requests and process restarts. Raw keys are not stored. No network operation runs inside a database transaction. If the process crashes after reserving or Paystack accepts but the database cannot save its reply, retries remain unresolved instead of dispatching again. A stale STARTED row is also potentially accepted; there is deliberately no time-based automatic takeover, deletion or retry with a new reference.
 

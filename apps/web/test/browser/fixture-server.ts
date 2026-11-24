@@ -13,11 +13,16 @@ import { AdminAuthService } from "../../../api/src/services/admin-auth.service";
 import { readAdminConfiguration } from "../../../api/src/config/admin";
 import { provisionInitialAdmin } from "../../../api/src/auth/provision";
 import type { ImageStorage } from "../../../api/src/storage/contestant-images";
+import { PaymentInitializationService } from "../../../api/src/services/payment-initialization.service";
+import { PaystackInitializationError } from "../../../api/src/clients/paystack.client";
 
 async function main() {
   assert.equal(process.env.QA_DISPOSABLE_DATABASES, "1");
   assert.notEqual(process.env.NODE_ENV, "production");
-  const url = new URL(process.env.BROWSER_TEST_DATABASE_URL || "");
+  const checkout = process.env.QA_CHECKOUT === "1";
+  const target = checkout ? process.env.CHECKOUT_BROWSER_TEST_DATABASE_URL : process.env.BROWSER_TEST_DATABASE_URL;
+  assert.ok(target, "The dedicated browser test database URL is missing.");
+  const url = new URL(target);
   assert.ok(["postgres:", "postgresql:"].includes(url.protocol));
   assert.ok(["localhost", "127.0.0.1", "[::1]"].includes(url.hostname));
   assert.match(url.pathname, /^\/talenthunt_browser_test(?:_[a-z0-9]+)*$/); assert.ok(!url.search && !url.hash);
@@ -38,7 +43,8 @@ async function main() {
   await provisionInitialAdmin(db, { email: "qa-browser@example.test", password: "A browser-fixture-only passphrase" });
   const now = new Date();
   await db.competition.create({ data: { id: "browser-show", name: "QA Browser Showcase", slug: "browser-show", status: "OPEN", leaderboardVisibility: "LIVE",
-    votingOpens: new Date(now.getTime() - 86400000), votingCloses: new Date(now.getTime() + 86400000), categorySetupCompletedAt: now } });
+    votingOpens: new Date(now.getTime() - 86400000), votingCloses: new Date(now.getTime() + 86400000), categorySetupCompletedAt: now,
+    categoryIntegrityEnabledAt: checkout ? now : null } });
   for (const id of ["alpha", "beta", "inactive"]) {
     await db.category.create({ data: { id, competitionId: "browser-show", name: `Fixture ${id}`, slug: id, isActive: id !== "inactive" } });
     await db.subcategory.create({ data: { id: `${id}-child`, competitionId: "browser-show", categoryId: id, name: "Shared child", slug: "shared" } });
@@ -46,14 +52,34 @@ async function main() {
   // Synthetic, guarded fixture totals only. No Payment/VoteAllocation records or provider calls.
   for (const [id, categoryId, totalVotes, isActive] of [["alpha-person", "alpha", BigInt(12), true], ["beta-person", "beta", BigInt("9007199254740993"), true], ["excluded-person", "inactive", BigInt(0), false]] as const)
     await db.contestant.create({ data: { id, competitionId: "browser-show", categoryId, subcategoryId: `${categoryId}-child`, name: `${categoryId} performer`, number: id, slug: id, totalVotes, isActive } });
-  await db.votePackage.create({ data: { competitionId: "browser-show", name: "Fixture support", voteCount: 10, priceKobo: 5000 } });
+  const votePackage = await db.votePackage.create({ data: { competitionId: "browser-show", name: "Fixture support", voteCount: 10, priceKobo: 5000 } });
   const objects = new Map<string, Buffer>(), publicPrefix = "https://portraits.example.test/storage/v1/object/public/contestant-images/";
   const storage: ImageStorage = { publicUrl: key => publicPrefix + key, async upload(key, bytes) { objects.set(key, bytes); }, async remove(key) { objects.delete(key); } };
   const config = readAdminConfiguration({ NODE_ENV: "production", ADMIN_APP_ORIGIN: origin, ADMIN_CSRF_SECRET: "e".repeat(64) })!;
-  const app = createApp(new PublicReadService(db, "browser-show"), undefined, new AdminAuthService(db, config), storage);
+  let providerCalls = 0, providerMode = "ready";
+  const initializer = checkout ? new PaymentInitializationService(db, { async initialize(input) {
+    providerCalls++;
+    if (providerMode === "unknown") throw new PaystackInitializationError("UNKNOWN");
+    return { authorizationUrl: "https://checkout.paystack.com/" + input.reference };
+  } }, "browser-show") : undefined;
+  const app = createApp(new PublicReadService(db, "browser-show"), initializer, new AdminAuthService(db, config), storage);
   let failure = false, delay = 0;
   const api = createServer((req, res) => {
     // Test-only loopback controls are outside the application and never shipped as routes.
+    if (checkout && req.url === "/__qa/checkout" && req.method === "GET") {
+      void Promise.all([db.payment.findMany({ select: { reference: true, amountKobo: true, voteCount: true, contactEmail: true, status: true } }), db.voteAllocation.count(), db.verifiedPayment.count(), db.contestant.findUniqueOrThrow({ where: { id: "alpha-person" }, select: { totalVotes: true } })])
+        .then(([payments, allocations, verified, person]) => { res.setHeader("Content-Type", "application/json"); res.end(JSON.stringify({ providerCalls, payments, allocations, verified, totalVotes: String(person.totalVotes) })); })
+        .catch(() => { res.writeHead(500); res.end(); }); return;
+    }
+    if (checkout && req.url === "/__qa/checkout" && req.method === "POST") {
+      let body = ""; req.on("data", chunk => { body += String(chunk); if (body.length > 1024) req.destroy(); });
+      req.on("end", () => { void (async () => {
+        const input = JSON.parse(body); providerMode = input.mode === "unknown" ? "unknown" : "ready";
+        await db.votePackage.update({ where: { id: votePackage.id }, data: { priceKobo: input.price === 12501 ? 12501 : 5000 } });
+        await db.competition.update({ where: { id: "browser-show" }, data: { votingCloses: new Date(Date.now() + (input.closed ? -1000 : input.closeSoon ? 1500 : 86400000)) } });
+        res.writeHead(200); res.end("ok");
+      })().catch(() => { res.writeHead(400); res.end(); }); }); return;
+    }
     if (req.url?.startsWith("/__qa/image?")) {
       const requested = new URL(req.url, origin).searchParams.get("url") || "";
       const bytes = requested.startsWith(publicPrefix) && objects.get(requested.slice(publicPrefix.length));
@@ -97,6 +123,7 @@ async function main() {
   const child = spawn(process.execPath, [resolve("../../node_modules/next/dist/bin/next"), "start", "--hostname", "127.0.0.1", "--port", String(nextPort)], {
     cwd: process.cwd(), windowsHide: true, stdio: "inherit", env: { ...process.env, NODE_ENV: "production", API_BASE_URL: `http://127.0.0.1:${apiPort}/api/v1`,
       ADMIN_APP_ORIGIN: origin, SITE_URL: origin, NEXT_DIST_DIR: ".next", NEXT_PUBLIC_CONTESTANT_IMAGE_ORIGIN: "https://portraits.example.test",
+      CHECKOUT_TEST_ENABLED: checkout ? "true" : "false", CHECKOUT_APP_ORIGIN: origin, CHECKOUT_SESSION_SECRET: checkout ? "c".repeat(64) : "",
       PAYSTACK_SECRET_KEY: "", PAYSTACK_MODE: "", SUPABASE_SECRET_KEY: "", SUPABASE_URL: "" },
   });
   child.once("exit", code => { void close().then(() => { process.exitCode = code || 0; }); });

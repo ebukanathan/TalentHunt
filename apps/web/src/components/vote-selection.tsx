@@ -7,8 +7,9 @@ import { getVotingState } from "@/lib/voting";
 import { selectedVotePackage } from "@/lib/vote-selection";
 import { ContestantPortrait } from "./contestant-card";
 import { CategoryPath } from "./category-path";
+import { TestCheckout } from "./test-checkout";
 
-export function PackageSummary({ item }: { item?: VotePackage }) {
+export function PackageSummary({ item, checkoutEnabled = false }: { item?: VotePackage; checkoutEnabled?: boolean }) {
   return <section className="selection-summary" aria-labelledby="summary-heading">
     <h2 id="summary-heading">Your selection</h2>
     <div role="status" aria-live="polite" aria-atomic="true">
@@ -18,18 +19,20 @@ export function PackageSummary({ item }: { item?: VotePackage }) {
         <div><dt>Total ({item.currency})</dt><dd>{formatKobo(item.priceKobo, item.currency)}</dd></div>
       </dl> : <p>Choose a package to see its votes and exact total.</p>}
     </div>
-    <p className="payment-unavailable">Online payments are not available yet. Selecting a package does not purchase or add any votes.</p>
+    <p className="payment-unavailable">{checkoutEnabled ? "Review the server-confirmed test amount before continuing. Selecting a package does not purchase or add votes." : "Online payments are not available yet. Selecting a package does not purchase or add any votes."}</p>
   </section>;
 }
 
-export function VoteSelection({ contestant, competition, packages, initialNow }: {
-  contestant: Pick<Contestant, "name" | "number" | "imageUrl" | "category" | "subcategory">;
+export function VoteSelection({ contestant, competition, packages, initialNow, checkoutEnabled = false }: {
+  contestant: Pick<Contestant, "name" | "number" | "imageUrl" | "category" | "subcategory"> & { id?: string };
   competition: Competition;
   packages: VotePackage[];
   initialNow: string;
+  checkoutEnabled?: boolean;
 }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [now, setNow] = useState(initialNow);
+  const [locked, setLocked] = useState(false);
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
     function tick() {
@@ -45,6 +48,7 @@ export function VoteSelection({ contestant, competition, packages, initialNow }:
     return () => { clearTimeout(timer); window.removeEventListener("focus", tick); };
   }, [competition.votingOpens, competition.votingCloses]);
   const state = getVotingState(competition, new Date(now));
+  const checkoutOpen = state.open && Boolean(competition.votingOpens && competition.votingCloses);
   const item = state.open ? selectedVotePackage(packages, selected, competition) : undefined;
   return <div className="selection-grid">
     <div>
@@ -53,11 +57,11 @@ export function VoteSelection({ contestant, competition, packages, initialNow }:
       </div>
       <CategoryPath category={contestant.category} subcategory={contestant.subcategory}/>
       <p className="selection-scope">Category: <strong>{contestant.category.name}</strong> · Subcategory: <strong>{contestant.subcategory.name}</strong></p>
-      <p className="selection-status" role="status">{state.label}. {state.description}</p>
+      <p className="selection-status" role="status">{state.label}. {checkoutEnabled ? "Test purchases require an eligible contestant and an explicit voting window." : state.description}</p>
       {!packages.length ? <p className="selection-empty">{state.open ? "No vote packages are available right now. Please check back later." : "Packages are available only while the voting window is open."}</p> :
-        <fieldset className="package-options" disabled={!state.open} aria-describedby="selection-help">
+        <fieldset className="package-options" disabled={!state.open || locked} aria-describedby="selection-help">
           <legend>Choose a vote package</legend>
-          <p id="selection-help">Use the arrow keys to move between packages. Payments remain unavailable.</p>
+          <p id="selection-help">Use the arrow keys to move between packages. {checkoutEnabled ? "Test checkout only. The selection locks when a checkout starts." : "Payments remain unavailable."}</p>
           {packages.map(option => <label className="package-option" key={option.id}>
             <input type="radio" name="vote-package" value={option.id} checked={selected === option.id} onChange={() => setSelected(option.id)} />
             <span><strong>{option.name}</strong><span>{formatVotes(String(option.voteCount))} votes</span></span>
@@ -65,6 +69,8 @@ export function VoteSelection({ contestant, competition, packages, initialNow }:
           </label>)}
         </fieldset>}
     </div>
-    <PackageSummary item={item} />
+    <div><PackageSummary item={item} checkoutEnabled={checkoutEnabled} />
+      {checkoutEnabled && contestant.id && <TestCheckout contestant={{ ...contestant, id: contestant.id }} competition={competition} item={item} open={checkoutOpen} onLock={setLocked} onSelect={setSelected} />}
+    </div>
   </div>;
 }

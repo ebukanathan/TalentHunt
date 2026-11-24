@@ -4,6 +4,8 @@ Planning specification, 24 October 2026 (Africa/Lagos), with the PAY-01 implemen
 
 PAY-01 update, 26 October 2026: only payment initialization is now implemented; see its [actual contract and retry policy](payment-initialization.md). It uses external `email` mapped to Payment.contactEmail and a hashed UUIDv4 retry capability. The additive PaymentInitialization table owns initialization state only. Browser-session/receipt capabilities, payment verification, webhooks, votes and transactional confirmations below remain proposals. Legacy verification cleanup and E02 outbox work are not prerequisites for this approved slice.
 
+E03 update, 24 November 2026: [required-email test checkout](test-checkout.md) now adds the browser session, CSRF facade and server-summary review behind a disabled-by-default test flag. Internal verified-payment allocation is separately implemented, but has no payment-verification writer. Receipt capabilities, provider verification, webhook inbox, finalization/outbox and email delivery below remain proposals. The legacy signature-only design below is superseded for future #14 by the current Paystack-Signature research in the E03 document; revalidate provider documentation before implementation.
+
 ## Paystack integration plan
 
 ```mermaid

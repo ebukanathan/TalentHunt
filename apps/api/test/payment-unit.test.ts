@@ -9,7 +9,7 @@ const settings = { PAYSTACK_MODE: "test", PAYSTACK_SECRET_KEY: "sk_test_fixtureN
 const config = readPaystackConfiguration(settings)!;
 const purchase = { reference: "th-test-fixture", email: "Voter@example.com", amountKobo: 100000, currency: "NGN" as const };
 const selection: PurchaseSelection = {
-  categoryId: "fixture-category", subcategoryId: "fixture-subcategory", categoryActive: true, subcategoryActive: true, categorySetupCompletedAt: new Date(),
+  categoryId: "fixture-category", subcategoryId: "fixture-subcategory", categoryActive: true, subcategoryActive: true, categorySetupCompletedAt: new Date(), categoryIntegrityEnabledAt: new Date(),
   competitionId: "show", slug: "show", status: "OPEN", votingOpens: new Date("2026-10-26T10:00:00Z"),
   votingCloses: new Date("2026-10-26T11:00:00Z"), competitionCurrency: "NGN", contestantActive: true,
   packageActive: true, packageCompetitionId: "show", priceKobo: 100000, voteCount: 10, currency: "NGN",
@@ -50,11 +50,12 @@ test("checkout validation accepts unverified email and rejects price/vote/OTP ma
 
 test("server voting guard checks exact boundaries, lifecycle, membership, currency and stored prices", () => {
   assert.doesNotThrow(() => assertPurchasable(selection, selection.votingOpens!));
-  assert.doesNotThrow(() => assertPurchasable({ ...selection, votingOpens: null, votingCloses: null }, new Date()));
+  assert.throws(() => assertPurchasable({ ...selection, votingOpens: null, votingCloses: null }, new Date()));
   for (const now of [new Date("2026-10-26T09:59:59.999Z"), selection.votingCloses!, new Date("invalid")]) {
     assert.throws(() => assertPurchasable(selection, now));
   }
   for (const patch of [
+    { votingOpens: null }, { votingCloses: null }, { categorySetupCompletedAt: null }, { categoryIntegrityEnabledAt: null },
     { status: "DRAFT" as const }, { status: "SCHEDULED" as const }, { status: "CLOSED" as const }, { status: "COMPLETED" as const },
     { votingOpens: selection.votingCloses }, { votingCloses: new Date("invalid") }, { contestantActive: false },
     { packageActive: false }, { packageCompetitionId: "different" }, { currency: "USD" }, { competitionCurrency: "USD" },
