@@ -53,6 +53,17 @@ enum PaystackWebhookStatus {
   AWAITING_FINALIZATION
   REVIEW_REQUIRED
   IGNORED
+  FINALIZED
+}
+
+enum TransactionEmailStatus {
+  PENDING
+  SENDING
+  RETRYING
+  ACCEPTED
+  DELIVERED
+  FAILED
+  REVIEW_REQUIRED
 }
 
 model Competition {
@@ -238,6 +249,7 @@ model Payment {
   scope          PaymentScope?
   verifiedPayment VerifiedPayment?
   webhookJobs PaystackWebhookJob[]
+  confirmations TransactionEmail[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -351,6 +363,34 @@ model PaystackWebhookJob {
   @@index([status, nextAttemptAt])
   @@index([status, leaseExpiresAt])
   @@index([paymentId])
+}
+
+// Durable confirmation obligation only. No provider send runs in a transaction.
+model TransactionEmail {
+  id String @id @default(cuid())
+  paymentId String
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  kind String @db.VarChar(32)
+  idempotencyKey String @unique
+  recipient String @db.VarChar(254)
+  templateVersion String @db.VarChar(32)
+  payload Json
+  status TransactionEmailStatus @default(PENDING)
+  attempts Int @default(0)
+  nextAttemptAt DateTime @default(now())
+  firstAttemptAt DateTime?
+  retryDeadlineAt DateTime?
+  leaseOwner String?
+  leaseExpiresAt DateTime?
+  providerMessageId String? @unique
+  acceptedAt DateTime?
+  deliveredAt DateTime?
+  lastErrorCode String? @db.VarChar(64)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([paymentId, kind])
+  @@index([status, nextAttemptAt])
 }
 
 model AdminUser {

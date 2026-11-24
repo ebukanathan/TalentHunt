@@ -18,9 +18,10 @@ import { AdminTaxonomyService } from "./services/admin-taxonomy.service";
 import { AdminAssignmentsService } from "./services/admin-assignments.service";
 import { createPaystackWebhookRouter } from "./routes/paystack-webhooks.routes";
 import type { PaystackWebhookIntake } from "./services/paystack-webhook-intake.service";
+import type { PaymentStatusService } from "./services/payment-status.service";
 
 /** Injectable composition keeps HTTP tests on their explicitly selected database. */
-export function createApp(service: PublicApi, payments?: PaymentInitializationApi, admin?: AdminAuthService, storage?: ImageStorage, webhooks?: PaystackWebhookIntake) {
+export function createApp(service: PublicApi, payments?: PaymentInitializationApi, admin?: AdminAuthService, storage?: ImageStorage, webhooks?: PaystackWebhookIntake, paymentStatus?: PaymentStatusService) {
   const app = express();
   app.use(helmet());
   app.use(cors({ origin: "http://localhost:3000" }));
@@ -38,7 +39,7 @@ export function createApp(service: PublicApi, payments?: PaymentInitializationAp
   });
 
   app.use("/api/v1", createPublicRouter(service));
-  app.use("/api/v1/payments", createPaymentsRouter(payments));
+  app.use("/api/v1/payments", createPaymentsRouter(payments, paymentStatus));
   const selection = { getCompetition: () => service.getManagedCompetition ? service.getManagedCompetition() : service.getCompetition() };
   const contestants = admin ? new AdminContestantService(admin.database, selection) : undefined;
   const images = admin && contestants && storage ? new AdminContestantImageService(admin.database, storage, contestants) : undefined;

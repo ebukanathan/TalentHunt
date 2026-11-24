@@ -6,7 +6,7 @@ type VerificationCode = "INVALID_REFERENCE" | "PROVIDER_UNAVAILABLE" | "WRONG_EN
 export class VerificationError extends Error {
   constructor(readonly code: VerificationCode, readonly retryable = false, readonly retryAfterMs = 0) { super("Payment verification could not be completed."); }
 }
-const transactionId = z.string().regex(/^[1-9][0-9]{0,19}$/).refine(value => BigInt(value) <= 18446744073709551615n);
+const transactionId = z.string().regex(/^[1-9][0-9]{0,19}$/).refine(value => BigInt(value) <= BigInt("18446744073709551615"));
 const verified = z.object({ status: z.literal(true), data: z.object({ id: transactionId, domain: z.literal("test"),
   status: z.literal("success"), reference: z.string().min(1).max(128), amount: z.number().int().min(5000).max(2147483647),
   currency: z.literal("NGN"), paid_at: z.iso.datetime({ offset: true }) }) });

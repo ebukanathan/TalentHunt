@@ -53,13 +53,18 @@ export class VoteAllocationService {
   }
 
   private allocateOnce(verificationId: string) {
-    return this.db.$transaction(async tx => {
+    return this.db.$transaction(tx => allocateVerifiedInTransaction(tx, verificationId, this.authority, this.now), { timeout: 15000 });
+  }
+}
+
+/** Shared internal transaction core. Never exposed as an HTTP/browser API. */
+export async function allocateVerifiedInTransaction(tx: Prisma.TransactionClient, verificationId: string, authority: VerificationAuthority, clock: () => Date) {
       const identity = await tx.verifiedPayment.findUnique({ where: { id: verificationId }, select: { payment: { select: { competitionId: true } } } });
       if (!identity) throw new HttpError(404, "VERIFICATION_NOT_FOUND", "Server verification evidence was not found.");
       // Shared lock order with classification, taxonomy, closing and publication.
       const competition = await lockCompetition(tx, identity.payment.competitionId);
       const evidence = await tx.verifiedPayment.findUniqueOrThrow({ where: { id: verificationId }, include: evidenceInclude });
-      if (evidence.provider !== this.authority.provider || evidence.environment !== this.authority.environment)
+      if (evidence.provider !== authority.provider || evidence.environment !== authority.environment)
         review("VERIFICATION_AUTHORITY_MISMATCH", "Verification source or environment requires review.");
       const payment = evidence.payment;
       await tx.$queryRaw`SELECT id FROM "Payment" WHERE id = ${payment.id} FOR UPDATE`;
@@ -72,8 +77,8 @@ export class VoteAllocationService {
         // A committed success remains a no-op after closure, refund or deactivation.
         return { outcome: "ALREADY_ALLOCATED" as const, allocation: existing };
       }
-      const now = this.now();
-      assertVerifiedPurchase(locked, this.authority, now);
+      const now = clock();
+      assertVerifiedPurchase(locked, authority, now);
       const scope = locked.payment.scope!;
       if (!competition.categorySetupCompletedAt || !competition.categoryIntegrityEnabledAt)
         review("CATEGORY_SETUP_INCOMPLETE", "Reviewed category setup and integrity cutover are required.");
@@ -94,7 +99,7 @@ export class VoteAllocationService {
       const pack = await tx.votePackage.findFirst({ where: { id: scope.packageId, competitionId: competition.id, isActive: true } });
       if (!contestant || scope.competitionId !== competition.id || !pack || pack.currency !== locked.currency || competition.currency !== locked.currency)
         review("VOTING_SELECTION_UNAVAILABLE", "The purchase's contestant, ancestors or package are unavailable.");
-      if (contestant.totalVotes < 0n) review("VOTE_TOTAL_REVIEW_REQUIRED", "The contestant total requires reconciliation.");
+      if (contestant.totalVotes < BigInt(0)) review("VOTE_TOTAL_REVIEW_REQUIRED", "The contestant total requires reconciliation.");
       const allocation = await tx.voteAllocation.create({ data: {
         paymentId: payment.id, verificationId, contestantId: contestant.id, voteCount: locked.payment.voteCount,
       } });
@@ -104,6 +109,4 @@ export class VoteAllocationService {
           subcategoryId: scope.subcategoryId, contestantId: contestant.id, voteCount: allocation.voteCount,
           provider: locked.provider, environment: locked.environment } } });
       return { outcome: "ALLOCATED" as const, allocation };
-    }, { timeout: 15000 });
-  }
 }

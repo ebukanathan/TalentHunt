@@ -10,6 +10,7 @@
     "test": "tsx --test test/auth-form.test.tsx test/public-web.test.tsx test/admin-contestants.test.tsx test/admin-images.test.tsx test/admin-settings.test.tsx test/admin-overview.test.tsx test/contestant-videos.test.tsx test/leaderboard.test.tsx test/vote-selection.test.tsx test/public-seo.test.ts test/public-pagination.test.tsx test/admin-taxonomy.test.tsx test/admin-assignments.test.tsx test/public-categories.test.tsx test/scoped-leaderboards.test.tsx",
     "test:checkout": "tsx --test test/checkout.test.tsx",
     "test:checkout:e2e": "playwright test --config playwright.checkout.config.ts",
+    "test:paid:e2e": "playwright test --config playwright.paid.config.ts",
     "test:admin:integration": "tsx test/admin-web.integration.ts",
     "typecheck": "tsc --noEmit",
     "test:smoke": "node test/public-web.smoke.mjs",

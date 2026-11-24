@@ -31,7 +31,17 @@ export function readEnvironment(source: NodeJS.ProcessEnv) {
     const fields = [...new Set(result.error.issues.map(issue => issue.path.join(".")))];
     throw new Error("Invalid API configuration: " + fields.join(", ") + ".");
   }
-  return { ...result.data, paystack: readPaystackConfiguration(source), webhooks: readWebhookConfiguration(source), admin: readAdminConfiguration(source), storage: readStorageConfiguration(source) };
+  const paystack = readPaystackConfiguration(source);
+  if (source.PAYSTACK_FINALIZATION_ENABLED && !["true", "false"].includes(source.PAYSTACK_FINALIZATION_ENABLED)) throw new Error("Invalid finalization configuration.");
+  const finalizationEnabled = source.PAYSTACK_FINALIZATION_ENABLED === "true";
+  if (finalizationEnabled && !paystack) throw new Error("Test payment configuration is required for finalization.");
+  if (finalizationEnabled) {
+    const target = new URL(result.data.DATABASE_URL);
+    if (!["localhost", "127.0.0.1", "[::1]"].includes(target.hostname) || target.search || target.hash ||
+        !/^\/talenthunt_(paid_demo|browser_test|vitest)_[a-z0-9_]+$/.test(target.pathname))
+      throw new Error("Test finalization requires an explicitly named local test database.");
+  }
+  return { ...result.data, paystack, finalizationEnabled, webhooks: readWebhookConfiguration(source), admin: readAdminConfiguration(source), storage: readStorageConfiguration(source) };
 }
 
 export const environment = readEnvironment(process.env);

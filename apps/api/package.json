@@ -12,6 +12,7 @@
     "test:voting": "tsx --test --test-concurrency=1 test/voting-engine-unit.test.ts test/voting-engine.test.ts test/voting-migration.test.ts",
     "test:voting:vitest": "vitest run --config vitest.config.mts",
     "test:paystack:vitest": "vitest run --config vitest.config.mts test/vitest/paystack.test.ts",
+    "test:finalization": "vitest run --config vitest.config.mts test/vitest/finalization.test.ts",
     "typecheck:vitest": "tsc -p tsconfig.vitest.json",
     "test:contestant:videos": "tsx --test test/contestant-videos-unit.test.ts test/contestant-videos-integration.test.ts",
     "test:leaderboard": "tsx --test --test-concurrency=1 test/leaderboard-integration.test.ts test/scoped-leaderboards.test.ts",
