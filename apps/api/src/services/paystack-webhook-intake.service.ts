@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import type { PrismaClient } from "@prisma/client";
+import { Prisma, type PrismaClient } from "@prisma/client";
 import type { WebhookConfiguration } from "../config/paystack-webhooks";
 import { HttpError } from "../http/errors";
 import { authenticateWebhook } from "./paystack-signature";
@@ -25,6 +25,12 @@ export class PaystackWebhookIntake {
         dedupeKey, eventType: parsed.event, reference, bodySha256, signatureVersion: signature.version,
         signingKeyId: signature.keyId, receivedAt: now, nextAttemptAt: now, status: supported ? "PENDING" : "IGNORED",
       } });
-    } catch { throw new HttpError(503, "WEBHOOK_STORAGE_UNAVAILABLE", "Webhook storage is temporarily unavailable."); }
+    } catch (error) {
+      // Empty-update Prisma upserts may race via SELECT/INSERT. A permanent
+      // unique-key loser acknowledges only after confirming the durable winner.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002" &&
+          await this.db.paystackWebhookJob.findUnique({ where: { dedupeKey }, select: { id: true } })) return;
+      throw new HttpError(503, "WEBHOOK_STORAGE_UNAVAILABLE", "Webhook storage is temporarily unavailable.");
+    }
   }
 }

@@ -78,14 +78,16 @@ test("voting migration preserves populated legacy history and counters, and does
     }
     deploy(join(root, "prisma/schema.prisma")); assert.deepEqual(await snapshot(), before);
     assert.equal(await db.paystackWebhookJob.count(), 0, "New inbox must never backfill historical transactions.");
+    assert.equal(await db.transactionEmail.count(), 0, "Historical purchases must never be enqueued for confirmation.");
     await assert.rejects(db.voteAllocation.delete({ where: { id: "allocation" } }));
     for (const role of ["anon", "authenticated"]) {
-      const [access] = await db.$queryRaw<{ totals: boolean; allocate: boolean; evidence: boolean; inbox: boolean }[]>`
+      const [access] = await db.$queryRaw<{ totals: boolean; allocate: boolean; evidence: boolean; inbox: boolean; outbox: boolean }[]>`
         SELECT has_column_privilege(${role}, '"Contestant"', 'totalVotes', 'SELECT,INSERT,UPDATE') AS totals,
           has_table_privilege(${role}, '"VoteAllocation"', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE') AS allocate,
           has_table_privilege(${role}, '"VerifiedPayment"', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE') AS evidence,
-          has_table_privilege(${role}, '"PaystackWebhookJob"', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE') AS inbox`;
-      assert.deepEqual(access, { totals: false, allocate: false, evidence: false, inbox: false }, JSON.stringify(await db.$queryRaw`
+          has_table_privilege(${role}, '"PaystackWebhookJob"', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE') AS inbox,
+          has_table_privilege(${role}, '"TransactionEmail"', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE') AS outbox`;
+      assert.deepEqual(access, { totals: false, allocate: false, evidence: false, inbox: false, outbox: false }, JSON.stringify(await db.$queryRaw`
         SELECT c.relname, c.relacl::text, pg_get_userbyid(c.relowner) AS owner, current_user,
           (SELECT attacl::text FROM pg_attribute WHERE attrelid = c.oid AND attname = 'totalVotes') AS column_acl
         FROM pg_class c WHERE c.relname IN ('Contestant', 'VoteAllocation', 'VerifiedPayment')`));
@@ -94,6 +96,7 @@ test("voting migration preserves populated legacy history and counters, and does
         'INSERT INTO "VoteAllocation" (id, "paymentId", "contestantId", "voteCount") VALUES (\'forged\', \'FAILED\', \'person\', 7)',
         'SELECT * FROM "VerifiedPayment"',
         'SELECT * FROM "PaystackWebhookJob"',
+        'SELECT * FROM "TransactionEmail"',
         'INSERT INTO "VerifiedPayment" (id) VALUES (\'forged\')',
       ]) await assert.rejects(db.$transaction(async tx => {
         // Fixed role allowlist and fixed statements above; no external SQL.

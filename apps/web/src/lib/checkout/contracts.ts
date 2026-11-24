@@ -21,3 +21,6 @@ export const checkoutResult = z.strictObject({
   initializationStatus: z.enum(["PENDING", "REVIEW_REQUIRED"]).optional(),
 }).refine(value => Boolean(value.authorizationUrl) !== Boolean(value.initializationStatus));
 export type CheckoutResult = z.infer<typeof checkoutResult>;
+export const paymentReceipt = z.strictObject({ reference: z.string().regex(/^th-test-[a-f0-9-]{36}$/), mode: z.literal("test"),
+  state: z.enum(["PENDING", "REVIEW_REQUIRED", "CONFIRMED"]), amountKobo: z.number().int().min(5000), currency: z.literal("NGN"), voteCount: z.number().int().positive(),
+  contestantId: z.string(), categoryId: z.string().nullable(), subcategoryId: z.string().nullable(), emailStatus: z.enum(["PENDING_DELIVERY", "NOT_QUEUED"]) });

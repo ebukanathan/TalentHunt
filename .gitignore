@@ -29,4 +29,5 @@ Thumbs.db
 # Isolated Next integration artifacts
 apps/web/.next-admin-test/
 apps/web/.next-browser-test/
+apps/web/.next-paid-local/
 /artifacts/qa/

@@ -6,6 +6,7 @@
   "scripts": {
     "dev:web": "npm run dev --workspace=apps/web",
     "dev:api": "npm run dev --workspace=apps/api",
+    "dev:paid-voting": "node scripts/start-paid-test.cjs",
     "test": "node --test test/*.test.cjs && npm run test:unit --workspace apps/api && npm test --workspace apps/web && npm run test:seed",
     "db:seed": "prisma db seed",
     "typecheck:seed": "tsc -p prisma/tsconfig.json",
