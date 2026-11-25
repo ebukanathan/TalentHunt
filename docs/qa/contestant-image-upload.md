@@ -60,8 +60,35 @@ Evidence outside the watched checkout:
 - `%TEMP%/talenthunt-image-tests-2X9W2p/browser-results`: browser screenshots.
 - `%TEMP%/talenthunt-image-production-build.log`: production build output.
 
-## Remaining activation and hosted acceptance
+## Approved activation and hosted acceptance — passed
 
-The user selected option 1, confirming that the existing Supabase project is approved development/test storage. The ignored integration settings now explicitly select that project and the existing backend storage credential file; only its two storage fields are imported. The credential source itself is unchanged. The identified application pair will be restarted once to apply that configuration. Real hosted upload, replacement, public image fetch and database attachment are recorded below after execution; this intermediate report does not yet claim they passed.
+The user selected option 1, confirming that the existing Supabase project is approved development/test storage. The ignored integration settings explicitly select that project and the existing backend storage credential file; only its two storage fields are imported. The credential source itself is unchanged. The verified launcher and its owned children were stopped once, then the pair restarted from image-fix application commit `42d8f860ccf4f273e76743751e6fb17f6fe8ad32`. Backend PID 33364 and Next CLI PID 26992 were reported ready. Database target, ports, administrator and Paystack test configuration were preserved. A later documentation-only commit records the results; no application code changed afterward.
 
-After the user confirms a dedicated test project, select it explicitly using the documented ignored local settings, restart the identified pair once to load them, and test the retained QA contestant. Preserve existing images, compare PostgreSQL URLs to journal-owned storage keys, confirm public GET and refresh persistence, and retain the existing retirement grace period. Do not run destructive cleanup or alter policies on an existing project to obtain a passing test.
+Real Supabase storage, the running Next/Express pair and the owned local PostgreSQL database were used for hosted acceptance. No storage response was simulated:
+
+| Hosted acceptance | Actual result |
+| --- | --- |
+| Invalid PNG upload | HTTP 400 `INVALID_IMAGE`; useful UI error, zero image-operation rows and no saved URL |
+| Retry with valid initial portrait | HTTP 200; returned URL matched PostgreSQL and survived admin-page refresh |
+| Replace that newly uploaded QA portrait | HTTP 200; distinct URL matched PostgreSQL and survived refresh |
+| Direct public object retrieval | Both objects returned 200 `image/webp`; decoded dimensions and initial/replacement colours verified |
+| Public contestant profile | Correct replacement URL and loaded image after refresh at widths 1280 and 375; screenshots visually inspected |
+| Duplicate prevention | Exactly one contestant with the original QA marker; hosted acceptance submitted no new registration |
+| Storage ownership | Exactly two objects under the owned QA prefix; both match operation-journal keys |
+| Current/retired object state | Current image ATTACHED; previous QA image CLEANUP under the existing grace period; no pending/untracked QA objects |
+| Other records | Acceptance mutation requests targeted only the QA ID; other pointers were preserved during read-only final verification |
+| Payments/features/authentication | Payment counts unchanged; existing two-video profile and three voting packages available; admin session and logout passed |
+| Development-server stability | Zero page exceptions and zero forced HMR reloads |
+| Production build with selected public image origin | Exit 0; no storage credential passed to build; live payments disabled. This was build validation, not a hosted deployment |
+
+No existing image was deleted. The two necessary QA images remain journal-tracked; the former QA version is retained under the existing retirement policy. No cleanup task was run, no storage bucket/policy was altered, no production application records were changed, and no live payment was enabled. The read-only policy database was confirmed to match the selected storage project.
+
+The first hosted probe completed all three image requests (400, 200, 200) and persistence checks, then stopped because its read-only Node-response inspection incorrectly called `status()` instead of reading `status`. Remaining checks resumed without uploads. An initial preservation assertion also incorrectly assumed there were no image journal entries for any other contestant in this active application. It was replaced with the relevant checks: acceptance requests target only the QA ID and other saved pointers remain unchanged across read-only verification. Those existing entries were preserved. No extra upload, deletion, restart or product-code change was used to get a pass.
+
+The final read-only acceptance process exited 0 with all checks true. Evidence:
+
+- `%TEMP%/talenthunt-image-hosted-bxn9dP/result.json`: actual 400/200/200 responses, image URLs and initial persistence checks, plus the initial probe error.
+- `%TEMP%/talenthunt-image-hosted-final-PaLoPN/result.json`: complete passing combined evidence, explicitly recording read-only continuation.
+- `%TEMP%/talenthunt-image-hosted-final-PaLoPN/public-profile-1280.png` and `public-profile-375.png`: visually inspected real hosted-image screenshots.
+- `%TEMP%/talenthunt-image-hosted-final-2.log`: final acceptance output and success checks.
+- `%TEMP%/talenthunt-image-configured-production-build.log`: production build with the selected public image origin, exit 0.
