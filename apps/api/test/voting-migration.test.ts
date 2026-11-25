@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash } from "node:crypto";
-import { cpSync, mkdtempSync, readdirSync, readFileSync } from "node:fs";
+import { cpSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve, join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -15,7 +15,7 @@ test("voting migration preserves populated legacy history and counters, and does
   assert.match(url.pathname, /^\/talenthunt_voting_test_upgrade(?:_[a-z0-9]+)*$/); assert.ok(!url.search && !url.hash);
   const root = resolve(__dirname, "../../.."), latest = "20261123090000_add_internal_voting_engine";
   const directory = mkdtempSync(join(tmpdir(), "talenthunt-voting-upgrade-"));
-  const old = readdirSync(join(root, "prisma/migrations"), { withFileTypes: true }).filter(entry => entry.isDirectory() && entry.name !== latest).map(entry => entry.name).sort();
+  const old = readdirSync(join(root, "prisma/migrations"), { withFileTypes: true }).filter(entry => entry.isDirectory() && entry.name < latest).map(entry => entry.name).sort();
   const checksums = old.map(name => createHash("sha256").update(readFileSync(join(root, "prisma/migrations", name, "migration.sql"))).digest("hex"));
   cpSync(join(root, "prisma/schema.prisma"), join(directory, "schema.prisma"));
   for (const name of [...old, "migration_lock.toml"]) cpSync(join(root, "prisma/migrations", name), join(directory, "migrations", name), { recursive: true });
@@ -27,7 +27,7 @@ test("voting migration preserves populated legacy history and counters, and does
   const db = new PrismaClient({ datasources: { db: { url: raw } } });
   const snapshot = async () => {
     const result: Record<string, unknown> = {};
-    for (const table of ["Competition", "Contestant", "Payment", "VotePackage", "VoteAllocation", "PaymentScope", "AuditLog"])
+    for (const table of ["Competition", "Contestant", "Payment", "VotePackage", "VoteAllocation", "PaymentScope", "AuditLog", "ContactVerification", "PaymentInitialization"])
       result[table] = await db.$queryRawUnsafe(`SELECT (to_jsonb(t) ${table === "VoteAllocation" ? "- 'verificationId'" : ""})::text AS row FROM "${table}" t ORDER BY row`);
     return result;
   };
@@ -44,9 +44,11 @@ test("voting migration preserves populated legacy history and counters, and does
     await db.competition.create({ data: { id: "legacy", name: "Legacy fixture", slug: "legacy" } });
     await db.contestant.create({ data: { id: "person", competitionId: "legacy", number: "001", name: "Legacy", slug: "legacy", totalVotes: 9007199254740993n } });
     await db.votePackage.create({ data: { id: "package", competitionId: "legacy", name: "Legacy", voteCount: 7, priceKobo: 25000 } });
+    await db.contactVerification.create({ data: { id: "historical-contact", email: "legacy@example.test", codeHash: "historical-preserved", expiresAt: new Date("2026-10-01T00:00:00Z") } });
     for (const status of ["PENDING", "PAID", "FAILED", "REFUNDED"] as const)
       await db.payment.create({ data: { id: status, reference: status, competitionId: "legacy", contestantId: "person", packageId: "package",
-        contactEmail: "legacy@example.test", amountKobo: 25000, voteCount: 7, status } });
+        contactEmail: "legacy@example.test", amountKobo: 25000, voteCount: 7, status, verificationId: status === "PENDING" ? "historical-contact" : null } });
+    await db.paymentInitialization.create({ data: { paymentId: "PENDING", idempotencyKeyHash: "a".repeat(64), requestHash: "b".repeat(64), state: "UNKNOWN" } });
     await db.$executeRaw`INSERT INTO "VoteAllocation" (id, "paymentId", "contestantId", "voteCount") VALUES ('allocation', 'PAID', 'person', 7)`;
     // Rehearse the Supabase default-grant case, including column-level grants
     // that survive a plain table-level REVOKE. Roles exist only in this cluster.
@@ -58,6 +60,14 @@ test("voting migration preserves populated legacy history and counters, and does
     await db.$executeRawUnsafe('GRANT SELECT ("totalVotes"), INSERT ("totalVotes"), UPDATE ("totalVotes") ON "Contestant" TO PUBLIC, anon, authenticated');
     await db.$executeRawUnsafe('ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO PUBLIC, anon, authenticated');
     const before = await snapshot();
+    const inboxSql = readFileSync(join(root, "prisma/migrations/20261124090000_add_paystack_webhook_inbox/migration.sql"), "utf8");
+    const failedMigration = join(directory, "inbox-rollback.sql");
+    writeFileSync(failedMigration, inboxSql.replace('CREATE UNIQUE INDEX "PaystackWebhookJob_dedupeKey_key"', 'SELECT 1/0;\nCREATE UNIQUE INDEX "PaystackWebhookJob_dedupeKey_key"'));
+    const failed = spawnSync(process.execPath, [join(root, "node_modules/prisma/build/index.js"), "db", "execute", "--file", failedMigration, "--url", raw],
+      { cwd: root, env: { ...process.env, DATABASE_URL: raw }, encoding: "utf8", windowsHide: true, timeout: 60000 });
+    assert.notEqual(failed.status, 0); assert.deepEqual(await snapshot(), before);
+    const [rolledBack] = await db.$queryRaw<{ absent: boolean }[]>`SELECT to_regclass('"PaystackWebhookJob"') IS NULL AND NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'PaystackWebhookStatus') AS absent`;
+    assert.equal(rolledBack.absent, true, "Failed additive DDL must roll back the table and enum together.");
     deploy(join(root, "prisma/schema.prisma"));
     assert.deepEqual(await snapshot(), before); assert.equal(await db.verifiedPayment.count(), 0);
     assert.equal((await db.voteAllocation.findUniqueOrThrow({ where: { id: "allocation" } })).verificationId, null);
@@ -67,13 +77,15 @@ test("voting migration preserves populated legacy history and counters, and does
       assert.equal(histories[index].migration_name, old[index]); assert.equal(histories[index].checksum, checksums[index]);
     }
     deploy(join(root, "prisma/schema.prisma")); assert.deepEqual(await snapshot(), before);
+    assert.equal(await db.paystackWebhookJob.count(), 0, "New inbox must never backfill historical transactions.");
     await assert.rejects(db.voteAllocation.delete({ where: { id: "allocation" } }));
     for (const role of ["anon", "authenticated"]) {
-      const [access] = await db.$queryRaw<{ totals: boolean; allocate: boolean; evidence: boolean }[]>`
+      const [access] = await db.$queryRaw<{ totals: boolean; allocate: boolean; evidence: boolean; inbox: boolean }[]>`
         SELECT has_column_privilege(${role}, '"Contestant"', 'totalVotes', 'SELECT,INSERT,UPDATE') AS totals,
           has_table_privilege(${role}, '"VoteAllocation"', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE') AS allocate,
-          has_table_privilege(${role}, '"VerifiedPayment"', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE') AS evidence`;
-      assert.deepEqual(access, { totals: false, allocate: false, evidence: false }, JSON.stringify(await db.$queryRaw`
+          has_table_privilege(${role}, '"VerifiedPayment"', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE') AS evidence,
+          has_table_privilege(${role}, '"PaystackWebhookJob"', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE') AS inbox`;
+      assert.deepEqual(access, { totals: false, allocate: false, evidence: false, inbox: false }, JSON.stringify(await db.$queryRaw`
         SELECT c.relname, c.relacl::text, pg_get_userbyid(c.relowner) AS owner, current_user,
           (SELECT attacl::text FROM pg_attribute WHERE attrelid = c.oid AND attname = 'totalVotes') AS column_acl
         FROM pg_class c WHERE c.relname IN ('Contestant', 'VoteAllocation', 'VerifiedPayment')`));
@@ -81,6 +93,7 @@ test("voting migration preserves populated legacy history and counters, and does
         'UPDATE "Contestant" SET "totalVotes" = 999 WHERE id = \'person\'',
         'INSERT INTO "VoteAllocation" (id, "paymentId", "contestantId", "voteCount") VALUES (\'forged\', \'FAILED\', \'person\', 7)',
         'SELECT * FROM "VerifiedPayment"',
+        'SELECT * FROM "PaystackWebhookJob"',
         'INSERT INTO "VerifiedPayment" (id) VALUES (\'forged\')',
       ]) await assert.rejects(db.$transaction(async tx => {
         // Fixed role allowlist and fixed statements above; no external SQL.

@@ -6,6 +6,8 @@ PAY-01 update, 26 October 2026: only payment initialization is now implemented; 
 
 E03 update, 24 November 2026: [required-email test checkout](test-checkout.md) now adds the browser session, CSRF facade and server-summary review behind a disabled-by-default test flag. Internal verified-payment allocation is separately implemented, but has no payment-verification writer. Receipt capabilities, provider verification, webhook inbox, finalization/outbox and email delivery below remain proposals. The legacy signature-only design below is superseded for future #14 by the current Paystack-Signature research in the E03 document; revalidate provider documentation before implementation.
 
+P02 update, 24 November 2026: [test-mode verification and webhook intake](paystack-verification.md) adds raw-body signature authentication, an empty durable inbox and a separately launched verification worker behind default-off configuration. Matched facts stop at AWAITING_FINALIZATION; they do not create VerifiedPayment evidence or mark payments PAID. Atomic payment/vote/outbox finalization, protected receipt/status capabilities, email delivery and live activation remain future work. The current signature implementation supersedes the legacy-only proposal below.
+
 ## Paystack integration plan
 
 ```mermaid

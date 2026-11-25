@@ -16,12 +16,16 @@ import { AdminOverviewService } from "./services/admin-overview.service";
 import { LeaderboardService } from "./services/leaderboard.service";
 import { AdminTaxonomyService } from "./services/admin-taxonomy.service";
 import { AdminAssignmentsService } from "./services/admin-assignments.service";
+import { createPaystackWebhookRouter } from "./routes/paystack-webhooks.routes";
+import type { PaystackWebhookIntake } from "./services/paystack-webhook-intake.service";
 
 /** Injectable composition keeps HTTP tests on their explicitly selected database. */
-export function createApp(service: PublicApi, payments?: PaymentInitializationApi, admin?: AdminAuthService, storage?: ImageStorage) {
+export function createApp(service: PublicApi, payments?: PaymentInitializationApi, admin?: AdminAuthService, storage?: ImageStorage, webhooks?: PaystackWebhookIntake) {
   const app = express();
   app.use(helmet());
   app.use(cors({ origin: "http://localhost:3000" }));
+  // Authenticate original bytes before the global JSON parser can change them.
+  app.use("/api/v1/webhooks/paystack", createPaystackWebhookRouter(webhooks));
   // Browser clients send plain JSON. Reject encoded bodies before opening a
   // decompression stream, including malformed frames sent to unknown routes.
   app.use(express.json({ limit: "100kb", inflate: false }));
