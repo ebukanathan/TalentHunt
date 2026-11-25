@@ -30,3 +30,12 @@
 .admin-contestant-form .admin-voting-date{margin-top:0}.admin-voting-date legend{font-size:14px;font-weight:650;margin-bottom:16px}.admin-date-picker{display:flex;gap:8px;align-items:stretch}.admin-date-picker input{flex:1}.admin-date-picker .admin-button{flex-shrink:0;padding-inline:12px}
 .admin-time-label{font-size:14px;font-weight:650}.admin-time-picker{display:grid;grid-template-columns:1fr 1fr;gap:12px}.admin-time-picker .admin-field{margin-bottom:0}
 @media(max-width:360px){.admin-date-picker{flex-direction:column}}
+
+/* These shared dark selection panels must not inherit the light dashboard's ink. */
+.admin-panel.leaderboard > .category-navigation{color:var(--foreground)}
+.admin-panel.leaderboard > .category-navigation p{color:var(--muted)}
+.admin-panel.leaderboard > .category-navigation .scope-links a{color:var(--foreground);background:var(--surface);border-color:#7e919f}
+.admin-panel.leaderboard > .category-navigation .scope-links a:where(:not([aria-disabled=true])):hover{background:var(--surface-raised);border-color:var(--gold);text-decoration:underline;text-underline-offset:3px}
+.admin-panel.leaderboard > .category-navigation .scope-links a[aria-current],.admin-panel.leaderboard > .category-navigation .scope-links a:not([aria-disabled=true]):active{color:var(--background);background:var(--gold);border-color:var(--gold)}
+.admin-panel.leaderboard > .category-navigation a:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+.admin-panel.leaderboard > .category-navigation .scope-links a[aria-disabled=true]{color:var(--muted);background:var(--surface);border-color:#7e919f;opacity:1;cursor:not-allowed}
