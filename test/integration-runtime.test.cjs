@@ -27,3 +27,16 @@ test('readiness waits for complete streamed pages and a usable admin challenge b
   assert.equal(attempts, 6); assert.equal(consumed, 5);
   await assert.rejects(waitForRuntime({ timeoutMs: 20, intervalMs: 1, fetcher: async () => new Response('unavailable', { status: 503 }) }), /readiness timed out/);
 });
+
+test('image storage imports only an explicitly selected test project and never exposes its backend key to Next', () => {
+  const ref = 'a'.repeat(20), key = 'sb_secret_' + 'b'.repeat(32), url = `https://${ref}.supabase.co`;
+  const settings = { SUPABASE_URL: url, SUPABASE_SECRET_KEY: key, SUPABASE_TEST_PROJECT_REF: ref, DATABASE_URL: 'unrelated', PAYSTACK_SECRET_KEY: 'sk_live_unrelated' };
+  const { api, web } = environments({}, {}, database, secrets, settings);
+  assert.equal(api.SUPABASE_URL, url); assert.equal(api.SUPABASE_SECRET_KEY, key);
+  assert.equal(api.DATABASE_URL, database); assert.equal(api.PAYSTACK_SECRET_KEY, '');
+  assert.equal(web.NEXT_PUBLIC_CONTESTANT_IMAGE_ORIGIN, url);
+  assert.equal(web.SUPABASE_URL, undefined); assert.equal(web.SUPABASE_SECRET_KEY, undefined);
+  assert.equal(environments({}, {}, database, secrets, { ...settings, SUPABASE_URL: url + '/' }).api.SUPABASE_URL, url);
+  for (const invalid of [{ ...settings, SUPABASE_TEST_PROJECT_REF: '' }, { ...settings, SUPABASE_URL: 'https://other.supabase.co' }, { ...settings, SUPABASE_URL: url + '?override=other' }, { ...settings, SUPABASE_SECRET_KEY: '' }, { ...settings, SUPABASE_SECRET_KEY: 'sb_publishable_' + 'c'.repeat(32) }])
+    assert.throws(() => environments({}, {}, database, secrets, invalid), /explicitly selected.*test project/);
+});

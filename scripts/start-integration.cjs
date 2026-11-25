@@ -13,6 +13,9 @@ const parse = file => existsSync(file) ? require('dotenv').parse(readFileSync(fi
 const local = parse(join(root, '.env.integration.local'));
 const providerFile = resolve(root, local.PAYSTACK_TEST_ENV_FILE || '.env.paystack-test.local');
 const provider = parse(providerFile);
+// Import only storage fields from an explicitly selected, confirmed test project.
+const storage = local.SUPABASE_TEST_ENV_FILE ? parse(resolve(root, local.SUPABASE_TEST_ENV_FILE)) : {};
+const storageSettings = local.SUPABASE_TEST_ENV_FILE ? { SUPABASE_URL: storage.SUPABASE_URL, SUPABASE_SECRET_KEY: storage.SUPABASE_SECRET_KEY, SUPABASE_TEST_PROJECT_REF: local.SUPABASE_TEST_PROJECT_REF } : {};
 const processes = [];
 let stopping = false;
 function stop(code = 0) {
@@ -53,10 +56,11 @@ async function main() {
   }
   if (runtime.root !== root || !resolve(runtime.base).startsWith(resolve(tmpdir()) + sep + 'talenthunt-integration-') || runtime.data !== join(runtime.base, 'data') ||
       !/^talenthunt_paid_demo_[a-f0-9]{8}$/.test(runtime.database) || !Number.isInteger(runtime.port) || runtime.port < 1025 || runtime.port > 65535) throw new Error('Unrecognized integration database; refusing to start.');
-  const env = environments(process.env, provider, `postgresql://postgres@127.0.0.1:${runtime.port}/${runtime.database}`, { admin: secret('integration-admin-csrf'), checkout: secret('integration-checkout-secret') });
+  const env = environments(process.env, provider, `postgresql://postgres@127.0.0.1:${runtime.port}/${runtime.database}`, { admin: secret('integration-admin-csrf'), checkout: secret('integration-checkout-secret') }, storageSettings);
   require('../apps/api/dist/config/admin').readAdminConfiguration(env.api);
   require('../apps/api/dist/config/paystack').readPaystackConfiguration(env.api);
   require('../apps/api/dist/config/paystack-webhooks').readWebhookConfiguration(env.api);
+  require('../apps/api/dist/config/storage').readStorageConfiguration(env.api);
   if (spawnSync(join(pg, 'pg_ctl.exe'), ['-D', runtime.data, 'status'], { windowsHide: true, stdio: 'ignore' }).status !== 0)
     run(join(pg, 'pg_ctl.exe'), ['-D', runtime.data, '-l', join(runtime.base, 'postgres.log'), '-o', '-h 127.0.0.1 -p ' + runtime.port, '-w', 'start'], setupEnv);
   const { PrismaClient } = require('@prisma/client');

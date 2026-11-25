@@ -53,6 +53,21 @@ Without a test key, admin/public interfaces still work and checkout explains mis
 
 The webhook receiver and worker already exist. A real delivery requires a publicly reachable HTTPS endpoint forwarding to backend `/api/v1/webhooks/paystack`, the matching test-mode signing keys, and Paystack test dashboard configuration. The worker starts only when signing keys are configured. No tunnel or dashboard setting is created automatically. Return-page verification can work without webhook delivery. Receipt-email sending remains unavailable; confirmation intents are durable but not delivered.
 
+## Contestant image storage
+
+The local database is isolated; hosted image storage must be selected independently. Without explicit storage settings, the backend returns `503 IMAGE_STORAGE_NOT_CONFIGURED`. Retrying that response cannot enable storage and does not save a photograph.
+
+After confirming that a Supabase project is dedicated to development/test uploads, add these non-secret selectors to ignored `.env.integration.local`:
+
+```dotenv
+SUPABASE_TEST_ENV_FILE=C:/absolute/path/to/storage-only-test-file
+SUPABASE_TEST_PROJECT_REF=YOUR_CONFIRMED_20_CHARACTER_TEST_PROJECT_REF
+```
+
+The referenced ignored file contains `SUPABASE_URL=https://YOUR_TEST_PROJECT_REF.supabase.co` and `SUPABASE_SECRET_KEY` supplied locally. The launcher imports only those two fields, validates the selected project reference, and passes the secret only to Express. Next receives only the public image origin for managed portrait rendering. No database, Paystack or administrator setting is imported from that file. Inherited Supabase settings remain ignored; there is no automatic fallback to another worktree's storage. The launcher must be restarted once to apply the selected configuration.
+
+The existing public `contestant-images` bucket must have the documented 5,000,000-byte limit and WebP-only stored objects. See [the image setup and recovery contract](../admin/contestant-images.md). Do not repoint this local fixture at production storage or run bucket/policy SQL, cleanup, or image deletion against an existing project as part of troubleshooting.
+
 ## Verify before review
 
 ```powershell
