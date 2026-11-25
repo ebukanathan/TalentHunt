@@ -15,11 +15,11 @@ export async function forwardImage(request: Request, id: string) {
       !(request.method === "POST" ? /^multipart\/form-data\s*;/i : /^application\/json(?:\s*;|$)/i).test(type)) return fail(403, "Refresh and try again.");
     const cookie = (request.headers.get("cookie") || "").split(";").map(v => v.trim()).filter(v => v.split("=")[0] === config.cookieName).join("; ");
     // Authenticate and validate the session-bound token before buffering any upload.
-    const options = { headers: { Cookie: cookie }, cache: "no-store" as const, redirect: "error" as const, signal: AbortSignal.timeout(8000) };
+    const options = { headers: { Cookie: cookie }, cache: "no-store" as const, redirect: "error" as const, signal: AbortSignal.timeout(config.apiTimeoutMs) };
     const session = await fetch(`${config.base}/admin/auth/session`, options);
     if (session.status === 401) return fail(401, "Please sign in again.");
     if (!session.ok) return fail(503, "Photograph uploads are temporarily unavailable.");
-    const csrfResponse = await fetch(`${config.base}/admin/auth/csrf`, { ...options, signal: AbortSignal.timeout(8000) });
+    const csrfResponse = await fetch(`${config.base}/admin/auth/csrf`, { ...options, signal: AbortSignal.timeout(config.apiTimeoutMs) });
     const csrf = await csrfResponse.json();
     const supplied = Buffer.from((request.headers.get("x-csrf-token") || "").slice(0, 512));
     const expected = Buffer.from(typeof csrf.data?.csrfToken === "string" ? csrf.data.csrfToken : "");

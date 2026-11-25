@@ -3,7 +3,7 @@ import { createServer, request as proxyRequest } from "node:http";
 import { createServer as createSecureServer } from "node:https";
 import { mkdtempSync, readFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { createServer as createPortProbe } from "node:net";
+import { createServer as createPortProbe, connect } from "node:net";
 import { spawn, spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import { PrismaClient } from "@prisma/client";
@@ -25,7 +25,8 @@ async function main() {
   assert.notEqual(process.env.NODE_ENV, "production");
   const checkout = process.env.QA_CHECKOUT === "1";
   const paid = process.env.QA_PAID_VOTING === "1";
-  const target = paid ? process.env.PAID_VOTING_BROWSER_TEST_DATABASE_URL : checkout ? process.env.CHECKOUT_BROWSER_TEST_DATABASE_URL : process.env.BROWSER_TEST_DATABASE_URL;
+  const stability = process.env.QA_STABILITY === "1";
+  const target = stability ? process.env.STABILITY_BROWSER_TEST_DATABASE_URL : paid ? process.env.PAID_VOTING_BROWSER_TEST_DATABASE_URL : checkout ? process.env.CHECKOUT_BROWSER_TEST_DATABASE_URL : process.env.BROWSER_TEST_DATABASE_URL;
   assert.ok(target, "The dedicated browser test database URL is missing.");
   const url = new URL(target);
   assert.ok(["postgres:", "postgresql:"].includes(url.protocol));
@@ -133,6 +134,21 @@ async function main() {
     upstream.on("error", () => { if (!res.headersSent) res.writeHead(502); res.end("QA web server is starting."); });
     req.on("error", () => upstream.destroy()); req.pipe(upstream);
   });
+  // Development modules wait for HMR's WebSocket handshake. The TLS fixture
+  // must forward upgrades as well as HTTP, otherwise hydration never starts.
+  if (stability) tls.on("upgrade", (req, socket, head) => {
+    const upstream = connect(nextPort, "127.0.0.1", () => {
+      const headers = Object.entries(req.headers).flatMap(([name, value]) =>
+        value === undefined ? [] : [`${name}: ${Array.isArray(value) ? value.join(", ") : value}`]);
+      upstream.write(`${req.method} ${req.url} HTTP/${req.httpVersion}\r\n${headers.join("\r\n")}\r\n\r\n`);
+      if (head.length) upstream.write(head);
+      socket.pipe(upstream); upstream.pipe(socket);
+    });
+    socket.on("error", () => upstream.destroy());
+    socket.on("close", () => upstream.destroy());
+    upstream.on("error", () => socket.destroy());
+    upstream.on("close", () => socket.destroy());
+  });
   await new Promise<void>(done => tls.listen(webPort, "127.0.0.1", done));
   let stopping = false;
   const close = async () => {
@@ -146,9 +162,9 @@ async function main() {
     tls.closeAllConnections(); tls.close(); api.closeAllConnections(); api.close(); await db.$disconnect();
   };
   process.once("SIGINT", () => { void close(); }); process.once("SIGTERM", () => { void close(); });
-  const child = spawn(process.execPath, [resolve("../../node_modules/next/dist/bin/next"), "start", "--hostname", "127.0.0.1", "--port", String(nextPort)], {
-    cwd: process.cwd(), windowsHide: true, stdio: "inherit", env: { ...process.env, NODE_ENV: "production", API_BASE_URL: `http://127.0.0.1:${apiPort}/api/v1`,
-      ADMIN_APP_ORIGIN: origin, SITE_URL: origin, NEXT_DIST_DIR: ".next", NEXT_PUBLIC_CONTESTANT_IMAGE_ORIGIN: "https://portraits.example.test",
+  const child = spawn(process.execPath, [resolve("../../node_modules/next/dist/bin/next"), stability ? "dev" : "start", "--hostname", "127.0.0.1", "--port", String(nextPort)], {
+    cwd: process.cwd(), windowsHide: true, stdio: "inherit", env: { ...process.env, NODE_ENV: stability ? "development" : "production", API_BASE_URL: `http://127.0.0.1:${apiPort}/api/v1`,
+      ADMIN_APP_ORIGIN: origin, SITE_URL: origin, NEXT_DIST_DIR: stability ? ".next-browser-test" : ".next", NEXT_PUBLIC_CONTESTANT_IMAGE_ORIGIN: "https://portraits.example.test",
       CHECKOUT_TEST_ENABLED: checkout ? "true" : "false", CHECKOUT_APP_ORIGIN: origin, CHECKOUT_SESSION_SECRET: checkout ? "c".repeat(64) : "",
       PAYSTACK_SECRET_KEY: "", PAYSTACK_MODE: "", SUPABASE_SECRET_KEY: "", SUPABASE_URL: "" },
   });

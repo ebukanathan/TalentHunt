@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test test/auth-form.test.tsx test/public-web.test.tsx test/admin-contestants.test.tsx test/admin-images.test.tsx test/admin-settings.test.tsx test/admin-overview.test.tsx test/contestant-videos.test.tsx test/leaderboard.test.tsx test/vote-selection.test.tsx test/public-seo.test.ts test/public-pagination.test.tsx test/admin-taxonomy.test.tsx test/admin-assignments.test.tsx test/public-categories.test.tsx test/scoped-leaderboards.test.tsx",
+    "test": "tsx --test test/auth-form.test.tsx test/public-web.test.tsx test/admin-contestants.test.tsx test/admin-images.test.tsx test/admin-settings.test.tsx test/admin-overview.test.tsx test/contestant-videos.test.tsx test/leaderboard.test.tsx test/vote-selection.test.tsx test/public-seo.test.ts test/public-pagination.test.tsx test/admin-taxonomy.test.tsx test/admin-assignments.test.tsx test/public-categories.test.tsx test/scoped-leaderboards.test.tsx && npm run test:admin:proxy",
     "test:checkout": "tsx --test test/checkout.test.tsx",
     "test:checkout:e2e": "playwright test --config playwright.checkout.config.ts",
     "test:paid:e2e": "playwright test --config playwright.paid.config.ts",
@@ -17,7 +17,9 @@
     "test:public:refinement": "node test/public-refinement.smoke.mjs",
     "test:smoke:development": "node test/public-web.smoke.mjs --development-api",
     "test:e2e": "playwright test",
-    "test:auth:form": "tsx --test test/auth-form.test.tsx"
+    "test:auth:form": "tsx --test test/auth-form.test.tsx",
+    "test:admin:proxy": "node --conditions=react-server --import tsx --test test/admin-proxy.test.ts",
+    "test:stability:e2e": "playwright test --config playwright.stability.config.ts"
   },
   "dependencies": {
     "next": "16.4.6",

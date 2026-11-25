@@ -10,7 +10,7 @@ async function read(path: string) {
   await requireAdmin();
   const config = adminConfig(), token = (await cookies()).get(config.cookieName)?.value;
   let response: Response;
-  try { response = await fetch(`${config.base}/admin/${path}`, { headers: { Cookie: `${config.cookieName}=${token}` }, cache: "no-store", redirect: "error", signal: AbortSignal.timeout(path === "competition/publication-preview" ? 25000 : 8000) }); }
+  try { response = await fetch(`${config.base}/admin/${path}`, { headers: { Cookie: `${config.cookieName}=${token}` }, cache: "no-store", redirect: "error", signal: AbortSignal.timeout(path === "competition/publication-preview" ? 25000 : config.apiTimeoutMs) }); }
   catch { throw new SettingsDataError(503); }
   if (response.status === 401) redirect("/admin/login");
   if (!response.ok) throw new SettingsDataError(response.status);

@@ -2,6 +2,7 @@
 import { useId, useState } from "react";
 import type { ManagedCompetition, ManagedPackage } from "@/lib/admin/settings-schemas";
 import { savedVotingDate, koboToNgn, saveSettings, SettingsMutationError, toLagos } from "@/lib/admin/settings-mutations";
+import { VotingDateField } from "./voting-date-field";
 const transitions = { DRAFT:["DRAFT","SCHEDULED","OPEN"], SCHEDULED:["SCHEDULED","DRAFT","OPEN"], OPEN:["OPEN","CLOSED"], CLOSED:["CLOSED","OPEN","COMPLETED"], COMPLETED:["COMPLETED"] };
 function useSave() {
   const [busy,setBusy] = useState(false), [error,setError] = useState(""), [fields,setFields] = useState<Record<string,string>>({});
@@ -26,7 +27,7 @@ export function CompetitionForm({ competition }: { competition: ManagedCompetiti
       <select id="leaderboardVisibility" value={values.leaderboardVisibility} disabled={Boolean(competition.resultsPublishedAt)} aria-describedby="leaderboard-visibility-help" aria-invalid={Boolean(state.fields.leaderboardVisibility)} onChange={event=>setValues({...values,leaderboardVisibility:event.target.value as typeof values.leaderboardVisibility})}>
         <option value="HIDDEN">Hidden — rankings and totals private</option><option value="RANK_ONLY">Rank only — vote totals private</option><option value="LIVE">Live — rankings and vote totals public</option>
       </select><p id="leaderboard-visibility-help" className="admin-field-help">{competition.resultsPublishedAt ? "Final results have been published. Rankings and totals are public." : "These settings control provisional results across the public site. Completing the competition does not publish final results. Use Publish Results separately."}</p></div>
-    <div className="admin-form-grid">{(["votingOpens","votingCloses"] as const).map(field=><div className="admin-field" key={field}><label htmlFor={field}>{field==="votingOpens"?"Voting opens":"Voting closes"} (Africa/Lagos)</label><input id={field} type="datetime-local" disabled={competition.status==="COMPLETED"} value={values[field]} aria-invalid={Boolean(state.fields[field])} onChange={e=>setValues({...values,[field]:e.target.value})}/></div>)}</div>
+    <div className="admin-form-grid">{(["votingOpens","votingCloses"] as const).map(field=><VotingDateField key={field} id={field} label={field==="votingOpens"?"Voting opens":"Voting closes"} disabled={competition.status==="COMPLETED"} required={values.status==="SCHEDULED"||values.status==="OPEN"} value={values[field]} invalid={Boolean(state.fields[field])} onChange={value=>setValues(previous=>({...previous,[field]:value}))}/>)}</div>
     <button className="admin-button" type="submit">{state.busy?"Saving…":"Save competition"}</button></fieldset>
   </form>;
 }

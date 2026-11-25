@@ -24,7 +24,7 @@ export function ContestantImage({ id, imageUrl, name }: { id?: string; imageUrl:
     if (!id || busy || (!remove && !file)) return;
     setBusy(true); setError(""); setProgress(0); setStatus(remove ? "Removing photograph…" : "Uploading photograph…");
     try {
-      const response = await fetch("/api/admin/auth/csrf", { cache: "no-store", signal: AbortSignal.timeout(15000) });
+      const response = await fetch("/api/admin/auth/csrf", { cache: "no-store", signal: AbortSignal.timeout(45000) });
       const csrf = await response.json();
       if (!response.ok || !csrf.data?.csrfToken) throw new Error("Your session could not be verified. Sign in again.");
       const result = await new Promise<{ imageUrl: string | null }>((resolve, reject) => {

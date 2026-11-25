@@ -26,3 +26,7 @@
 .admin-overview-activity p{margin:0 0 6px}.admin-overview-activity time{font-size:13px;color:#52655c;flex-shrink:0}.admin-overview-retry{display:inline-block;text-decoration:none;margin-top:12px}
 @media(max-width:600px){.admin-overview-stats{grid-template-columns:1fr;gap:12px}.admin-overview-activity li{flex-direction:column;gap:12px}}
 .admin-publication-dialog{width:min(540px,calc(100% - 32px));padding:28px;border:1px solid #a9b9ae;border-radius:12px;background:#fff;color:#173123}.admin-publication-dialog::backdrop{background:#071b14aa}.admin-publication-dialog p{line-height:1.7;margin-block:16px}.admin-publication-dialog label{display:block;margin-bottom:8px}.admin-publication-dialog input{width:100%;box-sizing:border-box;padding:12px;font:inherit;border:1px solid #a9b9ae;border-radius:8px}
+
+.admin-contestant-form .admin-voting-date{margin-top:0}.admin-voting-date legend{font-size:14px;font-weight:650;margin-bottom:16px}.admin-date-picker{display:flex;gap:8px;align-items:stretch}.admin-date-picker input{flex:1}.admin-date-picker .admin-button{flex-shrink:0;padding-inline:12px}
+.admin-time-label{font-size:14px;font-weight:650}.admin-time-picker{display:grid;grid-template-columns:1fr 1fr;gap:12px}.admin-time-picker .admin-field{margin-bottom:0}
+@media(max-width:360px){.admin-date-picker{flex-direction:column}}

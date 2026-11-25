@@ -11,7 +11,7 @@ export async function requireAdmin() {
   const config = adminConfig();
   const token = jar.get(config.cookieName)?.value;
   if (!token || !/^[A-Za-z0-9_-]{43}$/.test(token)) redirect("/admin/login");
-  const response = await fetch(`${config.base}/admin/auth/session`, { headers: { Cookie: `${config.cookieName}=${token}` }, cache: "no-store", redirect: "error", signal: AbortSignal.timeout(8000) });
+  const response = await fetch(`${config.base}/admin/auth/session`, { headers: { Cookie: `${config.cookieName}=${token}` }, cache: "no-store", redirect: "error", signal: AbortSignal.timeout(config.apiTimeoutMs) });
   if (response.status === 401) redirect("/admin/login");
   if (!response.ok) throw new Error("Admin unavailable.");
   return session.parse(await response.json()).data.admin;

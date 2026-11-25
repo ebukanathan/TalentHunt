@@ -14,7 +14,7 @@ async function read(path: string) {
   const token = (await cookies()).get(config.cookieName)?.value;
   let response: Response;
   try {
-    response = await fetch(`${config.base}/admin/contestants${path}`, { headers: { Cookie: `${config.cookieName}=${token}` }, cache: "no-store", redirect: "error", signal: AbortSignal.timeout(8000) });
+    response = await fetch(`${config.base}/admin/contestants${path}`, { headers: { Cookie: `${config.cookieName}=${token}` }, cache: "no-store", redirect: "error", signal: AbortSignal.timeout(config.apiTimeoutMs) });
   } catch { throw new ContestantDataError("UNAVAILABLE", 503); }
   if (response.status === 401) redirect("/admin/login");
   let result;
