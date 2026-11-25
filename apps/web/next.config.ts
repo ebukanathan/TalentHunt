@@ -12,6 +12,11 @@ const nextConfig: NextConfig = {
   // Separate artifacts for isolated Next/Express/PostgreSQL authentication tests.
   distDir: process.env.NEXT_DIST_DIR || ".next",
   partialPrefetching: true,
+  experimental: {
+    // Reusing the restored development graph produced HMR hash-mismatch reload
+    // loops across routes. Keep production build caching and runtime caching.
+    turbopackFileSystemCacheForDev: false,
+  },
   images: {
     remotePatterns: portraitOrigin ? [new URL(`${portraitOrigin}${managedPortraitPath}contestants/*/*/*.webp`)] : [],
     localPatterns: [],

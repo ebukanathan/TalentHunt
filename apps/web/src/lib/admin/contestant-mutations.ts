@@ -6,11 +6,11 @@ export { suggestSlug } from "./slug";
 export async function saveContestant(input: object, id?: string) {
   let response: Response;
   try {
-    const csrfResponse = await fetch("/api/admin/auth/csrf", { cache: "no-store", signal: AbortSignal.timeout(15000) });
+    const csrfResponse = await fetch("/api/admin/auth/csrf", { cache: "no-store", signal: AbortSignal.timeout(45000) });
     const csrf = await csrfResponse.json();
     if (!csrfResponse.ok || !csrf.data?.csrfToken) throw new Error("unavailable");
     response = await fetch(`/api/admin/contestants${id ? "/" + encodeURIComponent(id) : ""}`, {
-      method: id ? "PATCH" : "POST", headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf.data.csrfToken }, body: JSON.stringify(input), cache: "no-store", signal: AbortSignal.timeout(15000),
+      method: id ? "PATCH" : "POST", headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf.data.csrfToken }, body: JSON.stringify(input), cache: "no-store", signal: AbortSignal.timeout(45000),
     });
   } catch { throw new ContestantMutationError("Could not reach the server. Check your connection and try again.", {}, 503); }
   if (response.status === 401) { window.location.replace("/admin/login"); throw new ContestantMutationError("Your session expired. Please sign in again.", {}, 401); }

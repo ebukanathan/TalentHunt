@@ -7,7 +7,7 @@ const { resolve, dirname, join } = require("node:path");
 const { randomBytes } = require("node:crypto");
 const root = resolve(__dirname, "..");
 const phase = process.argv[2] || "all";
-if (!["all", "api", "integration", "browser", "checks", "voting", "voting-vitest", "checkout", "paystack"].includes(phase)) throw new Error("Unknown QA phase.");
+if (!["all", "api", "integration", "browser", "checks", "voting", "voting-vitest", "checkout", "paystack", "finalization", "paid-browser", "stability"].includes(phase)) throw new Error("Unknown QA phase.");
 const raw = process.env.QA_TEST_DATABASE_URL;
 if (process.env.NODE_ENV === "production" || process.env.QA_DISPOSABLE_DATABASES !== "1" || !raw)
   throw new Error("QA requires explicit QA_TEST_DATABASE_URL and QA_DISPOSABLE_DATABASES=1.");
@@ -63,6 +63,8 @@ async function main() {
   const { PrismaClient } = require("@prisma/client");
   const admin = new PrismaClient({ datasources: { db: { url: raw } }, errorFormat: "minimal" });
   const targets = { ...(["all", "api"].includes(phase) ? apiDatabases : {}),
+    ...(["all", "stability"].includes(phase) ? { STABILITY_BROWSER_TEST_DATABASE_URL: "talenthunt_browser_test_stability" } : {}),
+    ...(["all", "paid-browser"].includes(phase) ? { PAID_VOTING_BROWSER_TEST_DATABASE_URL: "talenthunt_browser_test_paid" } : {}),
     ...(["all", "checkout"].includes(phase) ? { PAYMENTS_TEST_DATABASE_URL: "talenthunt_payments_test", CHECKOUT_BROWSER_TEST_DATABASE_URL: "talenthunt_browser_test_checkout" } : {}),
     ...(phase === "voting" ? votingDatabases : {}),
     ...(["all", "integration"].includes(phase) ? { ADMIN_WEB_TEST_DATABASE_URL: "talenthunt_admin_test_web" } : {}),
@@ -94,6 +96,7 @@ async function main() {
     await task("typecheck:vitest", "apps/api");
     await task("test:paystack:vitest", "apps/api");
   }
+  if (phase === "finalization") { await task("typecheck:vitest", "apps/api"); await task("test:finalization", "apps/api"); }
   if (["all", "api"].includes(phase)) await task("test:nonpayment", "apps/api");
   if (["all", "checkout"].includes(phase)) {
     await task("test:payments:unit", "apps/api"); await task("test:payments:integration", "apps/api"); await task("test:checkout", "apps/web");
@@ -102,7 +105,7 @@ async function main() {
   if (phase === "all") { await task("test:seed:integration"); await task("test:categories:integration"); }
   if (["all", "integration"].includes(phase)) await task("test:admin:integration", "apps/web");
   if (["all", "checks"].includes(phase)) {
-    await run(["--test", resolve(root, "test/qa-guards.test.cjs"), resolve(root, "test/qa-schema-drift.test.cjs")]);
+    await run(["--test", resolve(root, "test/qa-guards.test.cjs"), resolve(root, "test/qa-schema-drift.test.cjs"), resolve(root, "test/integration-runtime.test.cjs")]);
     await task("test", "apps/web"); await task("typecheck:seed"); await task("test:seed");
     await task("lint", "apps/web");
     await run([resolve(root, "node_modules/next/dist/bin/next"), "typegen"], resolve(root, "apps/web"));
@@ -127,6 +130,16 @@ async function main() {
     });
     env.QA_BROWSER_WEB_PORT = await port(); env.QA_BROWSER_API_PORT = await port();
     await task("test:checkout:e2e", "apps/web");
+  }
+  if (["all", "paid-browser"].includes(phase)) {
+    if (phase === "paid-browser") await task("build", "apps/web");
+    const port = () => new Promise((done, reject) => { const server = require("node:net").createServer(); server.once("error", reject); server.listen(0, "127.0.0.1", () => { const value = server.address().port; server.close(() => done(String(value))); }); });
+    env.QA_BROWSER_WEB_PORT = await port(); env.QA_BROWSER_API_PORT = await port(); await task("test:paid:e2e", "apps/web");
+  }
+  if (["all", "stability"].includes(phase)) {
+    const port = () => new Promise((done, reject) => { const probe = require("node:net").createServer(); probe.once("error", reject); probe.listen(0, "127.0.0.1", () => { const value = probe.address().port; probe.close(() => done(String(value))); }); });
+    env.QA_BROWSER_WEB_PORT = await port(); env.QA_BROWSER_API_PORT = await port();
+    await task("test:stability:e2e", "apps/web");
   }
   for (const key of Object.keys(targets)) {
     env.DATABASE_URL = env[key];

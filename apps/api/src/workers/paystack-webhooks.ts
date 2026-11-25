@@ -3,9 +3,12 @@ import { environment } from "../config/env";
 import { prisma } from "../lib/prisma";
 import { PaystackVerificationClient } from "../clients/paystack-verification.client";
 import { PaystackWebhookWorker } from "../services/paystack-webhook-worker.service";
+import { PaymentFinalizationService } from "../services/payment-finalization.service";
 async function main() {
   if (!environment.webhooks || !environment.paystack) throw new Error("Test webhook processing must be explicitly enabled.");
-  const worker = new PaystackWebhookWorker(prisma, new PaystackVerificationClient(environment.paystack), environment.webhooks.maxAttempts);
+  const verifier = new PaystackVerificationClient(environment.paystack);
+  const worker = new PaystackWebhookWorker(prisma, verifier, environment.webhooks.maxAttempts, undefined, undefined,
+    environment.finalizationEnabled ? new PaymentFinalizationService(prisma, verifier) : undefined);
   let stopping = false;
   process.once("SIGINT", () => { stopping = true; }); process.once("SIGTERM", () => { stopping = true; });
   while (!stopping) {

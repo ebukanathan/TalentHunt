@@ -1,10 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { Prisma, type PrismaClient, type PaystackWebhookJob } from "@prisma/client";
 import { VerificationError, type PaystackVerifier } from "../clients/paystack-verification.client";
+import type { PaymentFinalizationService } from "./payment-finalization.service";
+import { HttpError } from "../http/errors";
 
 export class PaystackWebhookWorker {
   constructor(private readonly db: PrismaClient, private readonly verifier: PaystackVerifier,
-    private readonly maxAttempts = 8, private readonly clock = () => new Date(), private readonly jitter = Math.random) {
+    private readonly maxAttempts = 8, private readonly clock = () => new Date(), private readonly jitter = Math.random,
+    private readonly finalizer?: PaymentFinalizationService) {
     if (!Number.isInteger(maxAttempts) || maxAttempts < 1 || maxAttempts > 20) throw new Error("A bounded webhook attempt limit is required.");
   }
   async claim(): Promise<PaystackWebhookJob | null> {
@@ -16,7 +19,8 @@ export class PaystackWebhookWorker {
       const rows = await tx.$queryRaw<{ id: string }[]>`
         SELECT id FROM "PaystackWebhookJob"
         WHERE ((status IN ('PENDING','RETRYING') AND "nextAttemptAt" <= ${utc})
-          OR (status = 'PROCESSING' AND "leaseExpiresAt" <= ${utc}))
+          OR (status = 'PROCESSING' AND "leaseExpiresAt" <= ${utc})
+          OR (status = 'AWAITING_FINALIZATION' AND ${Boolean(this.finalizer)} AND "nextAttemptAt" <= ${utc}))
         ORDER BY "nextAttemptAt", id FOR UPDATE SKIP LOCKED LIMIT 1`;
       if (!rows[0]) return null;
       return tx.paystackWebhookJob.update({ where: { id: rows[0].id }, data: {
@@ -41,6 +45,11 @@ export class PaystackWebhookWorker {
     job = current;
     try {
       if (job.attempts > this.maxAttempts) throw new VerificationError("ATTEMPTS_EXHAUSTED");
+      if (job.verifiedAt && this.finalizer && job.reference) {
+        await this.finalizer.verifyAndFinalize(job.reference);
+        const completed = await this.db.paystackWebhookJob.updateMany({ where: this.owned(job), data: { status: "FINALIZED", leaseToken: null, leaseExpiresAt: null, lastErrorCode: null } });
+        return { outcome: completed.count ? "FINALIZED" as const : "LEASE_LOST" as const };
+      }
       const payment = job.reference ? await this.db.payment.findUnique({ where: { reference: job.reference }, include: { scope: true } }) : null;
       if (!payment) throw new VerificationError("UNKNOWN_REFERENCE");
       const scope = payment.scope;
@@ -69,6 +78,7 @@ export class PaystackWebhookWorker {
       // commit is never converted into an assumed successful/failed payment.
       let failure: VerificationError;
       if (error instanceof VerificationError) failure = error;
+      else if (error instanceof HttpError && error.statusCode === 409) failure = new VerificationError("PAYMENT_STATE_REVIEW_REQUIRED");
       else if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") failure = new VerificationError("PROVIDER_TRANSACTION_REUSED");
       else throw error;
       const retry = failure.retryable && job.attempts < this.maxAttempts;

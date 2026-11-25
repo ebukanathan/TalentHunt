@@ -2,19 +2,23 @@
 
 A paid talent-show voting platform under development with Next.js, TypeScript, Express, Prisma, PostgreSQL/Supabase and Paystack.
 
-The non-payment application includes authenticated administration, competition/package settings, dynamic categories and subcategories, contestant assignments, managed photographs, zero to two YouTube performance videos, grouped public listings and independent subcategory leaderboards with backend visibility controls. QA-01 integrates the completed public feature stack into a branch targeting main; review and merge still require approval. Paystack development and paid launch remain paused.
+The integrated application includes authenticated administration, competition/package settings, dynamic categories and subcategories, contestant assignments, managed photographs, zero to two YouTube performance videos, grouped public listings, independent subcategory leaderboards with backend visibility controls, the voting engine, and Paystack test checkout/verification/finalization. Live payments remain disabled.
+
+For the complete local application, use `npm run dev:integration` from this checkout after installing dependencies and building the API. Both servers use this same worktree and an independently owned localhost database. The launcher keeps admin authentication and test checkout enabled together. It creates a separate test administrator; credentials remain in ignored `.env.integration-admin.local`. Read the [integrated development runbook](docs/development/integrated-development.md) before setup. Original application databases, administrator accounts and environment files are preserved.
 
 Product decision (24 October 2026): checkout requires an email address for receipts, voting confirmations, transaction communication and support, with no voter OTP or verification link. Payment verification and vote allocation are independent of email delivery. See [paid voting requirements](docs/product/paid-voting-requirements.md) and the [broader Paystack, API and schema plan](docs/api/checkout-and-confirmations.md). Confirmation delivery and legacy verification removal remain proposals. Marketing requires separate appropriate consent.
 
 PAY-01 adds test-only `POST /api/v1/payments/initialize` with server-owned prices, PENDING purchase snapshots and durable retry protection. See [configuration, request examples and payment tests](docs/api/payment-initialization.md). Checkout initialization does not confirm payment, allocate votes or send email. Paystack credentials are optional as a complete configuration; when absent, public reads work and initialization returns 503.
 
-The [internal voting engine](docs/api/internal-voting-engine.md) allocates from persisted server verification evidence with transactional, idempotent vote updates and read-only reconciliation. It has no production verification writer, HTTP ingress or provider wiring. Paystack and paid launch remain paused; the conservative allocation policy requires voting to be open at processing time and verified payment time inside an explicit voting window.
+The [internal voting engine](docs/api/internal-voting-engine.md) allocates from persisted server verification evidence with transactional, idempotent vote updates and read-only reconciliation. The [test payment finalizer](docs/api/paid-voting-repair.md) connects server verification, payment evidence, allocation, counters, audit and one confirmation-email intent atomically. It is limited to explicitly named local test databases. The conservative allocation policy requires voting to be open at processing time and verified payment time inside an explicit voting window. Receipt-email delivery and production payment activation remain unfinished.
 
 Use the [QA runbook](docs/qa/non-payment-regressions.md) for guarded local tests, browser regressions, CI requirements and remaining security/staging gates. The root `npm test` runs non-payment unit checks; `npm run qa:local` runs the complete disposable PostgreSQL workflow on Windows, including internal voting tests with simulated events. Existing payment code and historical migrations are preserved.
 
 The [Vitest voting verification report](docs/qa/voting-vitest.md) covers 10/50/100-vote packages, database-per-test isolation, concurrency, ledger totals, rollback, purchase retries, privacy and security findings. Run its focused disposable suite with `npm run qa:local -- -Phase voting-vitest`; the complete QA gate includes it too.
 
 ## Development setup
+
+For the complete isolated local app, follow the integrated runbook above. The manual steps below apply only when you explicitly select and configure another development database; they are not needed by the integrated launcher.
 
 Validated tooling at initial review: Node.js 24.15.0 and npm 11.12.1. Use the repository lockfile.
 

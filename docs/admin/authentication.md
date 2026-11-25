@@ -1,6 +1,6 @@
 # ADMIN-01: administrator access
 
-The dashboard is `/admin`; sign in at `/admin/login` (locally, http://localhost:3000/admin/login). ADMIN-01 is merged in PR #36. [ADMIN-02 contestant management](contestant-management.md) replaces the Contestants placeholder on its feature branch for review. Overview, Competition, Vote Packages and Payments remain placeholders. There is no public admin registration, voter login, image upload or payment finalization in these admin tasks.
+The dashboard is `/admin`; sign in at `/admin/login` (locally, http://localhost:3000/admin/login). The integrated source retains authentication alongside contestant management/videos, taxonomy/assignments, settings/packages, scoped leaderboard controls and test payments. Use the [integrated development launcher](../development/integrated-development.md) for all features together. There is no public administrator registration.
 
 ## Configure and migrate
 
@@ -24,7 +24,7 @@ npm run admin:provision --workspace=apps/api
 Remove-Item Env:ADMIN_PROVISION_DATABASE_URL, Env:ADMIN_PROVISION_CONFIRM
 ```
 
-The password must have 16–128 characters with no control characters. No default password, password arguments, startup bootstrap or seed account exists. Provisioning uses a transaction/advisory lock and refuses if **any** AdminUser already exists; concurrent attempts create at most one administrator. It never upserts, overwrites, activates, deletes or repairs an existing account. Existing incompatible hashes or lost credentials need a separately reviewed operator recovery task. Do not delete an account to rerun provisioning.
+The password must have 16–128 characters with no control characters. Standard server startup does not provision an account. The explicitly selected integrated local-demo launcher invokes this same CLI only for its empty owned test database, using a generated dedicated test account. Provisioning uses a transaction/advisory lock and refuses if **any** AdminUser already exists; concurrent attempts create at most one administrator. It never upserts, overwrites, activates, deletes or repairs an existing account. Existing incompatible hashes or lost credentials need a separately reviewed operator recovery task. Do not delete an account to rerun provisioning.
 
 Automation may supply protected UTF-8 JSON `{ "email": "…", "password": "…" }` on stdin with `npm run admin:provision --workspace=apps/api -- --stdin`. This requires noninteractive redirected input. Use a secret manager or restricted temporary input, not literal credentials in command history, logs or committed files. Errors deliberately omit database URLs and credential details.
 
@@ -32,7 +32,7 @@ Run `npm run dev:api` and `npm run dev:web`, then open `/admin/login`. Use the e
 
 ## Authentication flow and API
 
-The browser uses the same-origin Next facade below. Express owns credentials, active-user checks, authorization and session storage. Facade destinations and methods are fixed; it forwards only admin cookies and CSRF/origin headers, bounds mutation bodies to 4 KB, uses an 8-second timeout and rejects redirects. It never forwards user-controlled client-IP headers or an arbitrary upstream URL.
+The browser uses the same-origin Next facade below. Express owns credentials, active-user checks, authorization and session storage. Facade destinations and methods are fixed; it forwards only admin cookies and CSRF/origin headers, bounds authentication mutation bodies to 4 KB and rejects redirects. Ordinary admin reads/proxies allow 30 seconds, while existing publication/assignment operation limits remain explicit. Prisma interactive transactions allow 15 seconds; browser contestant/settings requests allow 45 seconds. It never forwards user-controlled client-IP headers or an arbitrary upstream URL.
 
 | Browser endpoint | Express endpoint | Contract |
 | --- | --- | --- |

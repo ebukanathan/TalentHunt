@@ -7,6 +7,9 @@ import { PaystackClient } from "./clients/paystack.client";
 import { AdminAuthService } from "./services/admin-auth.service";
 import { SupabaseImageStorage } from "./storage/contestant-images";
 import { PaystackWebhookIntake } from "./services/paystack-webhook-intake.service";
+import { PaymentFinalizationService } from "./services/payment-finalization.service";
+import { PaymentStatusService } from "./services/payment-status.service";
+import { PaystackVerificationClient } from "./clients/paystack-verification.client";
 
 const payments = environment.paystack
   ? new PaymentInitializationService(prisma, new PaystackClient(environment.paystack), environment.PUBLIC_COMPETITION_SLUG)
@@ -14,7 +17,8 @@ const payments = environment.paystack
 const admin = environment.admin ? new AdminAuthService(prisma, environment.admin) : undefined;
 const storage = environment.storage ? new SupabaseImageStorage(environment.storage) : undefined;
 const webhooks = environment.webhooks ? new PaystackWebhookIntake(prisma, environment.webhooks) : undefined;
-const app = createApp(new PublicReadService(prisma, environment.PUBLIC_COMPETITION_SLUG), payments, admin, storage, webhooks);
+const finalizer = environment.finalizationEnabled && environment.paystack ? new PaymentFinalizationService(prisma, new PaystackVerificationClient(environment.paystack)) : undefined;
+const app = createApp(new PublicReadService(prisma, environment.PUBLIC_COMPETITION_SLUG), payments, admin, storage, webhooks, finalizer ? new PaymentStatusService(prisma, finalizer) : undefined);
 const server = app.listen(environment.PORT, () => {
   console.log("TalentHunt API running at http://localhost:" + environment.PORT);
 });

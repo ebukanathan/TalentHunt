@@ -48,6 +48,6 @@ export function getVotingState(competition: Competition, now = new Date()) {
     open: true,
     label: "Voting window open",
     description:
-      "Discover your favourites. Online payments are not available yet.",
+      "Choose a contestant and explore the available vote packages.",
   };
 }

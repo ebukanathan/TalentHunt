@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useHydrated } from "@/lib/admin/use-hydrated";
+import { imageErrorMessage } from "@/lib/admin/image-errors";
 
 export function ContestantImage({ id, imageUrl, name }: { id?: string; imageUrl: string | null; name: string }) {
   const hydrated = useHydrated();
@@ -24,7 +25,7 @@ export function ContestantImage({ id, imageUrl, name }: { id?: string; imageUrl:
     if (!id || busy || (!remove && !file)) return;
     setBusy(true); setError(""); setProgress(0); setStatus(remove ? "Removing photograph…" : "Uploading photograph…");
     try {
-      const response = await fetch("/api/admin/auth/csrf", { cache: "no-store", signal: AbortSignal.timeout(15000) });
+      const response = await fetch("/api/admin/auth/csrf", { cache: "no-store", signal: AbortSignal.timeout(45000) });
       const csrf = await response.json();
       if (!response.ok || !csrf.data?.csrfToken) throw new Error("Your session could not be verified. Sign in again.");
       const result = await new Promise<{ imageUrl: string | null }>((resolve, reject) => {
@@ -32,14 +33,13 @@ export function ContestantImage({ id, imageUrl, name }: { id?: string; imageUrl:
         xhr.open(remove ? "DELETE" : "POST", `/api/admin/contestants/${encodeURIComponent(id!)}/image`);
         xhr.timeout = 90000; xhr.setRequestHeader("X-CSRF-Token", csrf.data.csrfToken);
         xhr.upload.onprogress = event => { if (event.lengthComputable) { setProgress(Math.floor(event.loaded * 100 / event.total)); if (event.loaded === event.total) setStatus("Processing and saving photograph…"); } };
-        xhr.onerror = xhr.ontimeout = xhr.onabort = () => reject(new Error("Image change could not be confirmed. Reload before retrying."));
+        xhr.onerror = xhr.ontimeout = xhr.onabort = () => reject(new Error(imageErrorMessage(0)));
         xhr.onload = () => {
           if (xhr.status === 401) { window.location.replace("/admin/login"); reject(new Error("Your session expired. Sign in again.")); return; }
           try {
             const value = JSON.parse(xhr.responseText);
             if (xhr.status < 200 || xhr.status >= 300) {
-              const messages: Record<number, string> = { 400: "Choose a valid, non-animated JPG, PNG or WebP photograph.", 403: "Your request expired. Try again.", 404: "This contestant is no longer available.", 409: "The photograph changed. Reload before retrying.", 413: "Photographs must be 5 MB or smaller.", 429: "Image processing is busy. Try again shortly." };
-              reject(new Error(messages[xhr.status] || "Image change could not be confirmed. Reload before retrying.")); return;
+              reject(new Error(imageErrorMessage(xhr.status, value.code))); return;
             }
             if (value.status !== "success" || !(value.data?.imageUrl === null || typeof value.data?.imageUrl === "string")) throw new Error();
             resolve(value.data);

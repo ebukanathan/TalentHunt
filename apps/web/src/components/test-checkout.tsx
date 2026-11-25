@@ -6,7 +6,7 @@ import type { Competition, Contestant, VotePackage } from "@/lib/api/schemas";
 import { attemptKey, checkoutInput, checkoutResult, type CheckoutResult } from "@/lib/checkout/contracts";
 import { formatKobo, formatVotes } from "@/lib/format";
 
-const storedAttempt = z.strictObject({ key: attemptKey, binding: z.string().regex(/^[0-9a-f]{64}$/), input: checkoutInput });
+const storedAttempt = z.strictObject({ key: attemptKey, binding: z.string().regex(/^[0-9a-f]{64}$/), input: checkoutInput, reference: z.string().optional() });
 type Attempt = z.infer<typeof storedAttempt>;
 export function TestCheckout({ contestant, competition, item, open, onLock, onSelect }: {
   contestant: Pick<Contestant, "id" | "category" | "subcategory">; competition: Competition;
@@ -57,19 +57,25 @@ export function TestCheckout({ contestant, competition, item, open, onLock, onSe
       const response = await fetch("/api/checkout/initialize", { method: "POST", credentials: "same-origin", redirect: "error", cache: "no-store",
         headers: { "Content-Type": "application/json", "X-CSRF-Token": session.csrfToken, "X-Checkout-Session": current.binding, "X-Checkout-Attempt": current.key },
         body: JSON.stringify(current.input), signal: AbortSignal.timeout(20000) });
-      if (!response.ok) throw new Error();
+      if (!response.ok) {
+        const failure = await response.json().catch(() => null);
+        if (failure?.error === "CHECKOUT_NOT_CONFIGURED") { setMessage("Paystack test credentials are not configured on this server. This request could not start checkout. Keep this tab and retry after test configuration is ready."); return; }
+        throw new Error();
+      }
       const data = checkoutResult.parse((await response.json()).data);
       if (data.purchase.contestantId !== contestant.id || data.purchase.packageId !== current.input.packageId || data.purchase.competitionId !== competition.id ||
           data.purchase.categoryId !== contestant.category.id || data.purchase.subcategoryId !== contestant.subcategory.id ||
           (response.status === 202) !== Boolean(data.initializationStatus)) throw new Error();
       setResult(data);
+      const remembered = { ...current, reference: data.reference };
+      sessionStorage.setItem(storageKey, JSON.stringify(remembered)); setAttempt(remembered);
       if (!data.authorizationUrl) setMessage("Checkout is pending or requires review. Retry retrieves the same purchase and will not create another transaction.");
     } catch { setMessage("Checkout could not be confirmed. Retry the same purchase. Do not create another checkout while its outcome is uncertain."); }
     finally { sending.current = false; setBusy(false); }
   }
   return <section className="test-checkout" aria-labelledby="test-checkout-heading">
     <h2 id="test-checkout-heading">Test checkout</h2>
-    <p className="test-checkout-banner">TEST MODE ONLY — use Paystack test payment details. This checkout does not add votes yet.</p>
+    <p className="test-checkout-banner">TEST MODE ONLY — use Paystack test payment details. Votes are added only after the server confirms an eligible payment.</p>
     <form method="post" onSubmit={submit}>
       <fieldset disabled={!hydrated || busy || (!attempt && (!item || !open))}>
         <legend>Email for this purchase</legend>
@@ -85,6 +91,7 @@ export function TestCheckout({ contestant, competition, item, open, onLock, onSe
       <p>{formatVotes(String(result.purchase.voteCount))} votes · {formatKobo(result.purchase.amountKobo, result.purchase.currency)} {result.purchase.currency}</p>
       <p>The server reserved this amount. It may differ from a package changed since this page opened. No payment or vote allocation has been confirmed.</p>
       {result.authorizationUrl && open ? <a className="button button-primary" href={result.authorizationUrl} rel="noreferrer" referrerPolicy="no-referrer">Continue to Paystack (test)</a> : !open ? <p>Voting is closed. Do not complete this checkout; contact support for review.</p> : null}
+      <p><a href={`/payments/return?reference=${encodeURIComponent(result.reference)}`} referrerPolicy="no-referrer">Check this test purchase</a></p>
     </div>}
   </section>;
 }

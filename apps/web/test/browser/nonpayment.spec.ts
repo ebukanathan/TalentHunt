@@ -45,6 +45,8 @@ test.beforeEach(async ({ page, request }) => {
 
 test("editing category assignment, biography and photograph preserves both performance videos and independent rankings", async ({ page }, info) => {
   const suffix = info.project.name, categoryName = `QA ${suffix} group`, personName = `QA ${suffix} contestant`;
+  let registrations = 0;
+  page.on("request", request => { if (request.method() === "POST" && new URL(request.url()).pathname === "/api/admin/contestants") registrations++; });
   const portrait = await sharp({ create: { width: 40, height: 50, channels: 3, background: "#b68c45" } }).png().toBuffer();
   page.on("dialog", dialog => { void dialog.accept(); });
   await page.goto("/admin/contestants");
@@ -88,6 +90,32 @@ test("editing category assignment, biography and photograph preserves both perfo
   await expect(page.getByRole("button", { name: "Upload photograph", exact: true })).toBeEnabled();
   await page.getByRole("button", { name: "Upload photograph", exact: true }).click();
   await expect(page.getByText("Photograph saved.", { exact: true })).toBeVisible();
+  const preview = page.getByRole("img", { name: `Current photograph of ${personName}`, exact: true });
+  const firstPhoto = (await preview.getAttribute("src"))!;
+  await page.reload();
+  await expect(preview).toHaveAttribute("src", firstPhoto);
+  // Missing deployment configuration must be reported accurately, and retrying
+  // the separate image operation must never register another contestant.
+  await page.route(`**/api/admin/contestants/${person.id}/image`, route => route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ status: "error", code: "IMAGE_STORAGE_NOT_CONFIGURED", message: "Photograph uploads are not configured." }) }), { times: 1 });
+  await expect(picker).toBeEnabled();
+  const replacement = await sharp({ create: { width: 40, height: 50, channels: 3, background: "#245cda" } }).png().toBuffer();
+  await picker.setInputFiles({ name: "replacement.png", mimeType: "image/png", buffer: replacement });
+  await page.getByRole("button", { name: "Replace photograph", exact: true }).click();
+  await expect(page.locator(".admin-image-panel").getByRole("alert")).toContainText("not configured for this environment");
+  await page.reload();
+  await expect(preview).toHaveAttribute("src", firstPhoto);
+  await expect(picker).toBeEnabled();
+  await picker.setInputFiles({ name: "replacement.png", mimeType: "image/png", buffer: replacement });
+  await page.getByRole("button", { name: "Replace photograph", exact: true }).click();
+  await expect(page.getByText("Photograph saved.", { exact: true })).toBeVisible();
+  const secondPhoto = (await preview.getAttribute("src"))!;
+  expect(secondPhoto).not.toBe(firstPhoto);
+  await page.reload();
+  await expect(preview).toHaveAttribute("src", secondPhoto);
+  expect(registrations).toBe(1);
+  const stored = await (await page.request.get(`${api}/__qa/image?url=${encodeURIComponent(secondPhoto)}`)).body();
+  const color = (await sharp(stored).stats()).dominant;
+  expect(color.b).toBeGreaterThan(color.r + 50);
   await page.goto(`/contestants/${person.id}`);
   await expect(page.getByRole("heading", { name: personName, exact: true })).toBeVisible();
   await expect(page.getByText(`Category: ${categoryName} edited`, { exact: true })).toBeVisible();
@@ -95,6 +123,7 @@ test("editing category assignment, biography and photograph preserves both perfo
   await expect(page.getByText("Biography edited after category assignment and both performance videos.", { exact: true })).toBeVisible();
   const photo = page.getByRole("img", { name: `Portrait of ${personName}`, exact: true });
   await expect(photo).toBeVisible();
+  expect(decodeURIComponent((await photo.getAttribute("src"))!)).toContain(secondPhoto);
   await expect.poll(() => photo.evaluate(element => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
   await expect(page.locator("iframe")).toHaveCount(2);
   await expect(page.locator("iframe").first()).toHaveAttribute("src", `https://www.youtube-nocookie.com/embed/${videos[0]}`);
