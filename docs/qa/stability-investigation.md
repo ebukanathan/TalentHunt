@@ -47,6 +47,32 @@ Earlier incomplete gates are not counted as passing: one Windows Prisma DLL lock
 | Simulated payment-to-vote desktop/mobile browser suite | 2/2 passed |
 | Development navigation/refresh/session suite | 2/2 passed; 84 measured route/refresh loads, zero JavaScript errors, first-party asset failures or forced HMR reloads |
 
-The final running-instance verification is recorded separately after starting the validated pair. No additional business functionality was introduced.
+## Final running-instance verification: passed
 
-No production database record, administrator credential, migration history or live provider configuration was changed. Real Paystack checkout completion remains separate from simulated transport/browser coverage; the earlier real test initialization reached checkout but Cloudflare prevented completing a transaction. External webhook delivery still requires test signing keys and a publicly reachable HTTPS endpoint. No claim of complete client-delivery readiness is made while gates remain outstanding.
+The validated application pair started once from `.worktrees/integration` at application commit `34d31cfc53c319f48598d7bbf968a4c59c0b1632` on `integration/all-completed-features`. A later documentation-only commit records these results; no application files changed after validation/startup. The launcher returned `ready: true` only after its complete-response checks.
+
+| Process | PID | Role |
+| --- | --- | --- |
+| npm development command | 31864 | Owns launcher command |
+| Integration launcher | 33964 | Owns API/Next children |
+| Express | 18704 | Sole listener on port 4000 |
+| Next CLI | 19932 | Integration checkout's Next executable |
+| Next server | 28704 | Sole listener on port 3000 |
+| Next transform worker | 33356 | Child of Next server, integration build output |
+| Codex helpers | 15204, 30392 | Tool processes, not application listeners |
+
+Clean Chromium contexts at widths 1280 and 375 completed 48 measured visits and 48 refreshes over eight public/admin routes (three cycles per viewport), followed by admin navigation and session checks. All 96 route/refresh loads returned 200. Browser console errors, JavaScript exceptions, failed first-party JavaScript/CSS and forced HMR reload counts were all zero. Both contexts logged in, retained their session after navigation/reload (session endpoint 200), logged out and received 401 afterward. PostgreSQL was reachable, one dedicated test administrator was active, and the session table remained readable.
+
+The running UI showed two public video frames and both editor values, isolated category/subcategory grouping, all three vote packages, taxonomy management and the LIVE visibility control. Production browser tests separately exercised visibility changes and editing while preserving videos. Desktop homepage, mobile profile and login screenshots were visually inspected. YouTube is intercepted in automated checks; external playback is not claimed.
+
+Final evidence is outside the checkout at `%TEMP%/talenthunt-stability-final-D6SSu1/result.json` with screenshots; runner output is `%TEMP%/talenthunt-stability-final-probe-2.log`. The first ad-hoc running-instance probe stopped after 24 visits because its request context lacked a base URL; it was a probe error, not counted as a passing complete run. Correcting that probe did not change application code or restart servers.
+
+The final read-only local ledger contained two purchases (one PENDING, one PAID), one `paystack` / `TEST` verification record and one allocation. Those counts were identical before and after the complete final probe. The additional verified local test purchase existed before that probe; this investigation did not submit a purchase, modify totals or observe its external checkout completion. No LIVE evidence was present. Original production records were not accessed or changed.
+
+## Separate browser-profile warning
+
+The running server also forwarded a warning from an existing browser: React found an extra `cz-shortcut-listen="true"` attribute on `body`. That attribute does not appear in application source. This is consistent with a browser extension modifying HTML before hydration; the exact installed extension was not inspected. Clean automation contexts had no hydration/console errors. Use an extension-free browser profile for client acceptance; do not suppress hydration warnings across the app to conceal externally injected DOM changes.
+
+No additional business functionality was introduced. Local stability/build checks are complete; hosted deployment configuration, external playback, actual provider checkout acceptance and real external webhook delivery remain separate acceptance checks. The earlier real checkout attempt was obstructed by Cloudflare; the newer local TEST verification record is reported as observed ledger evidence, not a browser-completed transaction witnessed by this investigation.
+
+No production database record, administrator credential, migration history or live provider configuration was changed. External webhook delivery still requires test signing keys and a publicly reachable HTTPS endpoint. Receipt-email delivery is not implemented. Passing local stability gates does not establish that these external acceptance checks have been completed.
