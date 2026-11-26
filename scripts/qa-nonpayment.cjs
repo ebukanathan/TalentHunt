@@ -19,7 +19,7 @@ if (!["postgres:", "postgresql:"].includes(base.protocol) || !["localhost", "127
 const env = { ...process.env, NODE_ENV: "test", DATABASE_URL: raw, SITE_URL: "https://talenthunt.example",
   NEXT_PUBLIC_CONTESTANT_IMAGE_ORIGIN: "https://portraits.example.test" };
 for (const key of Object.keys(env)) {
-  if (/PAYSTACK|SUPABASE|SECRET|TOKEN|CREDENTIAL|DIRECT_URL|^SEED_|_TEST_DATABASE_URL$/.test(key) && key !== "QA_TEST_DATABASE_URL") delete env[key];
+  if (/EMAIL|RESEND|PAYMENT_MODE|DEPLOYMENT_ENV|STAGING_|PRODUCTION_|CHECKOUT_ENABLED|CHECKOUT_LIVE|PAYSTACK|SUPABASE|SECRET|TOKEN|CREDENTIAL|DIRECT_URL|^SEED_|_TEST_DATABASE_URL$/.test(key) && key !== "QA_TEST_DATABASE_URL") delete env[key];
 }
 Object.assign(env, { PAYSTACK_MODE: "", PAYSTACK_SECRET_KEY: "", SUPABASE_URL: "", SUPABASE_SECRET_KEY: "", ADMIN_CSRF_SECRET: "" });
 Object.assign(env, { CHECKOUT_TEST_ENABLED: "false", CHECKOUT_APP_ORIGIN: "", CHECKOUT_SESSION_SECRET: "" });

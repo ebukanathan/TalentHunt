@@ -23,7 +23,7 @@ function environments(inherited, settings, databaseUrl, secrets, storageSettings
   const provider = validateProvider(settings);
   const storage = validateStorage(storageSettings);
   const api = { ...inherited };
-  for (const key of Object.keys(api)) if (/PAYSTACK|SUPABASE|DATABASE|DIRECT_URL|CHECKOUT|ADMIN_|SEED_|^NEXT_|^QA_|^SITE_URL$|^PUBLIC_COMPETITION/.test(key)) delete api[key];
+  for (const key of Object.keys(api)) if (/EMAIL|RESEND|PAYMENT_MODE|DEPLOYMENT_ENV|STAGING_|PRODUCTION_|CHECKOUT_ENABLED|CHECKOUT_LIVE|PAYSTACK|SUPABASE|DATABASE|DIRECT_URL|CHECKOUT|ADMIN_|SEED_|^NEXT_|^QA_|^SITE_URL$|^PUBLIC_COMPETITION/.test(key)) delete api[key];
   Object.assign(api, { NODE_ENV: 'development', PORT: '4000', DATABASE_URL: databaseUrl, PUBLIC_COMPETITION_SLUG: 'paid-test-show',
     ADMIN_AUTH_ENABLED: 'true', ADMIN_APP_ORIGIN: origin, ADMIN_CSRF_SECRET: secrets.admin,
     PAYSTACK_MODE: provider.key ? 'test' : '', PAYSTACK_SECRET_KEY: provider.key, PAYSTACK_CALLBACK_URL: provider.key ? provider.callback : '',
@@ -32,7 +32,7 @@ function environments(inherited, settings, databaseUrl, secrets, storageSettings
     SUPABASE_URL: storage?.url || '', SUPABASE_SECRET_KEY: storage?.key || '' });
   const web = { ...api, API_BASE_URL: 'http://localhost:4000/api/v1', SITE_URL: origin, CHECKOUT_TEST_ENABLED: 'true',
     CHECKOUT_APP_ORIGIN: origin, CHECKOUT_SESSION_SECRET: secrets.checkout, NEXT_DIST_DIR: '.next-integration' };
-  for (const key of Object.keys(web)) if (/PAYSTACK|SUPABASE|DATABASE|DIRECT_URL|^ADMIN_CSRF_SECRET$/.test(key)) delete web[key];
+  for (const key of Object.keys(web)) if (/EMAIL|RESEND|PAYMENT_MODE|DEPLOYMENT_ENV|STAGING_|PRODUCTION_|CHECKOUT_ENABLED|CHECKOUT_LIVE|PAYSTACK|SUPABASE|DATABASE|DIRECT_URL|^ADMIN_CSRF_SECRET$/.test(key)) delete web[key];
   if (storage) web.NEXT_PUBLIC_CONTESTANT_IMAGE_ORIGIN = storage.url;
   return { api, web };
 }

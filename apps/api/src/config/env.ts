@@ -5,6 +5,8 @@ import { readPaystackConfiguration } from "./paystack";
 import { readAdminConfiguration } from "./admin";
 import { readStorageConfiguration } from "./storage";
 import { readWebhookConfiguration } from "./paystack-webhooks";
+import { assertTestFinalizationTarget } from "./finalization-target";
+import { readEmailConfiguration } from "./email";
 
 // Process environment wins, followed by apps/api/.env, then the repository .env.
 // These paths work from both src/config and dist/config under npm workspaces.
@@ -17,6 +19,7 @@ const environmentSchema = z.object({
     catch { return false; }
   }, "Use a PostgreSQL connection URL."),
   PORT: z.coerce.number().int().min(1).max(65535).default(4000),
+  API_BIND_HOST: z.enum(["127.0.0.1", "::1"]).optional(),
   PUBLIC_COMPETITION_SLUG: z.string().min(1).max(200).optional(),
 });
 
@@ -24,6 +27,7 @@ export function readEnvironment(source: NodeJS.ProcessEnv) {
   const result = environmentSchema.safeParse({
     DATABASE_URL: source.DATABASE_URL,
     PORT: source.PORT,
+    API_BIND_HOST: source.API_BIND_HOST,
     PUBLIC_COMPETITION_SLUG: source.PUBLIC_COMPETITION_SLUG?.trim() || undefined,
   });
   if (!result.success) {
@@ -32,16 +36,12 @@ export function readEnvironment(source: NodeJS.ProcessEnv) {
     throw new Error("Invalid API configuration: " + fields.join(", ") + ".");
   }
   const paystack = readPaystackConfiguration(source);
+  if (["staging", "production"].includes(source.DEPLOYMENT_ENV || "") && !result.data.API_BIND_HOST) throw new Error("Hosted API requires an explicit loopback bind address.");
   if (source.PAYSTACK_FINALIZATION_ENABLED && !["true", "false"].includes(source.PAYSTACK_FINALIZATION_ENABLED)) throw new Error("Invalid finalization configuration.");
   const finalizationEnabled = source.PAYSTACK_FINALIZATION_ENABLED === "true";
   if (finalizationEnabled && !paystack) throw new Error("Test payment configuration is required for finalization.");
-  if (finalizationEnabled) {
-    const target = new URL(result.data.DATABASE_URL);
-    if (!["localhost", "127.0.0.1", "[::1]"].includes(target.hostname) || target.search || target.hash ||
-        !/^\/talenthunt_(paid_demo|browser_test|vitest)_[a-z0-9_]+$/.test(target.pathname))
-      throw new Error("Test finalization requires an explicitly named local test database.");
-  }
-  return { ...result.data, paystack, finalizationEnabled, webhooks: readWebhookConfiguration(source), admin: readAdminConfiguration(source), storage: readStorageConfiguration(source) };
+  if (finalizationEnabled || paystack?.PAYSTACK_MODE === "live") assertTestFinalizationTarget(result.data.DATABASE_URL, source);
+  return { ...result.data, paystack, finalizationEnabled, email: readEmailConfiguration(source), webhooks: readWebhookConfiguration(source), admin: readAdminConfiguration(source), storage: readStorageConfiguration(source) };
 }
 
 export const environment = readEnvironment(process.env);

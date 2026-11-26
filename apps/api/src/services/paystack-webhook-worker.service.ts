@@ -7,7 +7,7 @@ import { HttpError } from "../http/errors";
 export class PaystackWebhookWorker {
   constructor(private readonly db: PrismaClient, private readonly verifier: PaystackVerifier,
     private readonly maxAttempts = 8, private readonly clock = () => new Date(), private readonly jitter = Math.random,
-    private readonly finalizer?: PaymentFinalizationService) {
+    private readonly finalizer?: PaymentFinalizationService, private readonly environment: "TEST" | "LIVE" = "TEST") {
     if (!Number.isInteger(maxAttempts) || maxAttempts < 1 || maxAttempts > 20) throw new Error("A bounded webhook attempt limit is required.");
   }
   async claim(): Promise<PaystackWebhookJob | null> {
@@ -21,6 +21,7 @@ export class PaystackWebhookWorker {
         WHERE ((status IN ('PENDING','RETRYING') AND "nextAttemptAt" <= ${utc})
           OR (status = 'PROCESSING' AND "leaseExpiresAt" <= ${utc})
           OR (status = 'AWAITING_FINALIZATION' AND ${Boolean(this.finalizer)} AND "nextAttemptAt" <= ${utc}))
+          AND environment::text = ${this.environment}
         ORDER BY "nextAttemptAt", id FOR UPDATE SKIP LOCKED LIMIT 1`;
       if (!rows[0]) return null;
       return tx.paystackWebhookJob.update({ where: { id: rows[0].id }, data: {
@@ -37,7 +38,7 @@ export class PaystackWebhookWorker {
     return this.processClaim(job);
   }
   async processClaim(job: PaystackWebhookJob) {
-    if (!job.leaseToken || job.status !== "PROCESSING") throw new Error("A claimed webhook job is required.");
+    if (!job.leaseToken || job.status !== "PROCESSING" || job.environment !== this.environment) throw new Error("A claimed matching-environment webhook job is required.");
     // Recheck ownership before network I/O. A stale worker may never complete
     // a reclaimed lease; final writes also compare the exact lease and expiry.
     const current = await this.db.paystackWebhookJob.findFirst({ where: this.owned(job) });
@@ -55,19 +56,21 @@ export class PaystackWebhookWorker {
       const scope = payment.scope;
       if (!scope || scope.competitionId !== payment.competitionId || scope.contestantId !== payment.contestantId || scope.packageId !== payment.packageId)
         throw new VerificationError("LEGACY_SCOPE_REVIEW_REQUIRED");
+      if (payment.paymentEnvironment !== this.environment) throw new VerificationError("WRONG_ENVIRONMENT");
       if (!["PENDING", "PAID"].includes(payment.status) || payment.refundedAt) throw new VerificationError("PAYMENT_STATE_REVIEW_REQUIRED");
       const facts = await this.verifier.verify(payment.reference), now = this.clock();
+      if ((facts.environment || "TEST") !== this.environment) throw new VerificationError("WRONG_ENVIRONMENT");
       if (facts.reference !== payment.reference || facts.amountKobo !== payment.amountKobo || facts.currency !== payment.currency ||
           facts.paidAt < payment.createdAt || facts.paidAt > now || !Number.isFinite(facts.paidAt.getTime()) ||
           (payment.providerTxnId && payment.providerTxnId !== facts.providerTxnId) || (payment.paidAt && payment.paidAt.getTime() !== facts.paidAt.getTime()))
         throw new VerificationError("PAYMENT_FACTS_MISMATCH");
       const used = await this.db.payment.findFirst({ where: { providerTxnId: facts.providerTxnId, id: { not: payment.id } }, select: { id: true } });
-      const evidence = await this.db.verifiedPayment.findFirst({ where: { provider: "paystack", environment: "TEST", providerTxnId: facts.providerTxnId, paymentId: { not: payment.id } }, select: { id: true } });
+      const evidence = await this.db.verifiedPayment.findFirst({ where: { provider: "paystack", environment: this.environment, providerTxnId: facts.providerTxnId, paymentId: { not: payment.id } }, select: { id: true } });
       if (used || evidence) throw new VerificationError("PROVIDER_TRANSACTION_REUSED");
       const result = await this.db.paystackWebhookJob.updateMany({ where: this.owned(job), data: {
         status: "AWAITING_FINALIZATION", leaseToken: null, leaseExpiresAt: null, lastErrorCode: null,
         paymentId: payment.id, providerTxnId: facts.providerTxnId, verifiedAt: now,
-        verifiedFacts: { provider: "paystack", environment: "TEST", reference: facts.reference, providerTxnId: facts.providerTxnId,
+        verifiedFacts: { provider: "paystack", environment: this.environment, reference: facts.reference, providerTxnId: facts.providerTxnId,
           amountKobo: facts.amountKobo, currency: facts.currency, paidAt: facts.paidAt.toISOString(), verifiedAt: now.toISOString(),
           paymentId: payment.id, competitionId: scope.competitionId, categoryId: scope.categoryId, subcategoryId: scope.subcategoryId,
           contestantId: scope.contestantId, packageId: scope.packageId, voteCount: payment.voteCount },

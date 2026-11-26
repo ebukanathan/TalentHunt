@@ -8,9 +8,10 @@ export class PaymentStatusService {
   constructor(private readonly db: PrismaClient, private readonly finalizer: PaymentFinalizationService) {}
   async status(reference: string, capability: string) {
     const key = idempotencyKeySchema.safeParse(capability);
-    if (!key.success || !/^th-test-[a-f0-9-]{36}$/.test(reference)) throw new HttpError(404, "PAYMENT_NOT_FOUND", "Purchase unavailable.");
-    const initialization = await this.db.paymentInitialization.findUnique({ where: { idempotencyKeyHash: createHash("sha256").update(key.data).digest("hex") }, select: { payment: { select: { id: true, reference: true, status: true } } } });
-    if (!initialization || initialization.payment.reference !== reference) throw new HttpError(404, "PAYMENT_NOT_FOUND", "Purchase unavailable.");
+    if (!key.success || !/^th-(test|live)-[a-f0-9-]{36}$/.test(reference)) throw new HttpError(404, "PAYMENT_NOT_FOUND", "Purchase unavailable.");
+    const environment = this.finalizer.mode === "live" ? "LIVE" : "TEST";
+    const initialization = await this.db.paymentInitialization.findUnique({ where: { idempotencyKeyHash: createHash("sha256").update(key.data).digest("hex") }, select: { payment: { select: { id: true, reference: true, status: true, paymentEnvironment: true } } } });
+    if (!initialization || initialization.payment.reference !== reference || initialization.payment.paymentEnvironment !== environment) throw new HttpError(404, "PAYMENT_NOT_FOUND", "Purchase unavailable.");
     let verification: "PENDING" | "REVIEW_REQUIRED" = "PENDING";
     if (initialization.payment.status === "PENDING") {
       try { await this.finalizer.verifyAndFinalize(reference); }
@@ -23,11 +24,13 @@ export class PaymentStatusService {
     const payment = await this.db.payment.findUniqueOrThrow({ where: { id: initialization.payment.id }, include: {
       scope: true, allocation: true, verifiedPayment: true, confirmations: { select: { status: true }, where: { kind: "VOTE_CONFIRMATION" } },
     } });
-    const confirmed = payment.status === "PAID" && !payment.refundedAt && payment.verifiedPayment?.environment === "TEST" &&
+    const confirmed = payment.status === "PAID" && !payment.refundedAt && payment.verifiedPayment?.environment === environment &&
       payment.verifiedPayment.provider === "paystack" && payment.allocation?.verificationId === payment.verifiedPayment.id && payment.confirmations.length === 1;
-    return { reference, mode: "test" as const, state: confirmed ? "CONFIRMED" as const : payment.status === "PENDING" ? verification : "REVIEW_REQUIRED" as const,
+    const delivery = payment.confirmations[0]?.status;
+    const emailStatus = !confirmed ? "NOT_QUEUED" as const : delivery === "DELIVERED" ? "DELIVERED" as const : delivery === "ACCEPTED" ? "ACCEPTED" as const : delivery === "FAILED" ? "FAILED" as const : delivery === "REVIEW_REQUIRED" ? "REVIEW_REQUIRED" as const : "PENDING_DELIVERY" as const;
+    return { reference, mode: this.finalizer.mode, state: confirmed ? "CONFIRMED" as const : payment.status === "PENDING" ? verification : "REVIEW_REQUIRED" as const,
       amountKobo: payment.amountKobo, currency: payment.currency, voteCount: payment.voteCount,
       contestantId: payment.contestantId, categoryId: payment.scope?.categoryId ?? null, subcategoryId: payment.scope?.subcategoryId ?? null,
-      emailStatus: confirmed ? "PENDING_DELIVERY" as const : "NOT_QUEUED" as const };
+      emailStatus };
   }
 }

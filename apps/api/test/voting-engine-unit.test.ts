@@ -28,7 +28,7 @@ test("stored verification validation rejects incomplete, tampered and legacy pay
   const evidence = { id: "verified", paymentId: "payment", provider: "paystack", environment: "TEST", reference: "reference",
     providerTxnId: "provider-txn", amountKobo: 25000, currency: "NGN", paidAt, verifiedAt: now,
     payment: { id: "payment", reference: "reference", competitionId: "competition", contestantId: "contestant", packageId: "package",
-      status: "PAID", refundedAt: null, providerTxnId: "provider-txn", amountKobo: 25000, currency: "NGN", voteCount: 7, paidAt,
+      status: "PAID", paymentEnvironment: "TEST", refundedAt: null, providerTxnId: "provider-txn", amountKobo: 25000, currency: "NGN", voteCount: 7, paidAt,
       createdAt: new Date(now.getTime() - 10000), scope: { paymentId: "payment", competitionId: "competition", contestantId: "contestant", packageId: "package" } } };
   type Evidence = Parameters<typeof assertVerifiedPurchase>[0];
   const authority = { provider: "paystack", environment: "TEST" as const };

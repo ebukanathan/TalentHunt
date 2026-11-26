@@ -4,15 +4,17 @@ import { HttpError } from "../http/errors";
 import { lockCompetition } from "./contestant-assignment";
 import { allocateVerifiedInTransaction } from "./vote-allocation.service";
 
-const authority = { provider: "paystack", environment: "TEST" as const };
 /** The only input is a stored reference. Provider facts are fetched internally,
  * outside the transaction; browser callbacks can never supply payment evidence. */
 export class PaymentFinalizationService {
-  constructor(private readonly db: PrismaClient, private readonly verifier: PaystackVerifier, private readonly clock = () => new Date()) {}
+  constructor(private readonly db: PrismaClient, private readonly verifier: PaystackVerifier, private readonly clock = () => new Date(), readonly mode: "test" | "live" = "test") {}
   async verifyAndFinalize(reference: string) {
-    const selected = await this.db.payment.findUnique({ where: { reference }, select: { id: true, competitionId: true } });
+    const authority = { provider: "paystack", environment: this.mode === "live" ? "LIVE" as const : "TEST" as const };
+    const selected = await this.db.payment.findUnique({ where: { reference }, select: { id: true, competitionId: true, paymentEnvironment: true } });
     if (!selected) throw new HttpError(404, "PAYMENT_NOT_FOUND", "Purchase unavailable.");
+    if (selected.paymentEnvironment !== authority.environment) throw new HttpError(409, "PAYMENT_ENVIRONMENT_MISMATCH", "Purchase environment requires review.");
     const facts = await this.verifier.verify(reference);
+    if ((facts.environment || "TEST") !== authority.environment) throw new HttpError(409, "PAYMENT_ENVIRONMENT_MISMATCH", "Verification environment requires review.");
     for (let attempt = 0; ; attempt++) {
       try {
         return await this.db.$transaction(async tx => {
@@ -31,7 +33,7 @@ export class PaymentFinalizationService {
           if (payment.allocation) {
             const evidence = payment.verifiedPayment;
             const intent = await tx.transactionEmail.findUnique({ where: { paymentId_kind: { paymentId: payment.id, kind: "VOTE_CONFIRMATION" } } });
-            if (payment.status !== "PAID" || !evidence || evidence.environment !== "TEST" || evidence.provider !== "paystack" ||
+            if (payment.status !== "PAID" || !evidence || evidence.environment !== authority.environment || evidence.provider !== "paystack" ||
                 payment.allocation.verificationId !== evidence.id || !intent)
               throw new HttpError(409, "LEGACY_PAYMENT_REVIEW_REQUIRED", "Historical purchase requires reconciliation.");
             await allocateVerifiedInTransaction(tx, evidence.id, authority, this.clock);
@@ -43,10 +45,13 @@ export class PaymentFinalizationService {
           const evidence = await tx.verifiedPayment.create({ data: { paymentId: payment.id, ...authority, reference,
             providerTxnId: facts.providerTxnId, amountKobo: facts.amountKobo, currency: facts.currency, paidAt: facts.paidAt, verifiedAt: now } });
           await allocateVerifiedInTransaction(tx, evidence.id, authority, this.clock);
+          const contestant = await tx.contestant.findUniqueOrThrow({ where: { id: scope.contestantId }, select: { name: true } });
+          const competition = await tx.competition.findUniqueOrThrow({ where: { id: scope.competitionId }, select: { name: true } });
           await tx.transactionEmail.create({ data: { paymentId: payment.id, kind: "VOTE_CONFIRMATION", idempotencyKey: "vote-confirmation/" + payment.id,
-            recipient: payment.contactEmail, templateVersion: "vote-confirmation-v1", payload: {
-              reference, amountKobo: payment.amountKobo, currency: payment.currency, voteCount: payment.voteCount,
+            recipient: payment.contactEmail, templateVersion: "vote-confirmation-v1", nextAttemptAt: now, createdAt: now, payload: {
+              reference, environment: authority.environment, amountKobo: payment.amountKobo, currency: payment.currency, voteCount: payment.voteCount,
               contestantId: scope.contestantId, competitionId: scope.competitionId, categoryId: scope.categoryId, subcategoryId: scope.subcategoryId,
+              contestantName: contestant.name, competitionName: competition.name,
             } } });
           return { outcome: "FINALIZED" as const, reference };
         }, { timeout: 15000 });

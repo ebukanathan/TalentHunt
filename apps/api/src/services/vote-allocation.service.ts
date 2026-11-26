@@ -13,7 +13,7 @@ type Evidence = Prisma.VerifiedPaymentGetPayload<{ include: typeof evidenceInclu
  */
 export function assertVerifiedPurchase(evidence: Evidence, authority: VerificationAuthority, now: Date) {
   const payment = evidence.payment;
-  if (evidence.provider !== authority.provider || evidence.environment !== authority.environment)
+  if (evidence.provider !== authority.provider || evidence.environment !== authority.environment || payment.paymentEnvironment !== authority.environment)
     review("VERIFICATION_AUTHORITY_MISMATCH", "Verification source or environment requires review.");
   if (payment.status !== "PAID" || payment.refundedAt || payment.reference !== evidence.reference ||
       payment.providerTxnId !== evidence.providerTxnId || !payment.providerTxnId ||
@@ -64,7 +64,7 @@ export async function allocateVerifiedInTransaction(tx: Prisma.TransactionClient
       // Shared lock order with classification, taxonomy, closing and publication.
       const competition = await lockCompetition(tx, identity.payment.competitionId);
       const evidence = await tx.verifiedPayment.findUniqueOrThrow({ where: { id: verificationId }, include: evidenceInclude });
-      if (evidence.provider !== authority.provider || evidence.environment !== authority.environment)
+      if (evidence.provider !== authority.provider || evidence.environment !== authority.environment || evidence.payment.paymentEnvironment !== authority.environment)
         review("VERIFICATION_AUTHORITY_MISMATCH", "Verification source or environment requires review.");
       const payment = evidence.payment;
       await tx.$queryRaw`SELECT id FROM "Payment" WHERE id = ${payment.id} FOR UPDATE`;

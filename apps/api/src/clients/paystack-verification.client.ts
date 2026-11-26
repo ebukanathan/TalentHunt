@@ -7,10 +7,10 @@ export class VerificationError extends Error {
   constructor(readonly code: VerificationCode, readonly retryable = false, readonly retryAfterMs = 0) { super("Payment verification could not be completed."); }
 }
 const transactionId = z.string().regex(/^[1-9][0-9]{0,19}$/).refine(value => BigInt(value) <= BigInt("18446744073709551615"));
-const verified = z.object({ status: z.literal(true), data: z.object({ id: transactionId, domain: z.literal("test"),
+const verified = z.object({ status: z.literal(true), data: z.object({ id: transactionId, domain: z.enum(["test", "live"]),
   status: z.literal("success"), reference: z.string().min(1).max(128), amount: z.number().int().min(5000).max(2147483647),
   currency: z.literal("NGN"), paid_at: z.iso.datetime({ offset: true }) }) });
-export type ProviderFacts = { providerTxnId: string; reference: string; amountKobo: number; currency: "NGN"; paidAt: Date };
+export type ProviderFacts = { providerTxnId: string; reference: string; amountKobo: number; currency: "NGN"; paidAt: Date; environment?: "TEST" | "LIVE" };
 export interface PaystackVerifier { verify(reference: string): Promise<ProviderFacts> }
 // Node 24's reviver source preserves uint64 IDs before IEEE-754 rounding.
 // Never reconstruct a provider ID from an already rounded Number.
@@ -33,7 +33,7 @@ async function readResponse(response: Response) {
 }
 export class PaystackVerificationClient implements PaystackVerifier {
   constructor(private readonly config: PaystackConfiguration, private readonly transport: typeof fetch = fetch) {
-    if (config.PAYSTACK_MODE !== "test" || !/^sk_test_[A-Za-z0-9]+$/.test(config.PAYSTACK_SECRET_KEY)) throw new Error("Test verification credentials are required.");
+    if (!config.PAYSTACK_SECRET_KEY.startsWith(`sk_${config.PAYSTACK_MODE}_`)) throw new Error("Matching verification credentials are required.");
   }
   async verify(reference: string): Promise<ProviderFacts> {
     if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(reference)) throw new VerificationError("INVALID_REFERENCE");
@@ -48,7 +48,7 @@ export class PaystackVerificationClient implements PaystackVerifier {
       }
       const body = await readResponse(response);
       const status = z.object({ status: z.literal(true), data: z.object({ domain: z.string(), status: z.string() }) }).safeParse(body);
-      if (status.success && status.data.data.domain !== "test") throw new VerificationError("WRONG_ENVIRONMENT");
+      if (status.success && status.data.data.domain !== this.config.PAYSTACK_MODE) throw new VerificationError("WRONG_ENVIRONMENT");
       if (status.success && status.data.data.status !== "success") throw new VerificationError("PAYMENT_NOT_SUCCESSFUL", ["pending", "processing", "ongoing", "queued"].includes(status.data.data.status));
       const money = z.object({ status: z.literal(true), data: z.object({ amount: z.number(), currency: z.string() }) }).safeParse(body);
       if (money.success && (money.data.data.currency !== "NGN" || !Number.isSafeInteger(money.data.data.amount) || money.data.data.amount < 5000 || money.data.data.amount > 2147483647))
@@ -57,7 +57,7 @@ export class PaystackVerificationClient implements PaystackVerifier {
       if (!result.success) throw new VerificationError("INVALID_PROVIDER_RESPONSE", true);
       const data = result.data.data;
       if (data.reference !== reference) throw new VerificationError("PAYMENT_FACTS_MISMATCH");
-      return { providerTxnId: data.id, reference: data.reference, amountKobo: data.amount, currency: data.currency, paidAt: new Date(data.paid_at) };
+      return { providerTxnId: data.id, reference: data.reference, amountKobo: data.amount, currency: data.currency, paidAt: new Date(data.paid_at), environment: data.domain === "live" ? "LIVE" : "TEST" };
     } catch (error) {
       if (error instanceof VerificationError) throw error;
       throw new VerificationError("PROVIDER_UNAVAILABLE", true);

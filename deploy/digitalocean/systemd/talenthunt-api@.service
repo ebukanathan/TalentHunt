@@ -1,0 +1,32 @@
+# REVIEW TEMPLATE. Installed only after resource/configuration approval.
+[Unit]
+Description=TalentHunt api (%i)
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=/etc/talenthunt/%i/deployment.approved
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=talenthunt-%i-api
+Group=talenthunt-%i-api
+WorkingDirectory=/srv/talenthunt/%i/current
+Environment=NODE_ENV=production
+EnvironmentFile=/etc/talenthunt/%i/api.env
+ExecStart=/opt/talenthunt-node/bin/node apps/api/dist/server.js
+Restart=on-failure
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=30
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+MemoryAccounting=true
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

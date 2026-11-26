@@ -63,7 +63,7 @@ export async function initializeCheckout(request: Request, env: Record<string, s
     }
     const body = await boundedJson(upstream);
     const result = checkoutResult.safeParse(body.data);
-    if (!result.success || result.data.purchase.contestantId !== input.contestantId || result.data.purchase.packageId !== input.packageId ||
+    if (!result.success || result.data.mode !== (config.mode || "test") || !result.data.reference.startsWith(`th-${config.mode || "test"}-`) || result.data.purchase.contestantId !== input.contestantId || result.data.purchase.packageId !== input.packageId ||
         (upstream.status === 202) !== Boolean(result.data.initializationStatus)) return error(503, "CHECKOUT_UNAVAILABLE");
     return reply(upstream.status, { data: result.data });
   } catch { return error(503, "CHECKOUT_UNAVAILABLE"); }

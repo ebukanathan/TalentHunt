@@ -1,0 +1,15 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "installCommand": "cd ../.. && DATABASE_URL=postgresql://build@127.0.0.1:5432/talenthunt_build npm ci --include=dev",
+  "buildCommand": "cd ../.. && DATABASE_URL=postgresql://build@127.0.0.1:5432/talenthunt_build npx prisma generate && npm run build --workspace apps/web",
+  "outputDirectory": ".next",
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Robots-Tag", "value": "noindex, nofollow" }
+      ]
+    }
+  ]
+}

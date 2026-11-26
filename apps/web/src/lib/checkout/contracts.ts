@@ -14,13 +14,13 @@ export function safeCheckoutUrl(value: string) {
   } catch { return false; }
 }
 export const checkoutResult = z.strictObject({
-  reference: z.string().regex(/^th-test-[0-9a-f-]{36}$/), mode: z.literal("test"),
+  reference: z.string().regex(/^th-(test|live)-[0-9a-f-]{36}$/), mode: z.enum(["test", "live"]),
   purchase: z.strictObject({ competitionId: id, categoryId: id, subcategoryId: id, contestantId: id, packageId: id,
     amountKobo: z.number().int().min(5000).max(2147483647), voteCount: z.number().int().positive().max(2147483647), currency: z.literal("NGN") }),
   authorizationUrl: z.string().refine(safeCheckoutUrl).optional(),
   initializationStatus: z.enum(["PENDING", "REVIEW_REQUIRED"]).optional(),
 }).refine(value => Boolean(value.authorizationUrl) !== Boolean(value.initializationStatus));
 export type CheckoutResult = z.infer<typeof checkoutResult>;
-export const paymentReceipt = z.strictObject({ reference: z.string().regex(/^th-test-[a-f0-9-]{36}$/), mode: z.literal("test"),
+export const paymentReceipt = z.strictObject({ reference: z.string().regex(/^th-(test|live)-[a-f0-9-]{36}$/), mode: z.enum(["test", "live"]),
   state: z.enum(["PENDING", "REVIEW_REQUIRED", "CONFIRMED"]), amountKobo: z.number().int().min(5000), currency: z.literal("NGN"), voteCount: z.number().int().positive(),
-  contestantId: z.string(), categoryId: z.string().nullable(), subcategoryId: z.string().nullable(), emailStatus: z.enum(["PENDING_DELIVERY", "NOT_QUEUED"]) });
+  contestantId: z.string(), categoryId: z.string().nullable(), subcategoryId: z.string().nullable(), emailStatus: z.enum(["PENDING_DELIVERY", "NOT_QUEUED", "ACCEPTED", "DELIVERED", "FAILED", "REVIEW_REQUIRED"]) });

@@ -39,7 +39,7 @@ export async function simulatedVerifiedEvent(db: PrismaClient, fixture: VotingFi
   const paidAt = new Date(fixture.now.getTime() - 10000);
   return db.$transaction(async tx => {
     await tx.$queryRaw`SELECT id FROM "Competition" WHERE id = ${fixture.competition.id} FOR UPDATE`;
-    const payment = await tx.payment.create({ data: { reference: "simulated-" + randomUUID(),
+    const payment = await tx.payment.create({ data: { reference: "simulated-" + randomUUID(), paymentEnvironment: "TEST",
       competitionId: fixture.competition.id, contestantId: fixture.contestant.id, packageId: fixture.pack.id,
       contactEmail: "fixture@example.test", amountKobo: fixture.pack.priceKobo, voteCount: fixture.pack.voteCount, currency: fixture.pack.currency,
       status: "PAID", providerTxnId: "simulated-txn-" + randomUUID(), paidAt,

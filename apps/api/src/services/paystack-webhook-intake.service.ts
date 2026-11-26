@@ -19,10 +19,11 @@ export class PaystackWebhookIntake {
     const reference = parsed.data.reference;
     if (parsed.event === "charge.success" && !reference) throw new HttpError(400, "INVALID_WEBHOOK_EVENT", "Invalid webhook event.");
     const bodySha256 = hash(body), supported = parsed.event === "charge.success";
-    const dedupeKey = hash(JSON.stringify(["TEST", parsed.event, supported ? reference : bodySha256]));
+    const environment = this.config.environment || "TEST";
+    const dedupeKey = hash(JSON.stringify([environment, parsed.event, supported ? reference : bodySha256]));
     try {
       await this.db.paystackWebhookJob.upsert({ where: { dedupeKey }, update: {}, create: {
-        dedupeKey, eventType: parsed.event, reference, bodySha256, signatureVersion: signature.version,
+        dedupeKey, environment, eventType: parsed.event, reference, bodySha256, signatureVersion: signature.version,
         signingKeyId: signature.keyId, receivedAt: now, nextAttemptAt: now, status: supported ? "PENDING" : "IGNORED",
       } });
     } catch (error) {

@@ -10,27 +10,28 @@ export interface PaymentInitializationApi {
   initialize(input: InitializePaymentInput, idempotencyKey: string): Promise<{
     httpStatus: number;
     data: { reference: string; authorizationUrl?: string; initializationStatus?: "PENDING" | "REVIEW_REQUIRED";
-      mode?: "test"; purchase?: { competitionId: string; categoryId: string; subcategoryId: string; contestantId: string; packageId: string; amountKobo: number; voteCount: number; currency: string } };
+      mode?: "test" | "live"; purchase?: { competitionId: string; categoryId: string; subcategoryId: string; contestantId: string; packageId: string; amountKobo: number; voteCount: number; currency: string } };
   }>;
 }
 export class PaymentInitializationService implements PaymentInitializationApi {
   constructor(private readonly database: PrismaClient, private readonly paystack: PaystackInitializer,
-    private readonly competitionSlug?: string, private readonly clock: () => Date = () => new Date()) {}
+    private readonly competitionSlug?: string, private readonly clock: () => Date = () => new Date(), private readonly mode: "test" | "live" = "test") {}
 
   async initialize(input: InitializePaymentInput, idempotencyKey: string): ReturnType<PaymentInitializationApi["initialize"]> {
     const idempotencyKeyHash = hash(idempotencyKey);
     const requestHash = hash(JSON.stringify([input.contestantId, input.packageId, input.email]));
     const { created, initialization } = await reserveInitialization(
-      this.database, input, idempotencyKeyHash, requestHash, this.competitionSlug, this.clock,
+      this.database, input, idempotencyKeyHash, requestHash, this.competitionSlug, this.clock, this.mode === "live" ? "LIVE" : "TEST",
     );
     if (initialization.requestHash !== requestHash) throw new HttpError(409, "IDEMPOTENCY_CONFLICT", "Idempotency key was already used for a different request.");
     const payment = initialization.payment;
     if (!payment.scope || payment.scope.competitionId !== payment.competitionId || payment.scope.contestantId !== payment.contestantId || payment.scope.packageId !== payment.packageId)
       throw new HttpError(409, "LEGACY_PAYMENT_SCOPE_REVIEW_REQUIRED", "This unscoped legacy selection requires reconciliation. It cannot be dispatched or reinterpreted automatically.");
+    if (payment.paymentEnvironment !== (this.mode === "live" ? "LIVE" : "TEST")) throw new HttpError(409, "PAYMENT_ENVIRONMENT_MISMATCH", "Purchase environment requires review.");
     if (payment.status !== "PENDING") throw new HttpError(409, "PAYMENT_NOT_PENDING", "This payment cannot be initialized again.");
     // Always describe the persisted snapshot, including retries after price edits.
     // No email, private retry key, provider credentials or payment evidence leaves here.
-    const summary = { reference: payment.reference, mode: "test" as const, purchase: {
+    const summary = { reference: payment.reference, mode: this.mode, purchase: {
       competitionId: payment.competitionId, categoryId: payment.scope.categoryId, subcategoryId: payment.scope.subcategoryId,
       contestantId: payment.contestantId, packageId: payment.packageId, amountKobo: payment.amountKobo,
       voteCount: payment.voteCount, currency: payment.currency,

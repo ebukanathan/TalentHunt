@@ -1,0 +1,18 @@
+[Unit]
+Description=TalentHunt journal-owned image cleanup (%i)
+After=network-online.target
+ConditionPathExists=/etc/talenthunt/%i/deployment.approved
+
+[Service]
+Type=oneshot
+User=talenthunt-%i-api
+Group=talenthunt-%i-api
+WorkingDirectory=/srv/talenthunt/%i/current
+EnvironmentFile=/etc/talenthunt/%i/api.env
+ExecStart=/opt/talenthunt-node/bin/node node_modules/tsx/dist/cli.mjs apps/api/scripts/cleanup-contestant-images.ts
+TimeoutStartSec=300
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict

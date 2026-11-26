@@ -46,7 +46,7 @@
     "vitest": "5.1.1"
   },
   "dependencies": {
-    "@prisma/client": "^6.19.0",
+    "@prisma/client": "6.19.3",
     "@supabase/supabase-js": "^2.118.0",
     "busboy": "^1.6.0",
     "cors": "^2.8.6",

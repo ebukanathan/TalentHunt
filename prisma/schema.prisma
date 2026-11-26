@@ -220,6 +220,8 @@ model ContactVerification {
 }
 
 model Payment {
+  // NULL historical rows require reconciliation; new reservations freeze mode.
+  paymentEnvironment VerificationEnvironment?
   id        String @id @default(cuid())
   reference String @unique
 
@@ -339,6 +341,7 @@ model VerifiedPayment {
 // Minimal authenticated facts only; no raw webhook/customer/card payload retained.
 // Verified inbox facts are NOT the allocator's VerifiedPayment authority.
 model PaystackWebhookJob {
+  environment VerificationEnvironment @default(TEST)
   id String @id @default(cuid())
   dedupeKey String @unique @db.VarChar(64)
   eventType String @db.VarChar(64)

@@ -8,7 +8,8 @@ async function main() {
   if (!environment.webhooks || !environment.paystack) throw new Error("Test webhook processing must be explicitly enabled.");
   const verifier = new PaystackVerificationClient(environment.paystack);
   const worker = new PaystackWebhookWorker(prisma, verifier, environment.webhooks.maxAttempts, undefined, undefined,
-    environment.finalizationEnabled ? new PaymentFinalizationService(prisma, verifier) : undefined);
+    environment.finalizationEnabled ? new PaymentFinalizationService(prisma, verifier, undefined, environment.paystack.PAYSTACK_MODE) : undefined,
+    environment.paystack.PAYSTACK_MODE === "live" ? "LIVE" : "TEST");
   let stopping = false;
   process.once("SIGINT", () => { stopping = true; }); process.once("SIGTERM", () => { stopping = true; });
   while (!stopping) {
