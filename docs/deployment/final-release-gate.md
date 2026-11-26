@@ -4,7 +4,7 @@
 
 ## Source and current evidence
 
-- Integrated worktree: `.worktrees/integration`, branch
+- Integrated release worktree: `.worktrees/release-20261126`, branch
   `release/staging-20261126`, application-only release candidate based on PR #79.
   The integration draft commit remains preserved; workflow edits are omitted because
   the available GitHub OAuth token lacks workflow-edit scope. Run existing CI by
@@ -57,8 +57,8 @@
 
 | Item | Proposal | State |
 | --- | --- | --- |
-| DigitalOcean | One Ubuntu 24.04 x86-64 Basic 2 GiB/1 vCPU staging Droplet | Resource budget approved; account access to verify |
-| Compute/backups | $12/month + $3.60/month daily backups, before tax/usage | Budget approved; no purchase made |
+| DigitalOcean | One Ubuntu 24.04 x86-64 Basic 2 GiB/1 vCPU staging Droplet | User reports created; IP/SSH identity/fingerprint pending verification |
+| Compute/backups | $12/month + $3.60/month daily backups, before tax/usage | Budget approved; actual resources/backups not yet inspected |
 | Hostname | `staging-talent.apearlschools.com` | Confirmed by user; DNS/server not configured here |
 | Nginx/systemd | One HTTPS origin; independent web/API/Paystack/receipt workers; 3000/4000 loopback only | Templates under `deploy/digitalocean/` |
 | Supabase | Explicit isolated staging project, PostgreSQL/session pooler + contestant-images bucket | Project mlixufwdivbfhdqbjfpg approved; credentials pending |
@@ -70,6 +70,12 @@ Approved staging project: `mlixufwdivbfhdqbjfpg` at
 `https://mlixufwdivbfhdqbjfpg.supabase.co`. The previous project
 `zuzslpwyhjqgpsxhbxis` must remain untouched. Request separate approval for the
 reviewed migration/storage operations after verifying the private connection target.
+
+The user supplied `.secrets/staging.env` as the private configuration location;
+the file/directory was absent at the first check. Do not substitute another project
+or copy credentials from historical local environments. A replacement path or
+confirmation that the file has been saved is required. Hosted deployment itself
+also requires the user's approval of the verified candidate.
 
 Public paths after approved deployment:
 

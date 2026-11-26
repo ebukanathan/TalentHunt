@@ -23,7 +23,7 @@ export function readPaystackConfiguration(source: NodeJS.ProcessEnv): PaystackCo
     const fields = [...new Set(result.error.issues.map(issue => issue.path.join(".")))];
     throw new Error("Invalid Paystack configuration: " + fields.join(", ") + ".");
   }
-  if (!result.data.PAYSTACK_SECRET_KEY.startsWith(`sk_${result.data.PAYSTACK_MODE}_`)) throw new Error("Paystack mode and credentials must match.");
+  if (!result.data.PAYSTACK_SECRET_KEY.startsWith(`sk_${result.data.PAYSTACK_MODE}_`)) throw new Error("Invalid Paystack configuration: PAYSTACK_MODE and PAYSTACK_SECRET_KEY must match.");
   if (result.data.PAYSTACK_MODE === "test" && source.DEPLOYMENT_ENV === "production") throw new Error("Test payments are not permitted in the production deployment.");
   if (result.data.PAYSTACK_MODE === "live" && (source.PAYSTACK_MODE !== "live" || source.NODE_ENV !== "production" ||
       source.DEPLOYMENT_ENV !== "production" || source.PAYSTACK_LIVE_ACTIVATION_APPROVED !== "true" ||

@@ -10,6 +10,7 @@ coverage/
 /generated/prisma/
 
 # Secrets and local configuration
+.secrets/
 .env
 .env.*
 !.env.example
