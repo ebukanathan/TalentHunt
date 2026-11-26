@@ -42,7 +42,8 @@ async function legacySnapshot(db: PrismaClient) {
     // Identifiers are the fixed allowlist above, never user input.
     const projection = name === "Competition" ? "to_jsonb(t) - 'categorySetupCompletedAt' - 'categoryIntegrityEnabledAt'"
       : name === "Contestant" ? "to_jsonb(t) - 'categoryId' - 'subcategoryId' - 'assignmentRevision'"
-      : name === "VoteAllocation" ? "to_jsonb(t) - 'verificationId'" : "to_jsonb(t)";
+      : name === "VoteAllocation" ? "to_jsonb(t) - 'verificationId'"
+      : name === "Payment" ? "to_jsonb(t) - 'paymentEnvironment'" : "to_jsonb(t)";
     // Compare JSON text, not parsed JSON numbers: legacy BigInt totals must not
     // silently round through JavaScript's Number during the preservation check.
     snapshot[name] = await db.$queryRawUnsafe(`SELECT (${projection})::text AS row FROM "${name}" t ORDER BY (${projection})::text`);
@@ -218,6 +219,8 @@ test("CAT-01 upgrades real legacy rows without reclassification or financial/med
     await t.test("migration preserves every pre-existing field and records no invented taxonomy", async () => {
       deploy(url);
       assert.deepEqual(await legacySnapshot(db), before);
+      assert.equal(await db.payment.count({ where: { paymentEnvironment: null } }), 5,
+        "Every historical purchase must retain unknown payment environment.");
       assert.equal(await db.category.count(), 0);
       assert.equal(await db.subcategory.count(), 0);
       assert.equal(await db.paymentScope.count(), 0);
