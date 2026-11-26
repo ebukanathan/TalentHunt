@@ -5,8 +5,9 @@ const matches = (hex: string, expected: Buffer) => /^[a-f0-9]{128}$/.test(hex) &
 export function authenticateWebhook(body: Buffer, modern: string | undefined, legacy: string | undefined,
   config: WebhookConfiguration, now = new Date()): SignatureMatch | null {
   if (!Buffer.isBuffer(body) || !Number.isFinite(now.getTime())) return null;
-  // Presence is authoritative. An invalid new header must never downgrade.
-  if (modern !== undefined) {
+  // A configured modern verifier is authoritative and must never downgrade.
+  // Legacy-only TEST integrations can receive both headers before whsec setup.
+  if (modern !== undefined && config.keys.length > 0) {
     if (modern.length > 4096) return null;
     let timestamp: string | undefined;
     const signatures: { id: string; hex: string }[] = [];

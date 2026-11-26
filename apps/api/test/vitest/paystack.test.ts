@@ -78,22 +78,24 @@ test("timestamp boundaries, malformed signatures and downgrade resistance", () =
   expect(authenticateWebhook(body, undefined, legacy, allowed, NOW)?.version).toBe("LEGACY");
   expect(authenticateWebhook(body, undefined, legacy + "0", allowed, NOW)).toBeNull();
 });
-test("HTTP authenticates exact raw bytes before JSON parsing, deduplicates and never retains private payload", async ({ ctx }) => {
-  const app = createServer(createApp(new PublicReadService(ctx.db), undefined, undefined, undefined, new PaystackWebhookIntake(ctx.db, config, () => NOW)));
+test.for(["modern", "legacy", "legacy-with-unconfigured-modern"] as const)("HTTP %s authenticates exact raw bytes before JSON parsing, deduplicates and never retains private payload", async (mechanism, { ctx }) => {
+  const selected = mechanism !== "modern" ? readWebhookConfiguration({ ...env, PAYSTACK_WEBHOOK_SIGNING_KEYS: "[]", PAYSTACK_ALLOW_LEGACY_SIGNATURE: "true" })! : config;
+  const headers = (body: Buffer) => mechanism !== "modern" ? { "X-Paystack-Signature": createHmac("sha512", env.PAYSTACK_SECRET_KEY).update(body).digest("hex"), ...(mechanism === "legacy-with-unconfigured-modern" ? { "Paystack-Signature": sign(body) } : {}) } : { "Paystack-Signature": sign(body) };
+  const app = createServer(createApp(new PublicReadService(ctx.db), undefined, undefined, undefined, new PaystackWebhookIntake(ctx.db, selected, () => NOW)));
   app.listen(0, "127.0.0.1"); await once(app, "listening"); const url = `http://127.0.0.1:${(app.address() as AddressInfo).port}/api/v1/webhooks/paystack`;
   const post = (body: Buffer, headers = {}) => fetch(url, { method: "POST", body: new Uint8Array(body), headers: { "Content-Type": "application/json", ...headers } });
   try {
     const body = event("fixture");
     expect((await post(Buffer.from("{"))).status).toBe(401);
-    expect((await post(body, { "Paystack-Signature": sign(Buffer.from("tamper")) })).status).toBe(401);
-    const results = await Promise.all(Array.from({ length: 8 }, () => post(body, { "Paystack-Signature": sign(body) })));
+    expect((await post(body, headers(Buffer.from("tamper")))).status).toBe(401);
+    const results = await Promise.all(Array.from({ length: 8 }, () => post(body, headers(body))));
     expect(results.every(r => r.status === 200)).toBe(true);
     const changed = Buffer.from(body.toString().replace("private-fixture", "changed-fixture"));
-    expect((await post(changed, { "Paystack-Signature": sign(changed) })).status).toBe(200);
+    expect((await post(changed, headers(changed))).status).toBe(200);
     expect(await ctx.db.paystackWebhookJob.count()).toBe(1);
     const row = await ctx.db.paystackWebhookJob.findFirstOrThrow(); expect(JSON.stringify(row)).not.toContain("private-fixture");
     expect(row.status).toBe("PENDING"); expect(row.reference).toBe("fixture");
-    const bad = Buffer.from("{"); expect((await post(bad, { "Paystack-Signature": sign(bad) })).status).toBe(400);
+    const bad = Buffer.from("{"); expect((await post(bad, headers(bad))).status).toBe(400);
     expect((await post(Buffer.alloc(102401, 32))).status).toBe(413);
     expect((await post(body, { "Content-Encoding": "gzip" })).status).toBe(415);
     expect(await ctx.db.verifiedPayment.count()).toBe(0);
