@@ -3,7 +3,7 @@ import { createServer, request as proxyRequest } from "node:http";
 import { createServer as createSecureServer } from "node:https";
 import { mkdtempSync, readFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { createServer as createPortProbe } from "node:net";
+import { createServer as createPortProbe, connect } from "node:net";
 import { spawn, spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import { PrismaClient } from "@prisma/client";
@@ -15,12 +15,18 @@ import { provisionInitialAdmin } from "../../../api/src/auth/provision";
 import type { ImageStorage } from "../../../api/src/storage/contestant-images";
 import { PaymentInitializationService } from "../../../api/src/services/payment-initialization.service";
 import { PaystackInitializationError } from "../../../api/src/clients/paystack.client";
+import { PaymentFinalizationService } from "../../../api/src/services/payment-finalization.service";
+import { PaymentStatusService } from "../../../api/src/services/payment-status.service";
+import { PaystackVerificationClient } from "../../../api/src/clients/paystack-verification.client";
+import { readPaystackConfiguration } from "../../../api/src/config/paystack";
 
 async function main() {
   assert.equal(process.env.QA_DISPOSABLE_DATABASES, "1");
   assert.notEqual(process.env.NODE_ENV, "production");
   const checkout = process.env.QA_CHECKOUT === "1";
-  const target = checkout ? process.env.CHECKOUT_BROWSER_TEST_DATABASE_URL : process.env.BROWSER_TEST_DATABASE_URL;
+  const paid = process.env.QA_PAID_VOTING === "1";
+  const stability = process.env.QA_STABILITY === "1";
+  const target = stability ? process.env.STABILITY_BROWSER_TEST_DATABASE_URL : paid ? process.env.PAID_VOTING_BROWSER_TEST_DATABASE_URL : checkout ? process.env.CHECKOUT_BROWSER_TEST_DATABASE_URL : process.env.BROWSER_TEST_DATABASE_URL;
   assert.ok(target, "The dedicated browser test database URL is missing.");
   const url = new URL(target);
   assert.ok(["postgres:", "postgresql:"].includes(url.protocol));
@@ -51,7 +57,7 @@ async function main() {
   }
   // Synthetic, guarded fixture totals only. No Payment/VoteAllocation records or provider calls.
   for (const [id, categoryId, totalVotes, isActive] of [["alpha-person", "alpha", BigInt(12), true], ["beta-person", "beta", BigInt("9007199254740993"), true], ["excluded-person", "inactive", BigInt(0), false]] as const)
-    await db.contestant.create({ data: { id, competitionId: "browser-show", categoryId, subcategoryId: `${categoryId}-child`, name: `${categoryId} performer`, number: id, slug: id, totalVotes, isActive } });
+    await db.contestant.create({ data: { id, competitionId: "browser-show", categoryId, subcategoryId: `${categoryId}-child`, name: `${categoryId} performer`, number: id, slug: id, totalVotes: paid ? BigInt(0) : totalVotes, isActive } });
   const votePackage = await db.votePackage.create({ data: { competitionId: "browser-show", name: "Fixture support", voteCount: 10, priceKobo: 5000 } });
   const objects = new Map<string, Buffer>(), publicPrefix = "https://portraits.example.test/storage/v1/object/public/contestant-images/";
   const storage: ImageStorage = { publicUrl: key => publicPrefix + key, async upload(key, bytes) { objects.set(key, bytes); }, async remove(key) { objects.delete(key); } };
@@ -62,10 +68,31 @@ async function main() {
     if (providerMode === "unknown") throw new PaystackInitializationError("UNKNOWN");
     return { authorizationUrl: "https://checkout.paystack.com/" + input.reference };
   } }, "browser-show") : undefined;
-  const app = createApp(new PublicReadService(db, "browser-show"), initializer, new AdminAuthService(db, config), storage);
+  const paidReferences = new Map<string, { id: string; paidAt: string }>(); let verifyCalls = 0;
+  const providerConfig = readPaystackConfiguration({ NODE_ENV: "test", PAYSTACK_MODE: "test", PAYSTACK_SECRET_KEY: "sk_test_browserFixtureOnly", PAYSTACK_CALLBACK_URL: origin + "/payments/return" })!;
+  const verifier = new PaystackVerificationClient(providerConfig, async url => { verifyCalls++; return fetch(`http://127.0.0.1:${apiPort}/__qa/provider?reference=${encodeURIComponent(String(url).split("/").pop()!)}`); });
+  const status = paid ? new PaymentStatusService(db, new PaymentFinalizationService(db, verifier)) : undefined;
+  const app = createApp(new PublicReadService(db, "browser-show"), initializer, new AdminAuthService(db, config), storage, undefined, status);
   let failure = false, delay = 0;
   const api = createServer((req, res) => {
     // Test-only loopback controls are outside the application and never shipped as routes.
+    if (paid && req.url?.startsWith("/__qa/provider?")) {
+      const reference = new URL(req.url, origin).searchParams.get("reference") || "";
+      void db.payment.findUnique({ where: { reference } }).then(payment => {
+        res.setHeader("Content-Type", "application/json"); const record = paidReferences.get(reference);
+        res.end(JSON.stringify({ status: true, data: { id: record?.id || "999999", domain: "test", status: record ? "success" : "pending", reference,
+          amount: payment?.amountKobo, currency: "NGN", paid_at: record?.paidAt || new Date().toISOString() } }));
+      }); return;
+    }
+    if (paid && req.url?.startsWith("/__qa/pay?")) {
+      const reference = new URL(req.url, origin).searchParams.get("reference") || "";
+      paidReferences.set(reference, { id: String(8000000 + paidReferences.size), paidAt: new Date().toISOString() }); res.writeHead(200); res.end("simulated provider payment"); return;
+    }
+    if (paid && req.url === "/__qa/ledger") {
+      void Promise.all([db.payment.findMany({ select: { reference: true, status: true, voteCount: true } }), db.voteAllocation.count(), db.verifiedPayment.count(), db.transactionEmail.count(), db.contestant.findMany({ select: { id: true, totalVotes: true } })]).then(([payments, allocations, evidence, intents, people]) => {
+        res.setHeader("Content-Type", "application/json"); res.end(JSON.stringify({ payments, allocations, evidence, intents, verifyCalls, people: people.map(p => ({ id: p.id, votes: String(p.totalVotes) })) }));
+      }); return;
+    }
     if (checkout && req.url === "/__qa/checkout" && req.method === "GET") {
       void Promise.all([db.payment.findMany({ select: { reference: true, amountKobo: true, voteCount: true, contactEmail: true, status: true } }), db.voteAllocation.count(), db.verifiedPayment.count(), db.contestant.findUniqueOrThrow({ where: { id: "alpha-person" }, select: { totalVotes: true } })])
         .then(([payments, allocations, verified, person]) => { res.setHeader("Content-Type", "application/json"); res.end(JSON.stringify({ providerCalls, payments, allocations, verified, totalVotes: String(person.totalVotes) })); })
@@ -107,6 +134,21 @@ async function main() {
     upstream.on("error", () => { if (!res.headersSent) res.writeHead(502); res.end("QA web server is starting."); });
     req.on("error", () => upstream.destroy()); req.pipe(upstream);
   });
+  // Development modules wait for HMR's WebSocket handshake. The TLS fixture
+  // must forward upgrades as well as HTTP, otherwise hydration never starts.
+  if (stability) tls.on("upgrade", (req, socket, head) => {
+    const upstream = connect(nextPort, "127.0.0.1", () => {
+      const headers = Object.entries(req.headers).flatMap(([name, value]) =>
+        value === undefined ? [] : [`${name}: ${Array.isArray(value) ? value.join(", ") : value}`]);
+      upstream.write(`${req.method} ${req.url} HTTP/${req.httpVersion}\r\n${headers.join("\r\n")}\r\n\r\n`);
+      if (head.length) upstream.write(head);
+      socket.pipe(upstream); upstream.pipe(socket);
+    });
+    socket.on("error", () => upstream.destroy());
+    socket.on("close", () => upstream.destroy());
+    upstream.on("error", () => socket.destroy());
+    upstream.on("close", () => socket.destroy());
+  });
   await new Promise<void>(done => tls.listen(webPort, "127.0.0.1", done));
   let stopping = false;
   const close = async () => {
@@ -120,9 +162,9 @@ async function main() {
     tls.closeAllConnections(); tls.close(); api.closeAllConnections(); api.close(); await db.$disconnect();
   };
   process.once("SIGINT", () => { void close(); }); process.once("SIGTERM", () => { void close(); });
-  const child = spawn(process.execPath, [resolve("../../node_modules/next/dist/bin/next"), "start", "--hostname", "127.0.0.1", "--port", String(nextPort)], {
-    cwd: process.cwd(), windowsHide: true, stdio: "inherit", env: { ...process.env, NODE_ENV: "production", API_BASE_URL: `http://127.0.0.1:${apiPort}/api/v1`,
-      ADMIN_APP_ORIGIN: origin, SITE_URL: origin, NEXT_DIST_DIR: ".next", NEXT_PUBLIC_CONTESTANT_IMAGE_ORIGIN: "https://portraits.example.test",
+  const child = spawn(process.execPath, [resolve("../../node_modules/next/dist/bin/next"), stability ? "dev" : "start", "--hostname", "127.0.0.1", "--port", String(nextPort)], {
+    cwd: process.cwd(), windowsHide: true, stdio: "inherit", env: { ...process.env, NODE_ENV: stability ? "development" : "production", API_BASE_URL: `http://127.0.0.1:${apiPort}/api/v1`,
+      ADMIN_APP_ORIGIN: origin, SITE_URL: origin, NEXT_DIST_DIR: stability ? ".next-browser-test" : ".next", NEXT_PUBLIC_CONTESTANT_IMAGE_ORIGIN: "https://portraits.example.test",
       CHECKOUT_TEST_ENABLED: checkout ? "true" : "false", CHECKOUT_APP_ORIGIN: origin, CHECKOUT_SESSION_SECRET: checkout ? "c".repeat(64) : "",
       PAYSTACK_SECRET_KEY: "", PAYSTACK_MODE: "", SUPABASE_SECRET_KEY: "", SUPABASE_URL: "" },
   });

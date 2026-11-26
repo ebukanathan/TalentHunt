@@ -5,6 +5,13 @@ import { readSeedTarget, validatePackages } from "./seed";
 
 const valid = { SEED_ENV: "test", SEED_DATABASE_URL: "postgresql://seed:local-only@127.0.0.1:55439/talenthunt_seed_test" };
 
+test("explicit strict certificate validation is preserved and cannot be disabled", () => {
+  const base = { SEED_ENV: "test", SEED_SUPABASE_PROJECT_REF: "abcdefghijklmnopqrst" };
+  const url = "postgresql://postgres:fixture@db.abcdefghijklmnopqrst.supabase.co:5432/postgres?sslmode=require&sslaccept=strict";
+  assert.equal(new URL(readSeedTarget({ ...base, SEED_DATABASE_URL: url })).searchParams.get("sslaccept"), "strict");
+  assert.throws(() => readSeedTarget({ ...base, SEED_DATABASE_URL: url.replace("sslaccept=strict", "sslaccept=accept_invalid_certs") }));
+});
+
 test("requires an explicit non-production environment and dedicated target", () => {
   for (const environment of [{}, { DATABASE_URL: valid.SEED_DATABASE_URL }, { ...valid, SEED_ENV: "production" }, { ...valid, NODE_ENV: "production" }]) {
     assert.throws(() => readSeedTarget(environment));

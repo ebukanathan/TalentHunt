@@ -31,7 +31,7 @@ export function readSeedTarget(environment: SeedEnvironment): string {
     throw new SeedConfigurationError("Invalid seed database identity.");
   }
   // Validate before adding defaults, so duplicate options cannot be silently collapsed.
-  const allowedOptions = new Set(["schema", "connection_limit", "pool_timeout", "connect_timeout", "sslmode", "statement_cache_size", "application_name", "pgbouncer"]);
+  const allowedOptions = new Set(["schema", "connection_limit", "pool_timeout", "connect_timeout", "sslmode", "sslaccept", "statement_cache_size", "application_name", "pgbouncer"]);
   const seenOptions = new Set<string>();
   for (const key of target.searchParams.keys()) {
     if (!allowedOptions.has(key) || seenOptions.has(key)) {
@@ -41,6 +41,9 @@ export function readSeedTarget(environment: SeedEnvironment): string {
   }
   if (target.searchParams.has("schema") && target.searchParams.get("schema") !== "public") {
     throw new SeedConfigurationError("Seed data must use the public schema in the development/test database.");
+  }
+  if (target.searchParams.has("sslaccept") && target.searchParams.get("sslaccept") !== "strict") {
+    throw new SeedConfigurationError("Explicit certificate validation must use sslaccept=strict.");
   }
   if (target.searchParams.has("pgbouncer") && !["true", "false"].includes(target.searchParams.get("pgbouncer")!)) {
     throw new SeedConfigurationError("The pgbouncer connection option must be true or false.");

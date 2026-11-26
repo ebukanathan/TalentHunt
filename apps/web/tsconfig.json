@@ -38,7 +38,11 @@
     ".next-admin-test/types/**/*.ts",
     ".next-admin-test/dev/types/**/*.ts",
     ".next-browser-test/types/**/*.ts",
-    ".next-browser-test/dev/types/**/*.ts"
+    ".next-browser-test/dev/types/**/*.ts",
+    ".next-paid-local/types/**/*.ts",
+    ".next-paid-local/dev/types/**/*.ts",
+    ".next-integration/types/**/*.ts",
+    ".next-integration/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

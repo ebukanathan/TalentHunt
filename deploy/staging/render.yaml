@@ -1,0 +1,69 @@
+# REVIEW TEMPLATE. Import only after resource/cost and isolated-project approval.
+# Pre-create the private talenthunt-staging-api environment group using
+# api.env.example. The worker needs the SAME database, provider and app settings.
+# No migrations, seeds, admin creation or school domains run automatically.
+services:
+  - type: web
+    name: talenthunt-staging-api
+    runtime: node
+    repo: https://github.com/ebukanathan/TalentHunt
+    branch: integration/all-completed-features
+    region: frankfurt
+    plan: 0.5c-512mb
+    autoDeployTrigger: 'off'
+    buildCommand: npm ci --include=dev && npx prisma generate && npm run build --workspace apps/api
+    startCommand: npm run start --workspace apps/api
+    healthCheckPath: /api/v1/health
+    numInstances: 1
+    envVars:
+      - key: NODE_VERSION
+        value: '24'
+      - fromGroup: talenthunt-staging-api
+  - type: worker
+    name: talenthunt-staging-paystack-worker
+    runtime: node
+    repo: https://github.com/ebukanathan/TalentHunt
+    branch: integration/all-completed-features
+    region: frankfurt
+    plan: 0.5c-512mb
+    autoDeployTrigger: 'off'
+    buildCommand: npm ci --include=dev && npx prisma generate && npm run build --workspace apps/api
+    startCommand: node apps/api/dist/workers/paystack-webhooks.js
+    numInstances: 1
+    envVars:
+      - key: NODE_VERSION
+        value: '24'
+      - fromGroup: talenthunt-staging-api
+  - type: cron
+    name: talenthunt-staging-image-cleanup
+    runtime: node
+    repo: https://github.com/ebukanathan/TalentHunt
+    branch: integration/all-completed-features
+    region: frankfurt
+    plan: 0.5c-512mb
+    autoDeployTrigger: 'off'
+    schedule: '17 * * * *'
+    buildCommand: npm ci --include=dev && npx prisma generate
+    startCommand: npm run images:cleanup --workspace apps/api
+    envVars:
+      - key: NODE_VERSION
+        value: '24'
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromService:
+          type: web
+          name: talenthunt-staging-api
+          envVarKey: DATABASE_URL
+      - key: SUPABASE_URL
+        fromService:
+          type: web
+          name: talenthunt-staging-api
+          envVarKey: SUPABASE_URL
+      - key: SUPABASE_SECRET_KEY
+        fromService:
+          type: web
+          name: talenthunt-staging-api
+          envVarKey: SUPABASE_SECRET_KEY
+      - key: PUBLIC_COMPETITION_SLUG
+        value: talenthunt-demo

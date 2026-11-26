@@ -5,6 +5,7 @@ export default defineConfig({
     environment: 'node',
     include: ['test/vitest/**/*.test.ts'],
     fileParallelism: false,
+    setupFiles: ["test/vitest/support/progress.ts"],
     pool: 'forks',
     testTimeout: 30000,
     hookTimeout: 90000,

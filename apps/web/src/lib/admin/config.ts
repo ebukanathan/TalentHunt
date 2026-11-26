@@ -9,6 +9,6 @@ export function adminConfig() {
       (app.protocol !== "https:" && !(process.env.NODE_ENV !== "production" && loopback(app))) ||
       (api.protocol !== "https:" && !loopback(api))) throw new Error("Admin unavailable.");
   const secure = app.protocol === "https:";
-  return { origin, base: base.replace(/\/$/, ""), cookieName: secure ? "__Host-talenthunt_admin" : "talenthunt_admin_dev",
+  return { origin, base: base.replace(/\/$/, ""), apiTimeoutMs: 30000, cookieName: secure ? "__Host-talenthunt_admin" : "talenthunt_admin_dev",
     challengeName: secure ? "__Host-talenthunt_admin_login" : "talenthunt_admin_login_dev" };
 }

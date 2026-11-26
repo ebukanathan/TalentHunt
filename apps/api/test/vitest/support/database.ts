@@ -26,7 +26,7 @@ export function ownedDatabase(name: string, runId: string, owned: ReadonlySet<st
 export function testEnvironment(source: NodeJS.ProcessEnv, databaseUrl: string): NodeJS.ProcessEnv {
   const env = { ...source };
   for (const key of Object.keys(env)) {
-    if (/PAYSTACK|SUPABASE|SECRET|TOKEN|CREDENTIAL|DIRECT_URL|^SEED_|_DATABASE_URL$/.test(key)) delete env[key];
+    if (/EMAIL|RESEND|PAYMENT_MODE|DEPLOYMENT_ENV|STAGING_|PRODUCTION_|CHECKOUT_ENABLED|CHECKOUT_LIVE|PAYSTACK|SUPABASE|SECRET|TOKEN|CREDENTIAL|DIRECT_URL|^SEED_|_DATABASE_URL$/.test(key)) delete env[key];
   }
   return { ...env, NODE_ENV: 'test', DATABASE_URL: databaseUrl, PAYSTACK_MODE: '', PAYSTACK_SECRET_KEY: '',
     PAYSTACK_CALLBACK_URL: '', PAYSTACK_TIMEOUT_MS: '', SUPABASE_URL: '', SUPABASE_SECRET_KEY: '' };
@@ -93,7 +93,12 @@ export class VotingDatabaseHarness {
     };
     const db = client();
     const close = async () => {
-      await Promise.all(clients.map(connection => connection.$disconnect()));
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([Promise.all(clients.map(connection => connection.$disconnect())), new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(() => reject(new Error("Owned fixture connections did not close within 20 seconds; retaining database for diagnosis.")), 20000);
+        })]);
+      } finally { if (timer) clearTimeout(timer); }
       // No FORCE, wildcard, external identifier, TRUNCATE or disabled trigger.
       await this.control.$executeRawUnsafe(`DROP DATABASE ${ownedDatabase(name, this.runId, this.owned)}`);
       this.owned.delete(name); this.cases.delete(name); this.removedCases++;

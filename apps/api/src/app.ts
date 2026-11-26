@@ -18,14 +18,18 @@ import { AdminTaxonomyService } from "./services/admin-taxonomy.service";
 import { AdminAssignmentsService } from "./services/admin-assignments.service";
 import { createPaystackWebhookRouter } from "./routes/paystack-webhooks.routes";
 import type { PaystackWebhookIntake } from "./services/paystack-webhook-intake.service";
+import type { PaymentStatusService } from "./services/payment-status.service";
+import { createReceiptEmailWebhookRouter } from "./routes/receipt-email-webhooks.routes";
+import type { ReceiptEmailWebhook } from "./services/receipt-email-webhook.service";
 
 /** Injectable composition keeps HTTP tests on their explicitly selected database. */
-export function createApp(service: PublicApi, payments?: PaymentInitializationApi, admin?: AdminAuthService, storage?: ImageStorage, webhooks?: PaystackWebhookIntake) {
+export function createApp(service: PublicApi, payments?: PaymentInitializationApi, admin?: AdminAuthService, storage?: ImageStorage, webhooks?: PaystackWebhookIntake, paymentStatus?: PaymentStatusService, emails?: ReceiptEmailWebhook) {
   const app = express();
   app.use(helmet());
-  app.use(cors({ origin: "http://localhost:3000" }));
+  app.use(cors({ origin: admin?.config.ADMIN_APP_ORIGIN || "http://localhost:3000" }));
   // Authenticate original bytes before the global JSON parser can change them.
   app.use("/api/v1/webhooks/paystack", createPaystackWebhookRouter(webhooks));
+  app.use("/api/v1/webhooks/resend", createReceiptEmailWebhookRouter(emails));
   // Browser clients send plain JSON. Reject encoded bodies before opening a
   // decompression stream, including malformed frames sent to unknown routes.
   app.use(express.json({ limit: "100kb", inflate: false }));
@@ -38,7 +42,7 @@ export function createApp(service: PublicApi, payments?: PaymentInitializationAp
   });
 
   app.use("/api/v1", createPublicRouter(service));
-  app.use("/api/v1/payments", createPaymentsRouter(payments));
+  app.use("/api/v1/payments", createPaymentsRouter(payments, paymentStatus));
   const selection = { getCompetition: () => service.getManagedCompetition ? service.getManagedCompetition() : service.getCompetition() };
   const contestants = admin ? new AdminContestantService(admin.database, selection) : undefined;
   const images = admin && contestants && storage ? new AdminContestantImageService(admin.database, storage, contestants) : undefined;

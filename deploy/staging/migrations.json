@@ -1,0 +1,60 @@
+{
+  "status": "review-only-not-applied-to-staging",
+  "migrations": [
+    {
+      "name": "20261021044148_init",
+      "file": "prisma/migrations/20261021044148_init/migration.sql",
+      "sha256": "c48c15c55dd9090400cec42962f47b53d083ba4693f8a5abd7254be45c5daeb5"
+    },
+    {
+      "name": "20261026090000_add_payment_initialization",
+      "file": "prisma/migrations/20261026090000_add_payment_initialization/migration.sql",
+      "sha256": "a0afd2cbe59323c718925ebb6b128375be96dc67a55a8d56d5459313385fc8bd"
+    },
+    {
+      "name": "20261027090000_add_admin_sessions",
+      "file": "prisma/migrations/20261027090000_add_admin_sessions/migration.sql",
+      "sha256": "53538bb766ad1f35068db6cd1c02856811c7fd6f2d5b953c58c9bd6a59bc2c6f"
+    },
+    {
+      "name": "20261102090000_add_contestant_image_operations",
+      "file": "prisma/migrations/20261102090000_add_contestant_image_operations/migration.sql",
+      "sha256": "62ccbad7cc116cb4077c1459d814449f7247bd6bdf6b722f2b19d3fcc4a1dae1"
+    },
+    {
+      "name": "20261116090000_add_contestant_videos",
+      "file": "prisma/migrations/20261116090000_add_contestant_videos/migration.sql",
+      "sha256": "8cdc64147aa2d51681239d95bb8520ddcfad31cb28ba18b87c0ff4b2bba7e63e"
+    },
+    {
+      "name": "20261116120000_add_leaderboard_visibility",
+      "file": "prisma/migrations/20261116120000_add_leaderboard_visibility/migration.sql",
+      "sha256": "eea98f1c48684ed5544ac33b10858d57eae50faafc302a907c09e193ab9d0dba"
+    },
+    {
+      "name": "20261118120000_add_category_hierarchy",
+      "file": "prisma/migrations/20261118120000_add_category_hierarchy/migration.sql",
+      "sha256": "97644592c536ab6c30e41cc116303e332f832f434f8fcb89723f1f5fad0091d2"
+    },
+    {
+      "name": "20261118180000_add_assignment_integrity",
+      "file": "prisma/migrations/20261118180000_add_assignment_integrity/migration.sql",
+      "sha256": "94dc2c00e750879f79bf97015ed9a25bb6a9c24212357183f9f0e016e1159c79"
+    },
+    {
+      "name": "20261123090000_add_internal_voting_engine",
+      "file": "prisma/migrations/20261123090000_add_internal_voting_engine/migration.sql",
+      "sha256": "d760884c20e73690c343e1324e0efa448d7041716fc338dcbec652039dc409cb"
+    },
+    {
+      "name": "20261124090000_add_paystack_webhook_inbox",
+      "file": "prisma/migrations/20261124090000_add_paystack_webhook_inbox/migration.sql",
+      "sha256": "b2d785820c2b38b96a7537322c9cb0b442d4d779497a627d0ce7caf9b6b58f3c"
+    },
+    {
+      "name": "20261124100000_add_vote_confirmation_outbox",
+      "file": "prisma/migrations/20261124100000_add_vote_confirmation_outbox/migration.sql",
+      "sha256": "70c41a7ea74f924af44fbd042652acf57a0567978ae78e5cf92ec6004837e68c"
+    }
+  ]
+}

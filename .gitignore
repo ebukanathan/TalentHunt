@@ -10,6 +10,7 @@ coverage/
 /generated/prisma/
 
 # Secrets and local configuration
+.secrets/
 .env
 .env.*
 !.env.example
@@ -29,4 +30,6 @@ Thumbs.db
 # Isolated Next integration artifacts
 apps/web/.next-admin-test/
 apps/web/.next-browser-test/
+apps/web/.next-paid-local/
+apps/web/.next-integration/
 /artifacts/qa/

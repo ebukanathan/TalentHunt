@@ -1,0 +1,11 @@
+[Unit]
+Description=TalentHunt hourly image cleanup (%i)
+
+[Timer]
+OnCalendar=*-*-* *:17:00 UTC
+Persistent=true
+RandomizedDelaySec=30
+Unit=talenthunt-images@%i.service
+
+[Install]
+WantedBy=timers.target

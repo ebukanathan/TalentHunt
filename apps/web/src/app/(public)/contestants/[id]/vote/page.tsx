@@ -22,7 +22,8 @@ async function Content({ params }: Props) {
   if (profile.kind !== "ready") return <UnavailableState />;
   const { competition, contestant } = profile;
   let checkoutEnabled = false;
-  try { checkoutEnabled = Boolean(checkoutConfiguration()); } catch { /* Invalid configuration fails closed. */ }
+  let paymentMode: "test" | "live" = "test";
+  try { const checkout = checkoutConfiguration(); checkoutEnabled = Boolean(checkout); paymentMode = checkout?.mode || "test"; } catch { /* Invalid configuration fails closed. */ }
   const initialNow = new Date().toISOString();
   let packages = [];
   try {
@@ -36,7 +37,7 @@ async function Content({ params }: Props) {
   return <article className="container contestants-page vote-selection">
     <Link className="back-link" prefetch={false} href={`/contestants/${encodeURIComponent(id)}`}>← Back to contestant</Link>
     <header className="listing-header"><p className="eyebrow">{competition.name}</p><h1>Explore vote packages</h1>
-      <p className="listing-intro">Choose a package for {contestant.name} to preview its votes and total. {checkoutEnabled ? "Paystack checkout is available in test mode only. No votes are added in this phase." : "Online payments are not available yet."}</p></header>
-    <VoteSelection contestant={{ id: contestant.id, name: contestant.name, number: contestant.number, imageUrl: contestant.imageUrl, category: contestant.category, subcategory: contestant.subcategory }} competition={competition} packages={packages} initialNow={initialNow} checkoutEnabled={checkoutEnabled} />
+      <p className="listing-intro">Choose a package for {contestant.name} to preview its votes and total. {checkoutEnabled ? (paymentMode === "test" ? "Paystack checkout is available in test mode only. Votes require a server-confirmed eligible payment." : "Paystack checkout requires a server-confirmed eligible payment.") : "Online payments are not available yet."}</p></header>
+    <VoteSelection contestant={{ id: contestant.id, name: contestant.name, number: contestant.number, imageUrl: contestant.imageUrl, category: contestant.category, subcategory: contestant.subcategory }} competition={competition} packages={packages} initialNow={initialNow} checkoutEnabled={checkoutEnabled} paymentMode={paymentMode} />
   </article>;
 }

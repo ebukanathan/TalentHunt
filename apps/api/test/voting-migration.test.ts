@@ -28,7 +28,7 @@ test("voting migration preserves populated legacy history and counters, and does
   const snapshot = async () => {
     const result: Record<string, unknown> = {};
     for (const table of ["Competition", "Contestant", "Payment", "VotePackage", "VoteAllocation", "PaymentScope", "AuditLog", "ContactVerification", "PaymentInitialization"])
-      result[table] = await db.$queryRawUnsafe(`SELECT (to_jsonb(t) ${table === "VoteAllocation" ? "- 'verificationId'" : ""})::text AS row FROM "${table}" t ORDER BY row`);
+      result[table] = await db.$queryRawUnsafe(`SELECT (to_jsonb(t) ${table === "VoteAllocation" ? "- 'verificationId'" : table === "Payment" ? "- 'paymentEnvironment'" : ""})::text AS row FROM "${table}" t ORDER BY row`);
     return result;
   };
   try {
@@ -47,7 +47,9 @@ test("voting migration preserves populated legacy history and counters, and does
     await db.contactVerification.create({ data: { id: "historical-contact", email: "legacy@example.test", codeHash: "historical-preserved", expiresAt: new Date("2026-10-01T00:00:00Z") } });
     for (const status of ["PENDING", "PAID", "FAILED", "REFUNDED"] as const)
       await db.payment.create({ data: { id: status, reference: status, competitionId: "legacy", contestantId: "person", packageId: "package",
-        contactEmail: "legacy@example.test", amountKobo: 25000, voteCount: 7, status, verificationId: status === "PENDING" ? "historical-contact" : null } });
+        contactEmail: "legacy@example.test", amountKobo: 25000, voteCount: 7, status, verificationId: status === "PENDING" ? "historical-contact" : null },
+        // The current client must return only columns present before expansion.
+        select: { id: true } });
     await db.paymentInitialization.create({ data: { paymentId: "PENDING", idempotencyKeyHash: "a".repeat(64), requestHash: "b".repeat(64), state: "UNKNOWN" } });
     await db.$executeRaw`INSERT INTO "VoteAllocation" (id, "paymentId", "contestantId", "voteCount") VALUES ('allocation', 'PAID', 'person', 7)`;
     // Rehearse the Supabase default-grant case, including column-level grants
@@ -70,6 +72,8 @@ test("voting migration preserves populated legacy history and counters, and does
     assert.equal(rolledBack.absent, true, "Failed additive DDL must roll back the table and enum together.");
     deploy(join(root, "prisma/schema.prisma"));
     assert.deepEqual(await snapshot(), before); assert.equal(await db.verifiedPayment.count(), 0);
+    assert.equal(await db.payment.count({ where: { paymentEnvironment: null } }), 4,
+      "Legacy payments retain unknown environment; migration must not infer test or live.");
     assert.equal((await db.voteAllocation.findUniqueOrThrow({ where: { id: "allocation" } })).verificationId, null);
     assert.equal(await db.paymentScope.count(), 0);
     const histories = await db.$queryRaw<{ migration_name: string; checksum: string }[]>`SELECT migration_name, checksum FROM "_prisma_migrations" ORDER BY migration_name`;
@@ -78,14 +82,16 @@ test("voting migration preserves populated legacy history and counters, and does
     }
     deploy(join(root, "prisma/schema.prisma")); assert.deepEqual(await snapshot(), before);
     assert.equal(await db.paystackWebhookJob.count(), 0, "New inbox must never backfill historical transactions.");
+    assert.equal(await db.transactionEmail.count(), 0, "Historical purchases must never be enqueued for confirmation.");
     await assert.rejects(db.voteAllocation.delete({ where: { id: "allocation" } }));
     for (const role of ["anon", "authenticated"]) {
-      const [access] = await db.$queryRaw<{ totals: boolean; allocate: boolean; evidence: boolean; inbox: boolean }[]>`
+      const [access] = await db.$queryRaw<{ totals: boolean; allocate: boolean; evidence: boolean; inbox: boolean; outbox: boolean }[]>`
         SELECT has_column_privilege(${role}, '"Contestant"', 'totalVotes', 'SELECT,INSERT,UPDATE') AS totals,
           has_table_privilege(${role}, '"VoteAllocation"', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE') AS allocate,
           has_table_privilege(${role}, '"VerifiedPayment"', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE') AS evidence,
-          has_table_privilege(${role}, '"PaystackWebhookJob"', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE') AS inbox`;
-      assert.deepEqual(access, { totals: false, allocate: false, evidence: false, inbox: false }, JSON.stringify(await db.$queryRaw`
+          has_table_privilege(${role}, '"PaystackWebhookJob"', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE') AS inbox,
+          has_table_privilege(${role}, '"TransactionEmail"', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE') AS outbox`;
+      assert.deepEqual(access, { totals: false, allocate: false, evidence: false, inbox: false, outbox: false }, JSON.stringify(await db.$queryRaw`
         SELECT c.relname, c.relacl::text, pg_get_userbyid(c.relowner) AS owner, current_user,
           (SELECT attacl::text FROM pg_attribute WHERE attrelid = c.oid AND attname = 'totalVotes') AS column_acl
         FROM pg_class c WHERE c.relname IN ('Contestant', 'VoteAllocation', 'VerifiedPayment')`));
@@ -94,6 +100,7 @@ test("voting migration preserves populated legacy history and counters, and does
         'INSERT INTO "VoteAllocation" (id, "paymentId", "contestantId", "voteCount") VALUES (\'forged\', \'FAILED\', \'person\', 7)',
         'SELECT * FROM "VerifiedPayment"',
         'SELECT * FROM "PaystackWebhookJob"',
+        'SELECT * FROM "TransactionEmail"',
         'INSERT INTO "VerifiedPayment" (id) VALUES (\'forged\')',
       ]) await assert.rejects(db.$transaction(async tx => {
         // Fixed role allowlist and fixed statements above; no external SQL.

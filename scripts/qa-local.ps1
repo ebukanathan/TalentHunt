@@ -1,5 +1,5 @@
 param(
-  [ValidateSet('all', 'api', 'integration', 'browser', 'checks', 'voting', 'voting-vitest', 'checkout', 'paystack')][string]$Phase = 'all',
+  [ValidateSet('all', 'api', 'integration', 'browser', 'checks', 'voting', 'voting-vitest', 'checkout', 'paystack', 'finalization', 'paid-browser', 'stability')][string]$Phase = 'all',
   [string]$PostgresBin = 'C:/Program Files/PostgreSQL/18/bin'
 )
 $ErrorActionPreference = 'Stop'

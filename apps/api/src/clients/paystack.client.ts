@@ -22,7 +22,9 @@ export class PaystackInitializationError extends Error {
 }
 
 export class PaystackClient implements PaystackInitializer {
-  constructor(private readonly configuration: PaystackConfiguration, private readonly fetcher: typeof fetch = fetch) {}
+  constructor(private readonly configuration: PaystackConfiguration, private readonly fetcher: typeof fetch = fetch) {
+    if (!configuration.PAYSTACK_SECRET_KEY.startsWith(`sk_${configuration.PAYSTACK_MODE}_`)) throw new Error("Matching payment credentials are required.");
+  }
 
   async initialize(purchase: PaystackPurchase) {
     try {

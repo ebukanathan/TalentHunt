@@ -1,0 +1,41 @@
+{
+  "status": "awaiting-resource-and-cost-approval",
+  "repository": "ebukanathan/TalentHunt",
+  "branch": "integration/all-completed-features",
+  "baselineCommit": "f33fc7187b1c5ae4c3bcf4429012f9e718cbc172",
+  "vercel": {
+    "proposedProjectName": "talenthunt-staging-web",
+    "rootDirectory": "apps/web",
+    "nodeVersion": "24.x",
+    "configurationFile": "deploy/staging/vercel.json",
+    "dedicatedStagingProject": true,
+    "customDomains": [],
+    "assignedFrontendOrigin": null,
+    "automaticDeployments": false,
+    "largeRequestBody": {
+      "status": "awaiting-explicit-beta-and-usage-cost-approval",
+      "reason": "existing 5 MB image upload exceeds default 4.5 MB function request limit",
+      "proposedFluidCompute": true,
+      "proposedFunctionMemoryMb": 4096,
+      "proposedEnvironmentOptIn": "VERCEL_SUPPORT_LARGE_REQUEST_BODY=1"
+    }
+  },
+  "render": {
+    "blueprintFile": "deploy/staging/render.yaml",
+    "region": "frankfurt",
+    "assignedApiOrigin": null,
+    "automaticDeployments": false
+  },
+  "supabase": {
+    "proposedProjectName": "talenthunt-staging",
+    "requireNewIsolatedProject": true,
+    "approvedProjectRef": null,
+    "region": "choose-near-Render-after-account-inspection",
+    "bucket": "contestant-images",
+    "dataset": "synthetic-test-only",
+    "databaseConnection": "provider-assigned-session-pooler-port-5432-TLS"
+  },
+  "paystack": { "mode": "test", "livePaymentsAllowed": false },
+  "schoolDnsChangesAllowed": false,
+  "schoolProductionDomainActivationAllowed": false
+}

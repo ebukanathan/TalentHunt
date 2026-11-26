@@ -31,7 +31,7 @@ export async function purchase(db: PrismaClient, f: Domain, votes = 10, status: 
     await tx.$queryRaw`SELECT id FROM "Competition" WHERE id = ${f.competition.id} FOR UPDATE`;
     const payment = await tx.payment.create({ data: { reference: 'vitest-' + randomUUID(), competitionId: f.competition.id,
       contestantId: f.contestant.id, packageId: pack.id, contactEmail: 'fixture@example.test', amountKobo: pack.priceKobo,
-      voteCount: pack.voteCount, currency: 'NGN', status,
+      voteCount: pack.voteCount, currency: 'NGN', status, paymentEnvironment: 'TEST',
       providerTxnId: status === 'PAID' ? 'simulated-' + randomUUID() : null,
       paidAt: status === 'PAID' ? new Date(NOW.getTime() - 10000) : null,
       createdAt: new Date(NOW.getTime() - 60000) } });

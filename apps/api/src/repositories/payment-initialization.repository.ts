@@ -35,7 +35,7 @@ export function assertPurchasable(selection: PurchaseSelection, now: Date, compe
 export const initializationInclude = { payment: { include: { scope: true } } } satisfies Prisma.PaymentInitializationInclude;
 export async function reserveInitialization(
   database: PrismaClient, input: InitializePaymentInput, idempotencyKeyHash: string, requestHash: string,
-  competitionSlug?: string, clock: () => Date = () => new Date(),
+  competitionSlug?: string, clock: () => Date = () => new Date(), environment: "TEST" | "LIVE" = "TEST",
 ) {
   try {
     return await database.$transaction(async transaction => {
@@ -63,7 +63,7 @@ export async function reserveInitialization(
       if (!selection) throw new HttpError(404, "SELECTION_NOT_FOUND", "Contestant or package is unavailable.");
       assertPurchasable(selection, clock(), competitionSlug);
       const payment = await transaction.payment.create({ data: {
-        reference: "th-test-" + randomUUID(), competitionId: selection.competitionId,
+        reference: (environment === "LIVE" ? "th-live-" : "th-test-") + randomUUID(), paymentEnvironment: environment, competitionId: selection.competitionId,
         contestantId: input.contestantId, packageId: input.packageId, contactEmail: input.email,
         amountKobo: selection.priceKobo, voteCount: selection.voteCount, currency: selection.currency,
         status: "PENDING", initialization: { create: { idempotencyKeyHash, requestHash } },

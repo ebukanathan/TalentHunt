@@ -43,7 +43,7 @@ export async function forwardSettings(request: Request, resource: "competition" 
   if (!allowed.includes(request.method) || resource === "competition" && id) return new Response(null, { status: 405 });
   return forward(request, resource + (id ? "/" + id : ""), request.method, 32768);
 }
-async function forward(request: Request, path: string, method: string, limit: number, timeoutMs = 8000) {
+async function forward(request: Request, path: string, method: string, limit: number, timeoutMs?: number) {
   try {
     const config = adminConfig();
     if (request.method !== method) return new Response(null, { status: 405 });
@@ -77,7 +77,7 @@ async function forward(request: Request, path: string, method: string, limit: nu
       headers.set("X-CSRF-Token", request.headers.get("x-csrf-token") || "");
     }
     const search = method === "GET" ? new URL(request.url).search : "";
-    const upstream = await fetch(`${config.base}/admin/${path}${search}`, { method, headers, body, cache: "no-store", redirect: "error", signal: AbortSignal.timeout(timeoutMs) });
+    const upstream = await fetch(`${config.base}/admin/${path}${search}`, { method, headers, body, cache: "no-store", redirect: "error", signal: AbortSignal.timeout(timeoutMs ?? config.apiTimeoutMs) });
     const result = await upstream.json();
     // Only our Express auth envelopes are expected; never relay HTML/driver errors.
     if (!result || !["success", "error"].includes(result.status)) return unavailable();

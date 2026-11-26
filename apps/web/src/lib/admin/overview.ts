@@ -14,7 +14,7 @@ export async function loadOverview() {
   let response: Response;
   try {
     response = await fetch(`${config.base}/admin/overview`, { headers: { Cookie: `${config.cookieName}=${token}` },
-      cache: "no-store", redirect: "error", signal: AbortSignal.timeout(8000) });
+      cache: "no-store", redirect: "error", signal: AbortSignal.timeout(config.apiTimeoutMs) });
   } catch { throw new OverviewDataError(503); }
   if (response.status === 401) redirect("/admin/login");
   if (!response.ok) throw new OverviewDataError(response.status);

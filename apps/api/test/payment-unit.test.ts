@@ -15,7 +15,7 @@ const selection: PurchaseSelection = {
   packageActive: true, packageCompetitionId: "show", priceKobo: 100000, voteCount: 10, currency: "NGN",
 };
 
-test("Paystack configuration is test-only, optional as a whole, and secret-safe", () => {
+test("Paystack configuration defaults to test, rejects unapproved live configuration, and is secret-safe", () => {
   assert.equal(readPaystackConfiguration({}), null);
   assert.equal(config.PAYSTACK_MODE, "test");
   for (const bad of [
