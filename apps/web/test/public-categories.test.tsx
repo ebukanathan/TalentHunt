@@ -15,7 +15,8 @@ test("public cards group same-named children under distinct category headings wi
   const html = renderToStaticMarkup(<ContestantList grouped contestants={[person, other]} pagination={{ page: 2, pageSize: 2, total: 5, pages: 3 }} basePath="/categories/category"/>);
   assert.equal((html.match(/class="category-group"/g) || []).length, 2);
   assert.equal((html.match(/class="subcategory-group"/g) || []).length, 2);
-  assert.match(html, /Category<\/dt>/); assert.match(html, /Subcategory<\/dt>/); assert.match(html, /NO. 001/); assert.match(html, /Photograph unavailable for Performer/);
+  assert.match(html, /Category<\/dt>/); assert.match(html, /Talent<\/dt>/); assert.match(html, /NO. 001/); assert.match(html, /Photograph unavailable for Performer/);
+  assert.match(html, /<a(?=[^>]*href="\/contestants\/person")(?=[^>]*aria-label="View Performer&#x27;s profile")[^>]*><div class="portrait/);
   assert.ok(html.includes('/categories/other-category/subcategories/other-child')); assert.ok(html.includes('categoryId=other-category&amp;subcategoryId=other-child'));
   assert.ok(html.includes('/categories/category?page=3#lineup-heading')); assert.doesNotMatch(html, /vote-total/);
 });
@@ -23,11 +24,12 @@ test("profile and selection preserve scope identity, back navigation and zero-to
   for (const count of [0, 1, 2]) {
     const videos = [{ id: "v1", youtubeVideoId: "dQw4w9WgXcQ", position: 1 as const }, { id: "v2", youtubeVideoId: "M7lc1UVf-VE", position: 2 as const }].slice(0, count);
     const html = renderToStaticMarkup(<ContestantProfile competition={competition} contestant={{ ...person, videos }}/>);
-    assert.match(html, /Category: Fixture category/); assert.match(html, /Subcategory: Fixture subcategory/); assert.ok(html.includes('/categories/category/subcategories/subcategory'));
+    assert.match(html, /Category: Fixture category/); assert.match(html, /Talent: Fixture subcategory/); assert.ok(html.includes('/categories/category/subcategories/subcategory'));
+    assert.match(html, /href="\/contestants\/person\/vote"[^>]*>Vote<\/a>/);
     assert.equal((html.match(/<iframe/g) || []).length, count);
   }
   const selection = renderToStaticMarkup(<VoteSelection competition={competition} contestant={person} packages={[]} initialNow="2026-11-19T12:00:00Z"/>);
-  assert.match(selection, /Category:/); assert.match(selection, /Subcategory:/); assert.match(selection, /Payments|payments/); assert.doesNotMatch(selection, /type="email"|checkout/);
+  assert.match(selection, /Category:/); assert.match(selection, /Talent:/); assert.match(selection, /Payments|payments/); assert.doesNotMatch(selection, /type="email"|checkout/);
 });
 test("public scope contracts reject foreign ownership, mixed parents, private extras and invalid pagination", async () => {
   assert.equal(publicContestantSchema.safeParse({ ...person, subcategory: { ...person.subcategory, categoryId: "foreign" } }).success, false);

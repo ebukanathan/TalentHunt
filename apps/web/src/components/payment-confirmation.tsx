@@ -40,7 +40,7 @@ export function PaymentConfirmation({ reference, mode = "test" }: { reference: s
     {data && <><dl><dt>Reference</dt><dd>{data.reference}</dd><dt>Amount</dt><dd>{formatKobo(data.amountKobo, data.currency)} {data.currency}</dd>
       <dt>Votes in this purchase</dt><dd>{data.voteCount}</dd><dt>Status</dt><dd>{data.state}</dd></dl>
       {data.state === "CONFIRMED" && <><p>{data.voteCount} votes were allocated to the selected contestant.</p><p>{data.emailStatus === "DELIVERED" ? "The email provider confirmed delivery to your mail server." : data.emailStatus === "ACCEPTED" ? "The email provider accepted your receipt; delivery is not yet confirmed." : ["FAILED", "REVIEW_REQUIRED"].includes(data.emailStatus) ? "Email delivery needs review. Keep this confirmation as your receipt." : "Your confirmation email is queued. Keep this confirmation as your receipt."}</p>
-        <p><a href={`/leaderboard?${new URLSearchParams({ categoryId: data.categoryId!, subcategoryId: data.subcategoryId! })}`}>View this subcategory leaderboard</a></p></>}
+        <p><a href={`/leaderboard?${new URLSearchParams({ categoryId: data.categoryId!, subcategoryId: data.subcategoryId! })}`}>View this talent leaderboard</a></p></>}
     </>}
     <button className="button button-primary" type="button" disabled={busy} onClick={() => void refresh()}>{busy ? "Checking…" : "Check payment again"}</button>
   </section>;

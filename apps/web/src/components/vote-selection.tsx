@@ -57,7 +57,7 @@ export function VoteSelection({ contestant, competition, packages, initialNow, c
         <div><p className="eyebrow">NO. {contestant.number}</p><p>{contestant.name}</p></div>
       </div>
       <CategoryPath category={contestant.category} subcategory={contestant.subcategory}/>
-      <p className="selection-scope">Category: <strong>{contestant.category.name}</strong> · Subcategory: <strong>{contestant.subcategory.name}</strong></p>
+      <p className="selection-scope">Category: <strong>{contestant.category.name}</strong> · Talent: <strong>{contestant.subcategory.name}</strong></p>
       <p className="selection-status" role="status">{state.label}. {checkoutEnabled ? "Purchases require an eligible contestant and an explicit voting window." : state.description}</p>
       {!packages.length ? <p className="selection-empty">{state.open ? "No vote packages are available right now. Please check back later." : "Packages are available only while the voting window is open."}</p> :
         <fieldset className="package-options" disabled={!state.open || locked} aria-describedby="selection-help">

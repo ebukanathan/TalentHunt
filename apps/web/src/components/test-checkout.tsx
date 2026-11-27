@@ -3,14 +3,14 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { z } from "zod";
 import type { Competition, Contestant, VotePackage } from "@/lib/api/schemas";
-import { attemptKey, checkoutInput, checkoutResult, type CheckoutResult } from "@/lib/checkout/contracts";
+import { attemptKey, checkoutInput, checkoutResult, paymentReceipt, type CheckoutResult } from "@/lib/checkout/contracts";
 import { formatKobo, formatVotes } from "@/lib/format";
 
 const storedAttempt = z.strictObject({ key: attemptKey, binding: z.string().regex(/^[0-9a-f]{64}$/), input: checkoutInput, reference: z.string().optional() });
 type Attempt = z.infer<typeof storedAttempt>;
 export function TestCheckout({ contestant, competition, item, open, onLock, onSelect, mode = "test" }: {
   contestant: Pick<Contestant, "id" | "category" | "subcategory">; competition: Competition;
-  mode?: "test" | "live"; item?: VotePackage; open: boolean; onLock: (locked: boolean) => void; onSelect: (id: string) => void;
+  mode?: "test" | "live"; item?: VotePackage; open: boolean; onLock: (locked: boolean) => void; onSelect: (id: string | null) => void;
 }) {
   const [email, setEmail] = useState("");
   const [hydrated, setHydrated] = useState(false);
@@ -48,6 +48,26 @@ export function TestCheckout({ contestant, competition, item, open, onLock, onSe
       const session = z.strictObject({ csrfToken: z.string().regex(/^[0-9a-f]{64}$/), sessionBinding: z.string().regex(/^[0-9a-f]{64}$/), expiresAt: z.number().int() }).parse(await sessionResponse.json());
       if (attempt && attempt.binding !== session.sessionBinding) {
         setMessage("Your checkout session expired or changed. The previous purchase requires review. A new purchase has not been started."); return;
+      }
+      if (attempt?.reference) {
+        const status = await fetch("/api/checkout/status", { method: "POST", credentials: "same-origin", redirect: "error", cache: "no-store",
+          headers: { "Content-Type": "application/json", "X-CSRF-Token": session.csrfToken, "X-Checkout-Session": attempt.binding, "X-Checkout-Attempt": attempt.key },
+          body: JSON.stringify({ reference: attempt.reference }), signal: AbortSignal.timeout(20000) });
+        if (!status.ok) throw new Error();
+        const receipt = paymentReceipt.parse((await status.json()).data);
+        if (receipt.mode !== mode || receipt.reference !== attempt.reference || receipt.contestantId !== contestant.id ||
+            receipt.categoryId !== contestant.category.id || receipt.subcategoryId !== contestant.subcategory.id) throw new Error();
+        if (receipt.state === "CONFIRMED") {
+          // Keep the original receipt capability; only the active, server-confirmed
+          // attempt is cleared. A new purchase still requires an explicit submission.
+          sessionStorage.setItem(`${storageKey}:confirmed:${attempt.reference}`, JSON.stringify(attempt));
+          sessionStorage.removeItem(storageKey);
+          setAttempt(null); onSelect(null); onLock(false);
+          setMessage("Your previous payment and votes are confirmed. You can choose a package for another purchase."); return;
+        }
+        if (receipt.state === "REVIEW_REQUIRED") {
+          setMessage("This purchase needs review. Do not start a replacement payment."); return;
+        }
       }
       const current = attempt || { key: crypto.randomUUID(), binding: session.sessionBinding, input: input.data };
       // Persist before dispatch. Failed/ambiguous requests always reuse this exact

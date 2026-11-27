@@ -102,6 +102,28 @@ test("a lost initialization response recovers after reload using the same stored
   expect(after.payments).toHaveLength(before.payments.length + 1); expect(after.providerCalls).toBe(before.providerCalls + 1);
   await noAllocation(request);
 });
+
+test("unavailable, mismatched or review-required status cannot unlock an existing checkout", async ({ page, request }) => {
+  await choose(page);
+  await page.getByLabel("Email address (required)").fill("retry-guard@example.test");
+  await page.getByRole("button", { name: "Review test checkout" }).click();
+  await expect(page.getByRole("link", { name: "Continue to Paystack (test)" })).toBeVisible();
+  const before = await state(request), reference = before.payments.at(-1).reference;
+  const receipt = { reference, mode: "test", state: "CONFIRMED", amountKobo: 5000, currency: "NGN", voteCount: 10,
+    contestantId: "alpha-person", categoryId: "alpha", subcategoryId: "alpha-child", emailStatus: "PENDING_DELIVERY" };
+  for (const failure of [
+    { status: 503, body: {} },
+    { status: 200, body: { data: { ...receipt, reference: "th-test-00000000-0000-4000-8000-000000000000" } } },
+    { status: 200, body: { data: { ...receipt, state: "REVIEW_REQUIRED" } } },
+  ]) {
+    await page.route("**/api/checkout/status", route => route.fulfill({ status: failure.status, json: failure.body }), { times: 1 });
+    await page.getByRole("button", { name: "Retry same test checkout" }).click();
+    await expect(page.getByText(/Checkout could not be confirmed|This purchase needs review/)).toBeVisible();
+    await expect(page.getByRole("radio").first()).toBeDisabled();
+    expect((await state(request)).providerCalls).toBe(before.providerCalls);
+  }
+  await noAllocation(request);
+});
 test("cross-origin, price/vote tampering, callback parameters and direct vote mutation grant nothing", async ({ page, request }) => {
   await choose(page); const before = await state(request);
   const responses = await page.evaluate(async () => {

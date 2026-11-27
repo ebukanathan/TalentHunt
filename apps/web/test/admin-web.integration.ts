@@ -203,7 +203,7 @@ async function main() {
     const publicActive = await fetch(`http://127.0.0.1:${apiPort}/api/v1/contestants`); assert.equal((await publicActive.json()).data[0].id, person.id);
     const profile = await (await request(`/contestants/${person.id}`)).text();
     const profileText = profile.replace(/<!--[\s\S]*?-->/g, "");
-    assert.match(profileText, /Category: Web category/); assert.match(profileText, /Subcategory: Renamed subcategory/);
+    assert.match(profileText, /Category: Web category/); assert.match(profileText, /Talent: Renamed subcategory/);
     assert.match(profile, /Web Performer/); assert.ok(profile.includes(photoUrl));
     assert.doesNotMatch(profile, /<iframe|performance-videos-heading/);
     console.log("PASS independent public groups, scoped navigation and profile identity");
@@ -229,10 +229,10 @@ async function main() {
     const emptyVideoProfile = await (await request(`/contestants/${person.id}`)).text();
     assert.doesNotMatch(emptyVideoProfile, /<iframe|performance-videos-heading/);
     assert.doesNotMatch(profile,/class="vote-total"/);
-    assert.match(profile, /Explore vote packages/);
+    assert.match(profile, />Vote<\/a>/);
     await db.votePackage.update({where:{id:managedPackage.id},data:{isActive:true}});
     const selection = await (await request(`/contestants/${person.id}/vote`)).text();
-    assert.match(selection, /Category:/); assert.match(selection, /Subcategory:/); assert.match(selection, /Renamed subcategory/);
+    assert.match(selection, /Category:/); assert.match(selection, /Talent:/); assert.match(selection, /Renamed subcategory/);
     assert.match(selection, /type="radio"/); assert.match(selection, /75.25/);
     assert.match(selection, /does not purchase or add any votes/);
     assert.doesNotMatch(selection, /type="submit"|type="email"/);

@@ -13,11 +13,15 @@ const row = { id: "one", competitionId: "show", categoryId: scope.category.id, s
 const board = { ...scope, competition, setupReady: true, visibility: "RANK_ONLY" as const, state: "PROVISIONAL" as const, publishedAt: null, items: [row], pagination: { page: 1, pageSize: 1, total: 3, pages: 3 } };
 test("leaderboard chooser uses dynamic identities and never renders an overall ranking table", () => {
   const html = renderToStaticMarkup(<LeaderboardChooser competitionName="Fixture" categories={[{ id: "cat-a", name: "<script>Group A</script>" }, { id: "cat-b", name: "Group B" }]} categoryId="cat-a" subcategories={[{ id: "child-a", name: "Shared name" }]} categoryPage={{ page: 1, pages: 2 }} subcategoryPage={{ page: 1, pages: 2 }}/>);
-  assert.match(html, /Each subcategory has independent standings/); assert.match(html, /categoryId=cat-a&amp;subcategoryId=child-a/); assert.match(html, /More categories/); assert.match(html, /More subcategories/); assert.doesNotMatch(html, /<table|<script>|>Votes</);
+  assert.match(html, /Each talent has independent standings/); assert.match(html, /categoryId=cat-a&amp;subcategoryId=child-a/); assert.match(html, /More categories/); assert.match(html, /More talents/); assert.doesNotMatch(html, /<table|<script>|>Votes</);
+  const adminHtml = renderToStaticMarkup(<LeaderboardChooser competitionName="Fixture" categories={[]} categoryId="cat-a" subcategories={[]} categoryPage={{ page: 1, pages: 1 }} subcategoryPage={{ page: 1, pages: 2 }} admin/>);
+  assert.match(adminHtml, /Each subcategory has independent standings/); assert.match(adminHtml, /More subcategories/); assert.match(adminHtml, /Leaderboard subcategory/); assert.doesNotMatch(adminHtml, /talent/);
 });
 test("standings identify their category path and preserve it through pagination without rank-only totals", () => {
   const data = publicLeaderboardSchema.parse(board), html = renderToStaticMarkup(<Leaderboard data={data}/>);
-  assert.match(html, /Category: Fixture category/); assert.match(html, /Subcategory: Fixture subcategory/); assert.ok(html.includes('/leaderboard?categoryId=category&amp;subcategoryId=subcategory&amp;page=2')); assert.doesNotMatch(html, /href="\/leaderboard\?page=|>Votes</);
+  assert.match(html, /Category: Fixture category/); assert.match(html, /Talent: Fixture subcategory/); assert.ok(html.includes('/leaderboard?categoryId=category&amp;subcategoryId=subcategory&amp;page=2')); assert.doesNotMatch(html, /href="\/leaderboard\?page=|>Votes</);
+  const adminHtml = renderToStaticMarkup(<Leaderboard data={data} admin/>);
+  assert.match(adminHtml, /Subcategory: Fixture subcategory/); assert.match(adminHtml, /Choose another subcategory/); assert.doesNotMatch(adminHtml, /Talent:/);
   for (const invalid of [{ ...board, items: [{ ...row, categoryId: "other" }] }, { ...board, subcategory: { ...scope.subcategory, categoryId: "other" } }, { ...board, items: [{ ...row, totalVotes: "123" }] }]) assert.equal(publicLeaderboardSchema.safeParse(invalid).success, false);
 });
 test("setup-incomplete and legacy publication states expose no rankings or totals", () => {

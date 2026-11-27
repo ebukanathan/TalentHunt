@@ -119,9 +119,14 @@ test("editing category assignment, biography and photograph preserves both perfo
   await page.goto(`/contestants/${person.id}`);
   await expect(page.getByRole("heading", { name: personName, exact: true })).toBeVisible();
   await expect(page.getByText(`Category: ${categoryName} edited`, { exact: true })).toBeVisible();
-  await expect(page.getByText("Subcategory: Shared child", { exact: true })).toBeVisible();
+  await expect(page.getByText("Talent: Shared child", { exact: true })).toBeVisible();
   await expect(page.getByText("Biography edited after category assignment and both performance videos.", { exact: true })).toBeVisible();
   const photo = page.getByRole("img", { name: `Portrait of ${personName}`, exact: true });
+  await expect(photo).toBeVisible();
+  await page.goto("/contestants");
+  const card = page.locator(".contestant-card").filter({ has: page.getByRole("link", { name: personName, exact: true }) });
+  await card.getByRole("link", { name: `View ${personName}'s profile`, exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/contestants/${person.id}$`));
   await expect(photo).toBeVisible();
   expect(decodeURIComponent((await photo.getAttribute("src"))!)).toContain(secondPhoto);
   await expect.poll(() => photo.evaluate(element => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
@@ -172,9 +177,15 @@ test("editing category assignment, biography and photograph preserves both perfo
     await menu.click(); await expect(menu).toHaveAttribute("aria-expanded", "true");
     await page.keyboard.press("Escape"); await expect(menu).toHaveAttribute("aria-expanded", "false"); await expect(menu).toBeFocused();
   } else await expect(page.getByRole("button", { name: "Menu", exact: true, includeHidden: true })).toBeHidden();
-  await page.goto(`/contestants/${person.id}/vote`);
-  await expect(page.getByText("Category:", { exact: false })).toContainText("Fixture beta");
-  await expect(page.getByText("Subcategory:", { exact: false })).toContainText("Shared child");
+  await page.goto(`/contestants/${person.id}`);
+  const vote = page.getByRole("link", { name: "Vote", exact: true });
+  await expect(vote).toBeVisible();
+  await expect(vote).toHaveAttribute("href", `/contestants/${person.id}/vote`);
+  await vote.click();
+  await expect(page).toHaveURL(new RegExp(`/contestants/${person.id}/vote$`));
+  await expect(page.getByRole("heading", { name: "Explore vote packages", exact: true })).toBeVisible();
+  await expect(page.locator(".selection-scope")).toContainText("Category: Fixture beta");
+  await expect(page.locator(".selection-scope")).toContainText("Talent: Shared child");
   await expect(page.getByRole("button", { name: /pay|checkout|purchase/i })).toHaveCount(0);
   await noOverflow(page);
   for (const group of ["alpha", "beta"]) {

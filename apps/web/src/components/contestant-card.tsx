@@ -64,12 +64,12 @@ export function ContestantCard({ contestant, heading: Heading = "h3" }: { contes
       id={`contestant-${contestant.id}`}
       aria-labelledby={`name-${contestant.id}`}
     >
-      <ContestantPortrait contestant={contestant} />
+      <Link prefetch={false} href={`/contestants/${encodeURIComponent(contestant.id)}`} aria-label={`View ${contestant.name}'s profile`}><ContestantPortrait contestant={contestant} /></Link>
       <div className="card-content">
         <div>
           <p className="eyebrow">THE LINEUP</p>
           <Heading id={`name-${contestant.id}`}><Link prefetch={false} href={`/contestants/${encodeURIComponent(contestant.id)}`}>{contestant.name}</Link></Heading>
-          <dl className="contestant-scope"><div><dt>Category</dt><dd><Link prefetch={false} href={categoryPath(contestant.category.id)}>{contestant.category.name}</Link></dd></div><div><dt>Subcategory</dt><dd><Link prefetch={false} href={categoryPath(contestant.category.id, contestant.subcategory.id)}>{contestant.subcategory.name}</Link></dd></div></dl>
+          <dl className="contestant-scope"><div><dt>Category</dt><dd><Link prefetch={false} href={categoryPath(contestant.category.id)}>{contestant.category.name}</Link></dd></div><div><dt>Talent</dt><dd><Link prefetch={false} href={categoryPath(contestant.category.id, contestant.subcategory.id)}>{contestant.subcategory.name}</Link></dd></div></dl>
         </div>
         {contestant.totalVotes !== undefined && <p className="vote-total">
           <strong>{formatVotes(contestant.totalVotes)}</strong>

@@ -59,6 +59,7 @@ async function main() {
   for (const [id, categoryId, totalVotes, isActive] of [["alpha-person", "alpha", BigInt(12), true], ["beta-person", "beta", BigInt("9007199254740993"), true], ["excluded-person", "inactive", BigInt(0), false]] as const)
     await db.contestant.create({ data: { id, competitionId: "browser-show", categoryId, subcategoryId: `${categoryId}-child`, name: `${categoryId} performer`, number: id, slug: id, totalVotes: paid ? BigInt(0) : totalVotes, isActive } });
   const votePackage = await db.votePackage.create({ data: { competitionId: "browser-show", name: "Fixture support", voteCount: 10, priceKobo: 5000 } });
+  if (paid) await db.votePackage.create({ data: { competitionId: "browser-show", name: "Fixture encore", voteCount: 20, priceKobo: 10000 } });
   const objects = new Map<string, Buffer>(), publicPrefix = "https://portraits.example.test/storage/v1/object/public/contestant-images/";
   const storage: ImageStorage = { publicUrl: key => publicPrefix + key, async upload(key, bytes) { objects.set(key, bytes); }, async remove(key) { objects.delete(key); } };
   const config = readAdminConfiguration({ NODE_ENV: "production", ADMIN_APP_ORIGIN: origin, ADMIN_CSRF_SECRET: "e".repeat(64) })!;
@@ -71,12 +72,12 @@ async function main() {
   const paidReferences = new Map<string, { id: string; paidAt: string }>(); let verifyCalls = 0;
   const providerConfig = readPaystackConfiguration({ NODE_ENV: "test", PAYSTACK_MODE: "test", PAYSTACK_SECRET_KEY: "sk_test_browserFixtureOnly", PAYSTACK_CALLBACK_URL: origin + "/payments/return" })!;
   const verifier = new PaystackVerificationClient(providerConfig, async url => { verifyCalls++; return fetch(`http://127.0.0.1:${apiPort}/__qa/provider?reference=${encodeURIComponent(String(url).split("/").pop()!)}`); });
-  const status = paid ? new PaymentStatusService(db, new PaymentFinalizationService(db, verifier)) : undefined;
+  const status = checkout ? new PaymentStatusService(db, new PaymentFinalizationService(db, verifier)) : undefined;
   const app = createApp(new PublicReadService(db, "browser-show"), initializer, new AdminAuthService(db, config), storage, undefined, status);
   let failure = false, delay = 0;
   const api = createServer((req, res) => {
     // Test-only loopback controls are outside the application and never shipped as routes.
-    if (paid && req.url?.startsWith("/__qa/provider?")) {
+    if (checkout && req.url?.startsWith("/__qa/provider?")) {
       const reference = new URL(req.url, origin).searchParams.get("reference") || "";
       void db.payment.findUnique({ where: { reference } }).then(payment => {
         res.setHeader("Content-Type", "application/json"); const record = paidReferences.get(reference);

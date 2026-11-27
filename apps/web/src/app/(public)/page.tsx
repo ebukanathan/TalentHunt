@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { getPublicShow } from "@/lib/api/public-data";
 import { CompetitionStatus } from "@/components/competition-status";
 import {
@@ -64,7 +65,7 @@ async function HomeContent() {
             ✦
           </div>
           {featured ? (
-            <div className="featured-talent">
+            <Link prefetch={false} href={`/contestants/${encodeURIComponent(featured.id)}`} className="featured-talent" aria-label={`View ${featured.name}'s profile`}>
               <ContestantPortrait contestant={featured} variant="hero" eager />
               <div className="featured-caption">
                 <span className="eyebrow">DISCOVER THE LINEUP</span>
@@ -73,7 +74,7 @@ async function HomeContent() {
                   One stage. Endless possibility.
                 </span>
               </div>
-            </div>
+            </Link>
           ) : (
             <div className="stage-placeholder" aria-hidden="true">
               <span>TH</span>

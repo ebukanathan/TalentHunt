@@ -7,7 +7,7 @@ import { publicPage } from "@/lib/public-page";
 import { Leaderboard } from "@/components/leaderboard";
 import { LeaderboardChooser } from "@/components/leaderboard-chooser";
 import { NoCompetition, PageSkeleton, UnavailableState } from "@/components/page-states";
-export const metadata = { title: "Subcategory leaderboards", description: "Choose a category and subcategory to view its independent standings.", robots: { index: false, follow: true } };
+export const metadata = { title: "Talent leaderboards", description: "Choose a category and talent to view its independent standings.", robots: { index: false, follow: true } };
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 export default function Page(props: Props) { return <Suspense fallback={<PageSkeleton kind="leaderboard"/>}><Content {...props}/></Suspense>; }
 async function Content({ searchParams }: Props) {
