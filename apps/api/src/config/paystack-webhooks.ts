@@ -13,7 +13,6 @@ export function readWebhookConfiguration(source: NodeJS.ProcessEnv): WebhookConf
     const legacy = source.PAYSTACK_ALLOW_LEGACY_SIGNATURE === "true";
     if (source.PAYSTACK_ALLOW_LEGACY_SIGNATURE && !["true", "false"].includes(source.PAYSTACK_ALLOW_LEGACY_SIGNATURE)) throw new Error();
     if (!keys.length && !legacy) throw new Error();
-    if (provider.PAYSTACK_MODE === "live" && legacy) throw new Error();
     return { keys, legacySecret: legacy ? provider.PAYSTACK_SECRET_KEY : undefined, environment: provider.PAYSTACK_MODE === "live" ? "LIVE" as const : "TEST" as const,
       maxAttempts: z.coerce.number().int().min(1).max(20).parse(source.PAYSTACK_WEBHOOK_MAX_ATTEMPTS || "8") };
   } catch { throw new Error("Invalid Paystack webhook configuration."); }

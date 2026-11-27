@@ -4,7 +4,7 @@ import { createServer } from "node:http";
 import { once } from "node:events";
 import type { AddressInfo } from "node:net";
 import { VotingDatabaseHarness, type VotingDatabase } from "./support/database";
-import { domain, NOW, purchase, invariant, verify } from "./support/fixtures";
+import { domain, NOW, purchase, invariant, verify, hash } from "./support/fixtures";
 import { authenticateWebhook } from "../../src/services/paystack-signature";
 import { readWebhookConfiguration } from "../../src/config/paystack-webhooks";
 import { PaystackWebhookIntake } from "../../src/services/paystack-webhook-intake.service";
@@ -13,10 +13,17 @@ import { PaystackVerificationClient, VerificationError } from "../../src/clients
 import { readPaystackConfiguration } from "../../src/config/paystack";
 import { createApp } from "../../src/app";
 import { PublicReadService } from "../../src/services/public.service";
+import { reserveInitialization } from "../../src/repositories/payment-initialization.repository";
+import { PaymentFinalizationService } from "../../src/services/payment-finalization.service";
+import { PaymentStatusService } from "../../src/services/payment-status.service";
 
 const env = { PAYSTACK_MODE: "test", PAYSTACK_SECRET_KEY: "sk_test_fixtureOnlyNotARealKey", PAYSTACK_CALLBACK_URL: "http://localhost:3000/",
   PAYSTACK_WEBHOOKS_ENABLED: "true", PAYSTACK_WEBHOOK_SIGNING_KEYS: JSON.stringify([{ id: "whk_fixture", secret: "whsec_" + "a".repeat(32) }]) };
 const config = readWebhookConfiguration(env)!, providerConfig = readPaystackConfiguration(env)!;
+const liveEnv = { ...env, NODE_ENV: "production", DEPLOYMENT_ENV: "production", PAYSTACK_MODE: "live",
+  PAYSTACK_SECRET_KEY: "sk_live_fixtureOnlyNotARealKey", ADMIN_APP_ORIGIN: "https://talent.apearlschools.com",
+  PAYSTACK_CALLBACK_URL: "https://talent.apearlschools.com/payments/return", PAYSTACK_LIVE_ACTIVATION_APPROVED: "true",
+  PAYSTACK_FINALIZATION_ENABLED: "true", PAYSTACK_ALLOW_LEGACY_SIGNATURE: "true", PAYSTACK_WEBHOOK_SIGNING_KEYS: "[]" };
 const sign = (body: Buffer, at = NOW, key = config.keys[0]) => {
   const t = String(Math.floor(at.getTime() / 1000));
   return `t=${t},v1=${key.id}:${createHmac("sha512", key.secret).update(t + ".").update(body).digest("hex")}`;
@@ -78,9 +85,10 @@ test("timestamp boundaries, malformed signatures and downgrade resistance", () =
   expect(authenticateWebhook(body, undefined, legacy, allowed, NOW)?.version).toBe("LEGACY");
   expect(authenticateWebhook(body, undefined, legacy + "0", allowed, NOW)).toBeNull();
 });
-test.for(["modern", "legacy", "legacy-with-unconfigured-modern"] as const)("HTTP %s authenticates exact raw bytes before JSON parsing, deduplicates and never retains private payload", async (mechanism, { ctx }) => {
-  const selected = mechanism !== "modern" ? readWebhookConfiguration({ ...env, PAYSTACK_WEBHOOK_SIGNING_KEYS: "[]", PAYSTACK_ALLOW_LEGACY_SIGNATURE: "true" })! : config;
-  const headers = (body: Buffer) => mechanism !== "modern" ? { "X-Paystack-Signature": createHmac("sha512", env.PAYSTACK_SECRET_KEY).update(body).digest("hex"), ...(mechanism === "legacy-with-unconfigured-modern" ? { "Paystack-Signature": sign(body) } : {}) } : { "Paystack-Signature": sign(body) };
+test.for(["modern", "legacy", "legacy-with-unconfigured-modern", "live-legacy", "live-legacy-with-unconfigured-modern"] as const)("HTTP %s authenticates exact raw bytes before JSON parsing, deduplicates and never retains private payload", async (mechanism, { ctx }) => {
+  const live = mechanism.startsWith("live-");
+  const selected = mechanism === "modern" ? config : readWebhookConfiguration(live ? liveEnv : { ...env, PAYSTACK_WEBHOOK_SIGNING_KEYS: "[]", PAYSTACK_ALLOW_LEGACY_SIGNATURE: "true" })!;
+  const headers = (body: Buffer) => mechanism !== "modern" ? { "X-Paystack-Signature": createHmac("sha512", selected.legacySecret!).update(body).digest("hex"), ...(mechanism.endsWith("with-unconfigured-modern") ? { "Paystack-Signature": sign(body) } : {}) } : { "Paystack-Signature": sign(body) };
   const app = createServer(createApp(new PublicReadService(ctx.db), undefined, undefined, undefined, new PaystackWebhookIntake(ctx.db, selected, () => NOW)));
   app.listen(0, "127.0.0.1"); await once(app, "listening"); const url = `http://127.0.0.1:${(app.address() as AddressInfo).port}/api/v1/webhooks/paystack`;
   const post = (body: Buffer, headers = {}) => fetch(url, { method: "POST", body: new Uint8Array(body), headers: { "Content-Type": "application/json", ...headers } });
@@ -94,12 +102,41 @@ test.for(["modern", "legacy", "legacy-with-unconfigured-modern"] as const)("HTTP
     expect((await post(changed, headers(changed))).status).toBe(200);
     expect(await ctx.db.paystackWebhookJob.count()).toBe(1);
     const row = await ctx.db.paystackWebhookJob.findFirstOrThrow(); expect(JSON.stringify(row)).not.toContain("private-fixture");
-    expect(row.status).toBe("PENDING"); expect(row.reference).toBe("fixture");
+    expect(row.status).toBe("PENDING"); expect(row.reference).toBe("fixture"); expect(row.environment).toBe(live ? "LIVE" : "TEST");
     const bad = Buffer.from("{"); expect((await post(bad, headers(bad))).status).toBe(400);
     expect((await post(Buffer.alloc(102401, 32))).status).toBe(413);
     expect((await post(body, { "Content-Encoding": "gzip" })).status).toBe(415);
     expect(await ctx.db.verifiedPayment.count()).toBe(0);
   } finally { app.closeAllConnections(); await new Promise<void>(done => app.close(() => done())); }
+});
+
+test.for([false, true])("synthetic LIVE legacy webhook independently verifies and allocates exactly once (dual header %s)", async (dual, { ctx }) => {
+  const f = await domain(ctx.db), key = randomUUID(), input = { contestantId: f.contestant.id, packageId: f.packages[0].id, email: "fixture@example.test" };
+  const reserved = await reserveInitialization(ctx.db, input, hash(key), hash(JSON.stringify([input.contestantId, input.packageId, input.email])), f.competition.slug, () => NOW, "LIVE");
+  const payment = await ctx.db.payment.update({ where: { id: reserved.initialization.payment.id }, data: { createdAt: new Date(NOW.getTime() - 60000) } });
+  const selected = readWebhookConfiguration(liveEnv)!, intake = new PaystackWebhookIntake(ctx.db, selected, () => NOW), body = event(payment.reference);
+  const legacy = createHmac("sha512", liveEnv.PAYSTACK_SECRET_KEY).update(body).digest("hex"), modern = dual ? sign(body) : undefined;
+  await Promise.all(Array.from({ length: 8 }, () => intake.accept(body, modern, legacy)));
+  const transport = vi.fn(async () => new Response(response(payment.reference, { domain: "live", paid_at: new Date(NOW.getTime() - 1000).toISOString() })));
+  const verifier = new PaystackVerificationClient(readPaystackConfiguration(liveEnv)!, transport);
+  const workers = Array.from({ length: 2 }, () => {
+    const db = ctx.client(), finalizer = new PaymentFinalizationService(db, verifier, () => NOW, "live");
+    return new PaystackWebhookWorker(db, verifier, 8, () => NOW, () => 0, finalizer, "LIVE");
+  });
+  expect((await workers[0].processNext()).outcome).toBe("AWAITING_FINALIZATION");
+  expect(await ctx.db.voteAllocation.count()).toBe(0);
+  const outcomes = await Promise.all(workers.map(worker => worker.processNext()));
+  expect(outcomes.filter(row => row.outcome === "FINALIZED")).toHaveLength(1);
+  const verified = await ctx.db.verifiedPayment.findFirstOrThrow(); expect(verified.environment).toBe("LIVE");
+  const calls = transport.mock.calls.length;
+  await Promise.all(Array.from({ length: 8 }, () => intake.accept(body, modern, legacy)));
+  expect((await workers[0].processNext()).outcome).toBe("IDLE");
+  const status = new PaymentStatusService(ctx.db, new PaymentFinalizationService(ctx.db, verifier, () => NOW, "live"));
+  const receipts = await Promise.all(Array.from({ length: 8 }, () => status.status(payment.reference, key)));
+  expect(receipts.every(row => row.state === "CONFIRMED" && row.mode === "live")).toBe(true);
+  expect(transport).toHaveBeenCalledTimes(calls); expect(await ctx.db.paystackWebhookJob.count()).toBe(1);
+  expect(await ctx.db.verifiedPayment.count()).toBe(1); expect(await ctx.db.voteAllocation.count()).toBe(1);
+  expect(await ctx.db.transactionEmail.count()).toBe(1); await invariant(ctx.db, f.contestant.id, 10n);
 });
 test("disabled webhook endpoint fails closed while public health remains available", async ({ ctx }) => {
   const app = createServer(createApp(new PublicReadService(ctx.db))); app.listen(0, "127.0.0.1"); await once(app, "listening");

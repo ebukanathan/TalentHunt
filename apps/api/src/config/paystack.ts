@@ -27,7 +27,7 @@ export function readPaystackConfiguration(source: NodeJS.ProcessEnv): PaystackCo
   if (result.data.PAYSTACK_MODE === "test" && source.DEPLOYMENT_ENV === "production") throw new Error("Test payments are not permitted in the production deployment.");
   if (result.data.PAYSTACK_MODE === "live" && (source.PAYSTACK_MODE !== "live" || source.NODE_ENV !== "production" ||
       source.DEPLOYMENT_ENV !== "production" || source.PAYSTACK_LIVE_ACTIVATION_APPROVED !== "true" ||
-      source.PAYSTACK_FINALIZATION_ENABLED !== "true" || source.PAYSTACK_WEBHOOKS_ENABLED !== "true" || source.PAYSTACK_ALLOW_LEGACY_SIGNATURE === "true" ||
+      source.PAYSTACK_FINALIZATION_ENABLED !== "true" || source.PAYSTACK_WEBHOOKS_ENABLED !== "true" ||
       !source.PAYSTACK_WEBHOOK_SIGNING_KEYS?.trim() ||
       source.ADMIN_APP_ORIGIN !== "https://talent.apearlschools.com" ||
       result.data.PAYSTACK_CALLBACK_URL !== "https://talent.apearlschools.com/payments/return")) {
