@@ -51,6 +51,22 @@ def digest_file(file):
         h.update(block)
     return h.hexdigest()
 
+def runtime_tarinfo(tar, file, relative, epoch):
+    info = tar.gettarinfo(str(file), arcname=str(relative))
+    # Npm may hard-link identical dependency files. Materialize their contents so
+    # every regular file has its own checksum-verified payload in the archive.
+    if info.islnk():
+        assert file.is_file() and not file.is_symlink()
+        info.type = tarfile.REGTYPE
+        info.linkname = ''
+        info.size = file.stat().st_size
+    info.uid = info.gid = 0
+    info.uname = info.gname = ''
+    info.mtime = epoch
+    info.pax_headers = {}
+    info.mode = 0o755 if info.isdir() or (file.stat().st_mode & 0o111) else 0o644
+    return info
+
 entries = set()
 for root in roots:
     p = source / root
@@ -95,12 +111,7 @@ archive = output / ('talenthunt-' + APPROVED + '-linux-x64.tar.gz')
 with archive.open('wb') as raw, gzip.GzipFile(filename='', fileobj=raw, mode='wb', mtime=0) as zipped, tarfile.open(fileobj=zipped, mode='w', format=tarfile.PAX_FORMAT) as tar:
     for rel in sorted(entries):
         p = source / rel
-        info = tar.gettarinfo(str(p), arcname=str(rel))
-        info.uid = info.gid = 0
-        info.uname = info.gname = ''
-        info.mtime = epoch
-        info.pax_headers = {}
-        info.mode = 0o755 if info.isdir() or (p.stat().st_mode & 0o111) else 0o644
+        info = runtime_tarinfo(tar, p, rel, epoch)
         if info.isfile():
             with p.open('rb') as f:
                 tar.addfile(info, f)
