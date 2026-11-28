@@ -8,10 +8,11 @@ const prod = { NODE_ENV: "production", DEPLOYMENT_ENV: "production", PAYSTACK_MO
   PAYSTACK_LIVE_ACTIVATION_APPROVED: "true", ADMIN_APP_ORIGIN: "https://talent.apearlschools.com", PAYSTACK_CALLBACK_URL: "https://talent.apearlschools.com/payments/return" };
 test("live capability is fail-closed without every explicit production approval and matching key/origin", () => {
   for (const patch of [{ PAYSTACK_LIVE_ACTIVATION_APPROVED: "" }, { NODE_ENV: "test" }, { DEPLOYMENT_ENV: "staging" },
-    { PAYSTACK_FINALIZATION_ENABLED: "false" }, { PAYSTACK_WEBHOOKS_ENABLED: "false" }, { PAYSTACK_WEBHOOK_SIGNING_KEYS: "" }, { PAYSTACK_ALLOW_LEGACY_SIGNATURE: "true" },
+    { PAYSTACK_FINALIZATION_ENABLED: "false" }, { PAYSTACK_WEBHOOKS_ENABLED: "false" }, { PAYSTACK_WEBHOOK_SIGNING_KEYS: "" },
     { PAYSTACK_SECRET_KEY: "sk_test_fixtureOnly" }, { PAYSTACK_CALLBACK_URL: "https://staging-talent.apearlschools.com/payments/return" }, { ADMIN_APP_ORIGIN: "https://elsewhere.example" }])
     assert.throws(() => readPaystackConfiguration({ ...prod, ...patch }));
   assert.equal(readPaystackConfiguration(prod)?.PAYSTACK_MODE, "live");
+  assert.equal(readPaystackConfiguration({ ...prod, PAYSTACK_ALLOW_LEGACY_SIGNATURE: "true" })?.PAYSTACK_MODE, "live");
   assert.throws(() => readPaystackConfiguration({ ...prod, PAYSTACK_MODE: "test", PAYSTACK_SECRET_KEY: "sk_test_fixtureOnly" }));
 });
 test("live finalization cannot use a local fixture or an unapproved database", () => {
