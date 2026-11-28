@@ -31,7 +31,16 @@ private_key = re.compile(rb'-----BEGIN (?:[A-Z ]+ )?PRIVATE KEY-----\s+[A-Za-z0-
 live_key = re.compile(rb'\bsk_live_[A-Za-z0-9]{20,}\b')
 
 def allowed(rel):
-    return (not any(p in excluded_parts for p in rel.parts)
+    parts = rel.parts
+    # A package name such as @playwright/test is not a test-fixture directory.
+    # Apply dependency fixture exclusions below the package root.
+    fixture_parts = parts
+    if 'node_modules' in parts:
+        index = len(parts) - 1 - tuple(reversed(parts)).index('node_modules')
+        start = index + (3 if len(parts) > index + 1 and parts[index + 1].startswith('@') else 2)
+        fixture_parts = parts[start:]
+    return (not any(p in {'.git', '.secrets', 'artifacts', 'backups'} for p in parts)
+            and not any(p in excluded_parts for p in fixture_parts)
             and not rel.name.startswith('.env') and rel.name not in excluded_names
             and rel.suffix.lower() not in excluded_suffixes
             and not str(rel).startswith('apps/web/.next/cache/'))
