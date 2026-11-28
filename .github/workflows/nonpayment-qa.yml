@@ -1,24 +1,17 @@
-name: Non-payment QA
-
+name: TalentHunt frozen production artifact
+# Manual tooling on the isolated CI branch; application checkouts stay frozen.
 on:
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main]
   workflow_dispatch:
-
 permissions:
   contents: read
-
 concurrency:
-  group: nonpayment-qa-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
+  group: production-artifact-26f6f511-${{ github.ref }}
+  cancel-in-progress: false
 jobs:
-  regression:
-    name: Non-payment integration and regression
+  build:
+    name: Validate and package frozen Linux x64 release
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 60
     services:
       postgres:
         image: postgres:18
@@ -32,40 +25,89 @@ jobs:
           --health-cmd "pg_isready -U postgres -d talenthunt_qa_admin"
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
+      APPROVED_SOURCE_SHA: 26f6f5119f3424f484f962c98d10af0de8be9773
       NODE_ENV: test
       DATABASE_URL: postgresql://postgres:qa-disposable-only@127.0.0.1:5432/talenthunt_qa_admin
       QA_TEST_DATABASE_URL: postgresql://postgres:qa-disposable-only@127.0.0.1:5432/talenthunt_qa_admin
       QA_DISPOSABLE_DATABASES: "1"
+      NEXT_TELEMETRY_DISABLED: "1"
       PAYSTACK_MODE: ""
       PAYSTACK_SECRET_KEY: ""
       SUPABASE_URL: ""
       SUPABASE_SECRET_KEY: ""
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Checkout build tooling
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
+          ref: ${{ github.sha }}
+          path: tooling
+          fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+      - name: Checkout exact approved application for validation
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          node-version: "24"
-          cache: npm
-      - run: npm ci
-      - name: Install Chromium test dependencies
-        run: npm exec --workspace apps/web -- playwright install --with-deps chromium
-      - name: Run the complete non-payment gate
-        run: npm run qa:nonpayment
-      - name: Record dependency advisories
-        if: always()
-        # Runtime fixes are regression-tested above. Remaining Prisma/lint
-        # tooling findings need separate compatibility review, not audit fix --force.
-        continue-on-error: true
+          ref: 26f6f5119f3424f484f962c98d10af0de8be9773
+          path: validation
+          persist-credentials: false
+      - name: Install pinned Node runtime
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.22.3
+          check-latest: false
+      - name: Assert source runtime and tooling-only diff
+        shell: bash
         run: |
-          mkdir -p artifacts/qa
-          npm audit --json > artifacts/qa/dependency-audit.json
-      - name: Retain QA diagnostics and browser failure traces
-        if: always()
+          set -euo pipefail
+          test "$(uname -m)" = x86_64
+          test "$(node --version)" = v24.22.3
+          test "$(git -C validation rev-parse HEAD)" = "$APPROVED_SOURCE_SHA"
+          git -C tooling diff --name-only "$APPROVED_SOURCE_SHA" HEAD > "$RUNNER_TEMP/tooling-diff.txt"
+          test -s "$RUNNER_TEMP/tooling-diff.txt"
+          if grep -Ev '^\.github/(workflows/nonpayment-qa\.yml|scripts/(build-frozen-release\.sh|package-frozen-release\.py))$' "$RUNNER_TEMP/tooling-diff.txt"; then
+            echo 'Tooling branch contains an application change.' >&2
+            exit 1
+          fi
+      - name: Install locked validation dependencies
+        working-directory: validation
+        run: |
+          npm ci --include=dev --no-audit --no-fund
+          npx --no-install prisma validate
+          npx --no-install prisma generate
+      - name: Install Chromium for existing automated UI tests
+        working-directory: validation
+        run: npm exec --workspace apps/web -- playwright install --with-deps chromium
+      - name: Run complete existing validation integration and browser gate
+        working-directory: validation
+        run: npm run qa:nonpayment
+      - name: Run existing Paystack security and finalization regressions
+        working-directory: validation
+        run: |
+          npm run qa:nonpayment -- paystack
+          npm run qa:nonpayment -- finalization
+      - name: Checkout fresh exact application source for release
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: 26f6f5119f3424f484f962c98d10af0de8be9773
+          path: release-source
+          persist-credentials: false
+      - name: Build and package without private configuration
+        shell: bash
+        run: bash tooling/.github/scripts/build-frozen-release.sh "$GITHUB_WORKSPACE/release-source" "$GITHUB_WORKSPACE/release-output" "$GITHUB_WORKSPACE/tooling/.github/scripts/package-frozen-release.py"
+      - name: Upload immutable versioned deployment artifact
+        id: upload
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
-          name: nonpayment-qa-${{ github.run_id }}
-          path: artifacts/qa/
-          if-no-files-found: warn
-          retention-days: 7
+          name: talenthunt-26f6f5119f3424f484f962c98d10af0de8be9773-linux-x64-${{ github.run_id }}-${{ github.run_attempt }}
+          path: release-output/
+          if-no-files-found: error
+          overwrite: false
+          compression-level: 0
+          retention-days: 30
+      - name: Record artifact identity
+        env:
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+          ARTIFACT_DIGEST: ${{ steps.upload.outputs.artifact-digest }}
+          ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
+        run: |
+          printf 'Source: `%s`\n\nTooling: `%s`\n\nArtifact ID: `%s`\n\nGitHub digest: `%s`\n\nArtifact: %s\n\n' "$APPROVED_SOURCE_SHA" "$GITHUB_SHA" "$ARTIFACT_ID" "$ARTIFACT_DIGEST" "$ARTIFACT_URL" >> "$GITHUB_STEP_SUMMARY"
+          cat release-output/SHA256SUMS >> "$GITHUB_STEP_SUMMARY"
